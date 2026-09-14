@@ -75,7 +75,10 @@
     max-width: var(--hp-heading-width);
     font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
     font-weight: var(--font-heading-weight, 700);
-    font-size: calc(clamp(34px, 5.2vw, 72px) * var(--hp-heading-scale));
+    font-size: calc(
+      clamp(calc(var(--hp-heading-size) * 0.48), 5.2vw, var(--hp-heading-size))
+      * var(--hp-heading-scale)
+    );
     line-height: 1.08;
     letter-spacing: -0.01em;
     color: var(--hp-ink);
@@ -219,6 +222,7 @@
     --hp-pill-border: {{ s.pill_border_color }};
     --hp-width: {{ s.content_width }}px;
     --hp-card-scale: {{ s.card_scale | divided_by: 100.0 }};
+    --hp-heading-size: {{ s.heading_size }}px;
     --hp-heading-width: {{ s.heading_width }}ch;
     --hp-pt: {{ s.padding_top }}px;
     --hp-pb: {{ s.padding_bottom }}px;
@@ -301,6 +305,17 @@
       "id": "heading",
       "label": "Heading",
       "default": "They resist tissues and wipe on their sleeves."
+    },
+    {
+      "type": "range",
+      "id": "heading_size",
+      "label": "Heading size",
+      "unit": "px",
+      "min": 28,
+      "max": 88,
+      "step": 2,
+      "default": 56,
+      "info": "Desktop size. Mobile scales down with it automatically."
     },
     {
       "type": "range",

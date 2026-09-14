@@ -106,6 +106,7 @@
     /* Organic, deliberately lopsided — not a circle, not a rounded box. Each
        edge's radius pair sums to 100% so the browser never scales them back. */
     border-radius: 60% 40% 52% 48% / 48% 56% 44% 52%;
+    box-shadow: 0 18px 44px -20px rgba(47, 51, 38, var(--hp-shadow));
     padding:
       calc(clamp(36px, 3.6vw, 54px) * var(--hp-card-scale))
       15%
@@ -122,7 +123,7 @@
 
   /* --- Circular image ---------------------------------------------------- */
   .hp-problem__media {
-    width: calc(clamp(120px, 54%, 250px) * var(--hp-card-scale));
+    width: calc(clamp(120px, var(--hp-image-size), 340px) * var(--hp-card-scale));
     aspect-ratio: 1 / 1;
     border-radius: 50%;
     overflow: hidden;
@@ -207,7 +208,7 @@
     }
 
     .hp-problem__media {
-      width: calc(min(190px, 46%) * var(--hp-card-scale));
+      width: calc(min(210px, var(--hp-image-size)) * var(--hp-card-scale));
     }
   }
 {% endstyle %}
@@ -223,6 +224,8 @@
     --hp-width: {{ s.content_width }}px;
     --hp-card-scale: {{ s.card_scale | divided_by: 100.0 }};
     --hp-heading-size: {{ s.heading_size }}px;
+    --hp-image-size: {{ s.image_size }}%;
+    --hp-shadow: {{ s.shadow_strength | divided_by: 200.0 }};
     --hp-heading-width: {{ s.heading_width }}ch;
     --hp-pt: {{ s.padding_top }}px;
     --hp-pb: {{ s.padding_bottom }}px;
@@ -338,6 +341,28 @@
       "max": 1800,
       "step": 20,
       "default": 1500
+    },
+    {
+      "type": "range",
+      "id": "image_size",
+      "label": "Image size",
+      "unit": "%",
+      "min": 40,
+      "max": 85,
+      "step": 1,
+      "default": 64,
+      "info": "Share of the blob's inner width. 64% matches the Webflow reference."
+    },
+    {
+      "type": "range",
+      "id": "shadow_strength",
+      "label": "Blob shadow",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "default": 40,
+      "info": "0 removes the shadow entirely."
     },
     {
       "type": "range",

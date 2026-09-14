@@ -1,0 +1,480 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — "The problem" blob cards
+  ---------------------------------------------------------------------------
+  An eyebrow pill, a display heading, and three organic blob cards.
+
+  Typography and page width resolve to the THEME's own custom properties first
+  (--font-heading-family, --font-body-family, --font-heading-weight). The
+  fallbacks after each var() are the Totterful brand sheet's own faces, so the
+  section still reads correctly if a theme does not publish those properties.
+
+  Every selector is prefixed .hp-problem, and every per-instance value arrives
+  as an inline custom property, so nothing here can reach another section.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+-%}
+
+{% style %}
+  /* Sizes are in px on purpose. Dawn sets html { font-size: 62.5% }, so 1rem is
+     10px there and every rem-based size renders at 62.5% of its intended value.
+     px is immune to that. The theme's own type sliders still reach this section
+     through --font-body-scale / --font-heading-scale below. */
+  .hp-problem {
+    --hp-body-scale: var(--font-body-scale, 1);
+    --hp-heading-scale: var(--font-heading-scale, 1);
+    background: var(--hp-bg);
+    padding-block: var(--hp-pt) var(--hp-pb);
+  }
+
+  .hp-problem__inner {
+    max-width: var(--hp-width);
+    margin-inline: auto;
+    padding-inline: clamp(16px, 3.5vw, 48px);
+  }
+
+  /* --- Eyebrow pill ------------------------------------------------------ */
+  .hp-problem__pill {
+    display: flex;
+    justify-content: center;
+    margin: 0 0 clamp(24px, 2.8vw, 40px);
+  }
+
+  .hp-problem__pill-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6em;
+    padding: 0.7em 1.4em;
+    border: 1px solid var(--hp-pill-border);
+    border-radius: 999px;
+    background: var(--hp-pill-bg);
+    box-shadow: 0 2px 8px rgba(47, 51, 38, 0.06);
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(clamp(12px, 0.95vw, 14px) * var(--hp-heading-scale));
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--hp-ink);
+    line-height: 1;
+  }
+
+  .hp-problem__dot {
+    width: 0.55em;
+    height: 0.55em;
+    border-radius: 50%;
+    background: var(--hp-dot);
+    flex: none;
+  }
+
+  /* --- Heading ----------------------------------------------------------- */
+  .hp-problem__heading {
+    margin: 0 auto;
+    max-width: var(--hp-heading-width);
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(clamp(34px, 5.2vw, 72px) * var(--hp-heading-scale));
+    line-height: 1.08;
+    letter-spacing: -0.01em;
+    color: var(--hp-ink);
+    text-align: center;
+  }
+
+  /* --- Blob grid --------------------------------------------------------- */
+  .hp-problem__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(16px, 2vw, 34px);
+    margin-block-start: clamp(40px, 5vw, 76px);
+    list-style: none;
+    padding: 0;
+  }
+
+  .hp-problem__card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: var(--hp-card-bg);
+    color: var(--hp-card-ink);
+    /* Organic, deliberately lopsided — not a circle, not a rounded box. Each
+       edge's radius pair sums to 100% so the browser never scales them back. */
+    border-radius: 60% 40% 52% 48% / 48% 56% 44% 52%;
+    padding:
+      calc(clamp(36px, 3.6vw, 54px) * var(--hp-card-scale))
+      15%
+      calc(clamp(40px, 4vw, 60px) * var(--hp-card-scale));
+  }
+
+  .hp-problem__card:nth-child(3n + 2) {
+    border-radius: 42% 58% 46% 54% / 56% 44% 56% 44%;
+  }
+
+  .hp-problem__card:nth-child(3n) {
+    border-radius: 52% 48% 62% 38% / 44% 58% 42% 56%;
+  }
+
+  /* --- Circular image ---------------------------------------------------- */
+  .hp-problem__media {
+    width: calc(clamp(120px, 54%, 250px) * var(--hp-card-scale));
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    overflow: hidden;
+    background: rgba(252, 251, 246, 0.55);
+    margin-block-end: calc(clamp(20px, 2vw, 32px) * var(--hp-card-scale));
+    flex: none;
+  }
+
+  .hp-problem__media > img,
+  .hp-problem__media > svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .hp-problem__media > svg {
+    fill: rgba(47, 51, 38, 0.18);
+    background: rgba(252, 251, 246, 0.7);
+  }
+
+  /* --- Card copy --------------------------------------------------------- */
+  .hp-problem__title {
+    margin: 0 0 0.6em;
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(clamp(18px, 1.65vw, 26px) * var(--hp-heading-scale) * var(--hp-card-scale));
+    line-height: 1.2;
+    letter-spacing: -0.005em;
+    color: inherit;
+    text-wrap: balance;
+  }
+
+  .hp-problem__body {
+    margin: 0;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-size: calc(clamp(15px, 1.2vw, 18px) * var(--hp-body-scale) * var(--hp-card-scale));
+    line-height: 1.5;
+    color: inherit;
+  }
+
+  .hp-problem__body > p {
+    margin: 0;
+  }
+
+  .hp-problem__body > p + p {
+    margin-block-start: 0.75em;
+  }
+
+  /* --- Tablet: 2 up, third centred beneath ------------------------------- */
+  @media screen and (max-width: 1199px) and (min-width: 750px) {
+    .hp-problem__grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .hp-problem__card:last-child:nth-child(odd) {
+      grid-column: 1 / -1;
+      width: min(100%, 440px);
+      margin-inline: auto;
+    }
+
+    .hp-problem__card {
+      padding-inline: 13%;
+    }
+  }
+
+  /* --- Mobile: stacked --------------------------------------------------- */
+  @media screen and (max-width: 749px) {
+    .hp-problem {
+      padding-block: var(--hp-pt-mobile) var(--hp-pb-mobile);
+    }
+
+    .hp-problem__grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: clamp(24px, 5vw, 36px);
+    }
+
+    .hp-problem__card {
+      width: min(100%, 400px);
+      margin-inline: auto;
+      padding: calc(44px * var(--hp-card-scale)) 14% calc(48px * var(--hp-card-scale));
+    }
+
+    .hp-problem__media {
+      width: calc(min(190px, 46%) * var(--hp-card-scale));
+    }
+  }
+{% endstyle %}
+
+<section
+  class="hp-problem"
+  style="
+    --hp-bg: {{ s.background }};
+    --hp-ink: {{ s.heading_color }};
+    --hp-dot: {{ s.pill_dot_color }};
+    --hp-pill-bg: {{ s.pill_background }};
+    --hp-pill-border: {{ s.pill_border_color }};
+    --hp-width: {{ s.content_width }}px;
+    --hp-card-scale: {{ s.card_scale | divided_by: 100.0 }};
+    --hp-heading-width: {{ s.heading_width }}ch;
+    --hp-pt: {{ s.padding_top }}px;
+    --hp-pb: {{ s.padding_bottom }}px;
+    --hp-pt-mobile: {{ s.padding_top_mobile }}px;
+    --hp-pb-mobile: {{ s.padding_bottom_mobile }}px;
+  "
+>
+  <div class="hp-problem__inner">
+    {%- if s.eyebrow != blank -%}
+      <p class="hp-problem__pill">
+        <span class="hp-problem__pill-inner">
+          <span class="hp-problem__dot" aria-hidden="true"></span>
+          {{ s.eyebrow | escape }}
+        </span>
+      </p>
+    {%- endif -%}
+
+    {%- if s.heading != blank -%}
+      <h2 class="hp-problem__heading">{{ s.heading | escape }}</h2>
+    {%- endif -%}
+
+    {%- if section.blocks.size > 0 -%}
+      <ul class="hp-problem__grid" role="list">
+        {%- for block in section.blocks -%}
+          {%- liquid
+            assign alt = block.settings.image_alt | default: block.settings.image.alt
+          -%}
+          <li
+            class="hp-problem__card"
+            style="--hp-card-bg: {{ block.settings.background }}; --hp-card-ink: {{ block.settings.text_color }};"
+            {{ block.shopify_attributes }}
+          >
+            <div class="hp-problem__media">
+              {%- if block.settings.image != blank -%}
+                {{
+                  block.settings.image
+                  | image_url: width: 640
+                  | image_tag:
+                    loading: 'lazy',
+                    widths: '180, 240, 320, 440, 640',
+                    sizes: '(min-width: 1100px) 240px, (min-width: 750px) 220px, 180px',
+                    alt: alt
+                }}
+              {%- else -%}
+                {{ 'image' | placeholder_svg_tag }}
+              {%- endif -%}
+            </div>
+
+            {%- if block.settings.title != blank -%}
+              <h3 class="hp-problem__title">{{ block.settings.title | escape }}</h3>
+            {%- endif -%}
+
+            {%- if block.settings.body != blank -%}
+              <div class="hp-problem__body">{{ block.settings.body }}</div>
+            {%- endif -%}
+          </li>
+        {%- endfor -%}
+      </ul>
+    {%- endif -%}
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "Problem blobs",
+  "tag": "div",
+  "class": "hp-problem-section",
+  "max_blocks": 3,
+  "settings": [
+    { "type": "header", "content": "Content" },
+    {
+      "type": "text",
+      "id": "eyebrow",
+      "label": "Eyebrow label",
+      "default": "The problem",
+      "info": "Displayed in uppercase."
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "They resist tissues and wipe on their sleeves."
+    },
+    {
+      "type": "range",
+      "id": "heading_width",
+      "label": "Heading line length",
+      "unit": "ch",
+      "min": 12,
+      "max": 30,
+      "step": 1,
+      "default": 26,
+      "info": "Lower numbers force the heading onto more lines."
+    },
+    { "type": "header", "content": "Layout" },
+    {
+      "type": "range",
+      "id": "content_width",
+      "label": "Maximum content width",
+      "unit": "px",
+      "min": 1000,
+      "max": 1800,
+      "step": 20,
+      "default": 1500
+    },
+    {
+      "type": "range",
+      "id": "card_scale",
+      "label": "Card content size",
+      "unit": "%",
+      "min": 80,
+      "max": 150,
+      "step": 5,
+      "default": 100,
+      "info": "Scales the photo, text and padding inside each blob. Raising it makes the blobs taller and more substantial."
+    },
+    { "type": "header", "content": "Colors" },
+    {
+      "type": "color",
+      "id": "background",
+      "label": "Section background",
+      "default": "#FCFBF6"
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "label": "Heading and eyebrow text",
+      "default": "#2F3326"
+    },
+    {
+      "type": "color",
+      "id": "pill_background",
+      "label": "Eyebrow pill background",
+      "default": "#FCFBF6"
+    },
+    {
+      "type": "color",
+      "id": "pill_border_color",
+      "label": "Eyebrow pill outline",
+      "default": "#ECA883"
+    },
+    {
+      "type": "color",
+      "id": "pill_dot_color",
+      "label": "Eyebrow dot",
+      "default": "#B5C99A"
+    },
+    { "type": "header", "content": "Spacing" },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "label": "Top padding (desktop)",
+      "unit": "px",
+      "min": 0,
+      "max": 180,
+      "step": 4,
+      "default": 96
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "label": "Bottom padding (desktop)",
+      "unit": "px",
+      "min": 0,
+      "max": 180,
+      "step": 4,
+      "default": 96
+    },
+    {
+      "type": "range",
+      "id": "padding_top_mobile",
+      "label": "Top padding (mobile)",
+      "unit": "px",
+      "min": 0,
+      "max": 140,
+      "step": 4,
+      "default": 60
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom_mobile",
+      "label": "Bottom padding (mobile)",
+      "unit": "px",
+      "min": 0,
+      "max": 140,
+      "step": 4,
+      "default": 60
+    }
+  ],
+  "blocks": [
+    {
+      "type": "card",
+      "name": "Problem card",
+      "settings": [
+        { "type": "image_picker", "id": "image", "label": "Image" },
+        {
+          "type": "text",
+          "id": "image_alt",
+          "label": "Image alt text",
+          "info": "Describes the image for screen readers. Leave blank to use the alt text saved on the image in Content > Files."
+        },
+        { "type": "text", "id": "title", "label": "Title", "default": "Problem title" },
+        {
+          "type": "richtext",
+          "id": "body",
+          "label": "Body",
+          "default": "<p>Describe the problem in a sentence or two.</p>"
+        },
+        {
+          "type": "color",
+          "id": "background",
+          "label": "Blob color",
+          "default": "#CFE1B9"
+        },
+        {
+          "type": "color",
+          "id": "text_color",
+          "label": "Text color",
+          "default": "#2F3326"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Problem blobs",
+      "blocks": [
+        {
+          "type": "card",
+          "settings": {
+            "title": "Constant tissue hunting",
+            "body": "<p>Running to find a tissue mid-errand is its own sport. And they’re never in the right pocket when it counts.</p>",
+            "background": "#CFE1B9",
+            "text_color": "#2F3326"
+          }
+        },
+        {
+          "type": "card",
+          "settings": {
+            "title": "Sleeves become the backup plan",
+            "body": "<p>Every parent knows the look. A sniffle, a quick glance around, and then — straight to the sleeve. Every time.</p>",
+            "background": "#ECA883",
+            "text_color": "#2F3326"
+          }
+        },
+        {
+          "type": "card",
+          "settings": {
+            "title": "Toddlers want to do it themselves",
+            "body": "<p>They’re learning independence in every other way. Nose wipes should be no different — they just need the right tool.</p>",
+            "background": "#F7DDCD",
+            "text_color": "#2F3326"
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

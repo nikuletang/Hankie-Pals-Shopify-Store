@@ -13,7 +13,7 @@ anything moving.
 | File | Shows up in the editor as | What it is |
 | --- | --- | --- |
 | [`sections/problem-cards.liquid`](sections/problem-cards.liquid) | **Problem blobs** | Eyebrow pill, display heading, three organic blob cards |
-| [`sections/pals-picker.liquid`](sections/pals-picker.liquid) | **Meet the Pals** | Character picker: choosing a Pal swaps the photo, tint and copy |
+| [`sections/pals-picker.liquid`](sections/pals-picker.liquid) | **Meet the Pals** | Character picker: choosing a Pal swaps the photo, tint, copy and buy button |
 
 Click a filename above, then use the **copy icon** in the toolbar over the code
 to take the whole file.
@@ -62,6 +62,28 @@ re-tinted per page without touching global styles.
   reordered and removed.
 - No JavaScript unless the interaction genuinely needs it.
 - Check every section at desktop, tablet and mobile before committing.
+
+## Meet the Pals: one product, one variant per character
+
+The section takes a single product. Each Pal block finds its own variant by
+matching the Pal's **name** against the variant's option value, so naming the
+variants after the characters is the whole setup — no variant IDs to paste. A
+block only needs the *Variant name* override when the variant is spelled
+differently from the display name.
+
+Consequences worth knowing:
+
+- Sold-out state is per variant, so a Pal greys out on its own when it runs out.
+- Adding two Pals is two lines of the same product, which is what makes
+  collecting work.
+- With no product attached, or no matching variant, each Pal falls back to its
+  own link — which is how the section works before launch, pointed at the
+  waitlist.
+
+The buy button posts to the cart and opens the theme's cart drawer without
+leaving the page. If the theme has no `cart-drawer`, or JavaScript is off, the
+form submits normally and lands on the cart page. Nothing is conditional on the
+script running.
 
 ## Brand tokens
 

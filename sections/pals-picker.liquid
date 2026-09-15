@@ -2,15 +2,20 @@
   ---------------------------------------------------------------------------
   Totterful / Hankie Pals — "Meet the Pals" character picker
   ---------------------------------------------------------------------------
-  A row of characters; picking one swaps the photo, the blob tint and the copy.
+  A row of characters; picking one swaps the photo, tint, copy and buy button.
 
-  The picker is a radio group, so the switching is CSS only — no script needed
-  for it to work, arrow keys move between Pals natively, and a screen reader
-  announces it as the radio group it is. The only JS is an editor-only listener
-  so selecting a Pal block in the theme editor opens that Pal's panel.
+  ONE product, one variant per Pal. The product is chosen once on the section;
+  each Pal block finds its own variant by matching the Pal's name against the
+  variant's option value, so naming the variants after the characters is all the
+  wiring there is. A Pal with no matching variant falls back to its link, which
+  is what makes this work before the product exists.
+
+  The picker is a radio group, so switching is CSS only. Because a panel is
+  display:none until its radio is checked, the entrance animation restarts every
+  time you pick a Pal without a line of script.
 
   Sizes are px: Dawn's root font-size is 62.5%, so rem renders at 62.5% of its
-  intended value. The theme's type sliders come through --font-body-scale and
+  intended value. Theme type sliders arrive via --font-body-scale and
   --font-heading-scale instead.
 
   Every selector is prefixed .hp-pals and every per-instance value arrives as an
@@ -20,17 +25,47 @@
 
 {%- liquid
   assign s = section.settings
+  assign pal_product = s.product
 -%}
 
 {% style %}
   .hp-pals {
     --hp-body-scale: var(--font-body-scale, 1);
     --hp-heading-scale: var(--font-heading-scale, 1);
+    position: relative;
+    isolation: isolate;
     background: var(--hp-bg);
     padding-block: var(--hp-pt) var(--hp-pb);
   }
 
+  /* --- Optional background pattern, with a veil so copy stays readable --- */
+  .hp-pals__bg,
+  .hp-pals__veil {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .hp-pals__bg {
+    z-index: -2;
+    background-position: center;
+    background-repeat: repeat;
+    background-size: var(--hp-tile-size) auto;
+  }
+
+  .hp-pals--cover .hp-pals__bg {
+    background-repeat: no-repeat;
+    background-size: cover;
+  }
+
+  .hp-pals__veil {
+    z-index: -1;
+    background: var(--hp-bg);
+    opacity: var(--hp-veil);
+  }
+
   .hp-pals__inner {
+    position: relative;
     max-width: var(--hp-width);
     margin-inline: auto;
     padding-inline: clamp(16px, 3.5vw, 48px);
@@ -97,7 +132,7 @@
   .hp-pals__intro > p { margin: 0; }
   .hp-pals__intro > p + p { margin-block-start: 0.6em; }
 
-  /* --- The radios themselves: off-screen but still focusable ------------- */
+  /* --- The radios: off-screen but still focusable ------------------------ */
   .hp-pals__radio {
     position: absolute;
     width: 1px;
@@ -138,8 +173,8 @@
     border-radius: 50%;
     overflow: hidden;
     background: var(--hp-pal-tint);
-    box-shadow: 0 0 0 0 var(--hp-pal-tint), 0 6px 16px -8px rgba(47, 51, 38, 0.4);
-    transition: box-shadow 180ms ease;
+    box-shadow: 0 6px 16px -8px rgba(47, 51, 38, 0.4);
+    transition: box-shadow 180ms ease, transform 180ms ease;
   }
 
   .hp-pals__chip-face > img,
@@ -167,17 +202,21 @@
   /* --- Stage ------------------------------------------------------------- */
   .hp-pals__stage { margin-block-start: clamp(32px, 4vw, 60px); }
 
+  /* fr tracks, not auto: the photo's own width is a percentage, and a
+     percentage inside a content-sized track collapses both columns. */
   .hp-pals__panel {
     display: none;
-    grid-template-columns: minmax(0, auto) minmax(0, 48ch);
-    justify-content: center;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
     align-items: center;
     gap: clamp(28px, 4vw, 72px);
+    max-width: min(100%, 1060px);
+    margin-inline: auto;
   }
 
   .hp-pals__photo {
     position: relative;
     width: min(100%, var(--hp-photo-size));
+    margin-inline-start: auto;
     aspect-ratio: 1 / 1;
     background: var(--hp-pal-tint);
     border-radius: 58% 42% 51% 49% / 47% 55% 45% 53%;
@@ -198,6 +237,7 @@
     background: transparent;
   }
 
+  /* --- Copy column ------------------------------------------------------- */
   .hp-pals__name {
     margin: 0;
     font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
@@ -209,7 +249,7 @@
   }
 
   .hp-pals__trait {
-    margin: clamp(10px, 1vw, 16px) 0 0;
+    margin: clamp(8px, 0.8vw, 14px) 0 0;
     font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
     font-weight: 600;
     font-size: calc(clamp(17px, 1.5vw, 23px) * var(--hp-body-scale));
@@ -217,9 +257,25 @@
     color: var(--hp-accent-ink);
   }
 
+  /* The Pal talking. Tail on the lower left, so it reads as speech. */
+  .hp-pals__quote {
+    position: relative;
+    display: inline-block;
+    margin: clamp(16px, 1.6vw, 24px) 0 0;
+    padding: 15px 24px;
+    max-width: 38ch;
+    background: var(--hp-pal-tint);
+    border-radius: 24px 24px 24px 6px;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-weight: 500;
+    font-size: calc(clamp(16px, 1.3vw, 20px) * var(--hp-body-scale));
+    line-height: 1.45;
+    color: var(--hp-ink);
+  }
+
   .hp-pals__body {
     margin: clamp(14px, 1.4vw, 22px) 0 0;
-    max-width: 44ch;
+    max-width: 46ch;
     font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
     font-size: calc(clamp(15px, 1.2vw, 18px) * var(--hp-body-scale));
     line-height: 1.55;
@@ -229,10 +285,21 @@
   .hp-pals__body > p { margin: 0; }
   .hp-pals__body > p + p { margin-block-start: 0.7em; }
 
+  /* --- Actions ----------------------------------------------------------- */
+  .hp-pals__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px 22px;
+    margin-block-start: clamp(20px, 2vw, 30px);
+  }
+
+  .hp-pals__form { margin: 0; }
+
   .hp-pals__button {
     display: inline-block;
-    margin-block-start: clamp(20px, 2vw, 30px);
     padding: 15px 34px;
+    border: 0;
     border-radius: 999px;
     background: var(--hp-btn-bg);
     color: var(--hp-btn-ink);
@@ -241,12 +308,44 @@
     font-size: calc(clamp(15px, 1.1vw, 17px) * var(--hp-heading-scale));
     line-height: 1;
     text-decoration: none;
+    cursor: pointer;
     transition: transform 160ms ease, filter 160ms ease;
   }
 
   .hp-pals__button:hover {
     transform: translateY(-2px);
     filter: brightness(0.96);
+  }
+
+  .hp-pals__button[disabled],
+  .hp-pals__button[aria-busy="true"] {
+    cursor: not-allowed;
+  }
+
+  .hp-pals__button[disabled] {
+    background: var(--hp-pal-tint);
+    color: var(--hp-muted);
+  }
+
+  .hp-pals__button[disabled]:hover,
+  .hp-pals__button[aria-busy="true"]:hover {
+    transform: none;
+    filter: none;
+  }
+
+  .hp-pals__button[aria-busy="true"] { opacity: 0.75; }
+
+  .hp-pals__price {
+    font-weight: 400;
+    opacity: 0.85;
+  }
+
+  .hp-pals__link {
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-weight: 600;
+    font-size: calc(clamp(15px, 1.1vw, 17px) * var(--hp-body-scale));
+    color: var(--hp-ink);
+    text-underline-offset: 4px;
   }
 
   /* --- Closing line ------------------------------------------------------ */
@@ -265,7 +364,44 @@
     text-underline-offset: 3px;
   }
 
-  /* --- Per-Pal state: which chip reads as chosen, which panel shows ------ */
+  /* --- Motion -----------------------------------------------------------
+     A panel is display:none until its radio is checked, so these re-run every
+     time a Pal is picked. No script, no state to reset. */
+  @keyframes hp-pals-rise {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  @keyframes hp-pals-swell {
+    from { opacity: 0; transform: scale(0.94); }
+    to { opacity: 1; transform: none; }
+  }
+
+  /* The blob never settles — it drifts between four shapes, slowly. */
+  @keyframes hp-pals-morph {
+    0%, 100% { border-radius: 58% 42% 51% 49% / 47% 55% 45% 53%; }
+    25% { border-radius: 45% 55% 62% 38% / 56% 44% 56% 44%; }
+    50% { border-radius: 62% 38% 44% 56% / 42% 58% 42% 58%; }
+    75% { border-radius: 50% 50% 57% 43% / 59% 41% 59% 41%; }
+  }
+
+  .hp-pals--motion .hp-pals__photo {
+    animation:
+      hp-pals-swell 560ms cubic-bezier(0.2, 0.7, 0.3, 1) both,
+      hp-pals-morph var(--hp-drift) ease-in-out 560ms infinite;
+  }
+
+  .hp-pals--motion .hp-pals__copy > * {
+    animation: hp-pals-rise 520ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+
+  .hp-pals--motion .hp-pals__copy > *:nth-child(1) { animation-delay: 80ms; }
+  .hp-pals--motion .hp-pals__copy > *:nth-child(2) { animation-delay: 150ms; }
+  .hp-pals--motion .hp-pals__copy > *:nth-child(3) { animation-delay: 220ms; }
+  .hp-pals--motion .hp-pals__copy > *:nth-child(4) { animation-delay: 290ms; }
+  .hp-pals--motion .hp-pals__copy > *:nth-child(5) { animation-delay: 360ms; }
+
+  /* --- Per-Pal state ----------------------------------------------------- */
   {%- for block in section.blocks -%}
     {%- assign k = block.id -%}
     .hp-pals__radio[data-pal="{{ k }}"]:checked ~ .hp-pals__stage .hp-pals__panel[data-pal="{{ k }}"] {
@@ -273,7 +409,11 @@
     }
 
     .hp-pals__radio[data-pal="{{ k }}"]:checked ~ .hp-pals__chips .hp-pals__chip[data-pal="{{ k }}"] .hp-pals__chip-face {
-      box-shadow: 0 0 0 4px var(--hp-bg), 0 0 0 8px var(--hp-pal-tint), 0 10px 22px -10px rgba(47, 51, 38, 0.45);
+      transform: scale(1.06);
+      box-shadow:
+        0 0 0 4px var(--hp-bg),
+        0 0 0 8px var(--hp-pal-tint),
+        0 10px 22px -10px rgba(47, 51, 38, 0.45);
     }
 
     .hp-pals__radio[data-pal="{{ k }}"]:checked ~ .hp-pals__chips .hp-pals__chip[data-pal="{{ k }}"] .hp-pals__chip-name {
@@ -293,7 +433,15 @@
       text-align: center;
     }
 
-    .hp-pals__body { margin-inline: auto; }
+    .hp-pals__photo { margin-inline: auto; }
+
+    .hp-pals__body,
+    .hp-pals__actions {
+      justify-content: center;
+      margin-inline: auto;
+    }
+
+    .hp-pals__quote { border-radius: 24px; }
   }
 
   @media screen and (max-width: 749px) {
@@ -322,6 +470,11 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .hp-pals--motion .hp-pals__photo,
+    .hp-pals--motion .hp-pals__copy > * {
+      animation: none;
+    }
+
     .hp-pals__chip,
     .hp-pals__chip-face,
     .hp-pals__chip-name,
@@ -337,7 +490,8 @@
 {% endstyle %}
 
 <section
-  class="hp-pals"
+  id="hp-pals-{{ section.id }}"
+  class="hp-pals{% if s.enable_motion %} hp-pals--motion{% endif %}{% unless s.background_repeat %} hp-pals--cover{% endunless %}"
   style="
     --hp-bg: {{ s.background }};
     --hp-ink: {{ s.heading_color }};
@@ -353,12 +507,24 @@
     --hp-chip-size: {{ s.chip_size }}px;
     --hp-photo-size: {{ s.photo_size }}px;
     --hp-shadow: {{ s.shadow_strength | divided_by: 200.0 }};
+    --hp-drift: {{ s.drift_speed }}s;
+    --hp-veil: {{ s.background_overlay | divided_by: 100.0 }};
+    --hp-tile-size: {{ s.background_tile_size }}px;
     --hp-pt: {{ s.padding_top }}px;
     --hp-pb: {{ s.padding_bottom }}px;
     --hp-pt-mobile: {{ s.padding_top_mobile }}px;
     --hp-pb-mobile: {{ s.padding_bottom_mobile }}px;
   "
 >
+  {%- if s.background_image != blank -%}
+    <div
+      class="hp-pals__bg"
+      style="background-image: url({{ s.background_image | image_url: width: 1200 }});"
+      role="presentation"
+    ></div>
+    <div class="hp-pals__veil" role="presentation"></div>
+  {%- endif -%}
+
   <div class="hp-pals__inner">
     {%- if s.eyebrow != blank -%}
       <p class="hp-pals__eyebrow">
@@ -424,7 +590,26 @@
           {%- for block in section.blocks -%}
             {%- liquid
               assign b = block.settings
-              assign alt = b.image_alt | default: b.image.alt | default: b.name
+
+              # Find this Pal's variant. The Pal's name is the match by default,
+              # so naming variants after the characters is the whole setup; the
+              # override exists for when a variant is spelled differently.
+              assign wanted = b.variant_name | default: b.name | downcase | strip
+              assign pal_variant = false
+              if pal_product != blank and wanted != blank
+                for v in pal_product.variants
+                  assign v_title = v.title | downcase | strip
+                  assign v_option = v.option1 | downcase | strip
+                  if v_title == wanted or v_option == wanted
+                    assign pal_variant = v
+                    break
+                  endif
+                endfor
+              endif
+
+              assign photo = b.image | default: pal_variant.image | default: pal_product.featured_image
+              assign alt = b.image_alt | default: photo.alt | default: b.name
+              assign form_id = 'PalBuy-' | append: section.id | append: '-' | append: block.id
             -%}
             <div
               class="hp-pals__panel"
@@ -432,9 +617,9 @@
               style="--hp-pal-tint: {{ b.color }};"
             >
               <div class="hp-pals__photo">
-                {%- if b.image != blank -%}
+                {%- if photo != blank -%}
                   {{
-                    b.image
+                    photo
                     | image_url: width: 1000
                     | image_tag:
                       loading: 'lazy',
@@ -456,13 +641,40 @@
                   <p class="hp-pals__trait">{{ b.trait | escape }}</p>
                 {%- endif -%}
 
+                {%- if b.quote != blank -%}
+                  <p class="hp-pals__quote">{{ b.quote | escape }}</p>
+                {%- endif -%}
+
                 {%- if b.body != blank -%}
                   <div class="hp-pals__body">{{ b.body }}</div>
                 {%- endif -%}
 
-                {%- if b.link != blank and b.link_label != blank -%}
-                  <a class="hp-pals__button" href="{{ b.link }}">{{ b.link_label | escape }}</a>
-                {%- endif -%}
+                <div class="hp-pals__actions">
+                  {%- if pal_variant -%}
+                    {%- if pal_variant.available -%}
+                      {%- form 'product', pal_product, id: form_id, class: 'hp-pals__form' -%}
+                        <input type="hidden" name="id" value="{{ pal_variant.id }}">
+                        <input type="hidden" name="quantity" value="1">
+                        <button type="submit" class="hp-pals__button">
+                          {{ s.buy_label | escape }}
+                          {%- if s.show_price %}
+                            <span class="hp-pals__price">· {{ pal_variant.price | money }}</span>
+                          {%- endif -%}
+                        </button>
+                      {%- endform -%}
+                    {%- else -%}
+                      <button type="button" class="hp-pals__button" disabled>
+                        {{ s.sold_out_label | escape }}
+                      </button>
+                    {%- endif -%}
+
+                    {%- if b.link != blank and b.link_label != blank -%}
+                      <a class="hp-pals__link" href="{{ b.link }}">{{ b.link_label | escape }}</a>
+                    {%- endif -%}
+                  {%- elsif b.link != blank and b.link_label != blank -%}
+                    <a class="hp-pals__button" href="{{ b.link }}">{{ b.link_label | escape }}</a>
+                  {%- endif -%}
+                </div>
               </div>
             </div>
           {%- endfor -%}
@@ -476,19 +688,64 @@
   </div>
 </section>
 
-{%- comment -%}
-  Editor only: clicking a Pal block in the sidebar opens that Pal's panel.
-  The section works with this stripped out; it just would not follow along.
-{%- endcomment -%}
 <script>
-  if (window.Shopify && Shopify.designMode) {
-    document.addEventListener('shopify:block:select', function (event) {
-      var radio = event.target
-        .closest('.hp-pals')
-        ?.querySelector('.hp-pals__radio[data-pal="' + event.detail.blockId + '"]');
-      if (radio) radio.checked = true;
+  (function () {
+    var root = document.getElementById('hp-pals-{{ section.id }}');
+    if (!root) return;
+
+    /* Editor only: clicking a Pal block in the sidebar opens that Pal's panel. */
+    if (window.Shopify && window.Shopify.designMode) {
+      document.addEventListener('shopify:block:select', function (event) {
+        var radio = root.querySelector('.hp-pals__radio[data-pal="' + event.detail.blockId + '"]');
+        if (radio) radio.checked = true;
+      });
+    }
+
+    /* Add to cart without leaving the page, then open the theme's cart drawer.
+       Every early return below leaves the form to submit normally, which lands
+       on the cart page — so this still works with JS off, or on a theme that
+       has no drawer. */
+    root.addEventListener('submit', function (event) {
+      var form = event.target.closest('.hp-pals__form');
+      if (!form) return;
+
+      var drawer = document.querySelector('cart-drawer');
+      if (!drawer || typeof drawer.renderContents !== 'function') return;
+
+      event.preventDefault();
+
+      var button = form.querySelector('button[type="submit"]');
+      if (button) {
+        button.setAttribute('aria-busy', 'true');
+        button.disabled = true;
+      }
+
+      var body = new FormData(form);
+      body.append('sections', 'cart-drawer,cart-icon-bubble');
+      body.append('sections_url', window.location.pathname);
+
+      fetch('{{ routes.cart_add_url }}.js', {
+        method: 'POST',
+        headers: { Accept: 'application/javascript' },
+        body: body
+      })
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+          if (data.status) throw new Error(data.description || data.message);
+          drawer.classList.remove('is-empty');
+          drawer.renderContents(data);
+        })
+        .catch(function () {
+          window.location = '{{ routes.cart_url }}';
+        })
+        .finally(function () {
+          if (button) {
+            button.removeAttribute('aria-busy');
+            button.disabled = false;
+          }
+        });
     });
-  }
+  })();
 </script>
 
 {% schema %}
@@ -517,6 +774,81 @@
       "id": "footnote",
       "label": "Closing line",
       "default": "<p>More Pals on the way. Waitlist members get to vote on who comes next.</p>"
+    },
+    { "type": "header", "content": "Buying" },
+    {
+      "type": "product",
+      "id": "product",
+      "label": "Product",
+      "info": "The one Hankie Pals product. Each Pal below is matched to the variant whose option value equals the Pal's name. Leave empty before launch and each Pal falls back to its own link."
+    },
+    { "type": "text", "id": "buy_label", "label": "Button label", "default": "Buy now" },
+    {
+      "type": "text",
+      "id": "sold_out_label",
+      "label": "Sold out label",
+      "default": "Back soon"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_price",
+      "label": "Show price on the button",
+      "default": true
+    },
+    { "type": "header", "content": "Background pattern" },
+    {
+      "type": "image_picker",
+      "id": "background_image",
+      "label": "Background image",
+      "info": "Optional. A small seamless tile works best — it repeats across the section."
+    },
+    {
+      "type": "checkbox",
+      "id": "background_repeat",
+      "label": "Tile it",
+      "default": true,
+      "info": "On repeats a small pattern. Off stretches one image to cover the section."
+    },
+    {
+      "type": "range",
+      "id": "background_tile_size",
+      "label": "Tile size",
+      "unit": "px",
+      "min": 80,
+      "max": 600,
+      "step": 10,
+      "default": 240,
+      "info": "Only used when Tile it is on."
+    },
+    {
+      "type": "range",
+      "id": "background_overlay",
+      "label": "Veil over the pattern",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "default": 70,
+      "info": "The section background colour laid over the pattern. Higher keeps text readable — check the copy after changing it."
+    },
+    { "type": "header", "content": "Motion" },
+    {
+      "type": "checkbox",
+      "id": "enable_motion",
+      "label": "Animate",
+      "default": true,
+      "info": "Fades each Pal in when picked and lets the photo blob drift. Visitors whose device asks for reduced motion never see it either way."
+    },
+    {
+      "type": "range",
+      "id": "drift_speed",
+      "label": "Blob drift speed",
+      "unit": "s",
+      "min": 6,
+      "max": 40,
+      "step": 2,
+      "default": 18,
+      "info": "Seconds for one full loop. Higher is slower and calmer."
     },
     { "type": "header", "content": "Layout" },
     {
@@ -605,12 +937,18 @@
           "label": "Personality line",
           "info": "One line, and make it a kid a parent recognises — not a description of the animal."
         },
+        {
+          "type": "text",
+          "id": "quote",
+          "label": "Something they'd say",
+          "info": "Shown in a speech bubble. Short. In the Pal's own voice."
+        },
         { "type": "richtext", "id": "body", "label": "Body" },
         {
           "type": "image_picker",
           "id": "image",
           "label": "Main photo",
-          "info": "Shown large when this Pal is selected. A square crop works best."
+          "info": "Shown large when this Pal is selected. Leave empty to use the variant's own image. A square crop works best."
         },
         { "type": "text", "id": "image_alt", "label": "Main photo alt text" },
         {
@@ -620,8 +958,19 @@
           "info": "The small round portrait in the picker row. Leave empty to reuse the main photo."
         },
         { "type": "color", "id": "color", "label": "Pal colour", "default": "#CFE1B9" },
-        { "type": "url", "id": "link", "label": "Button link" },
-        { "type": "text", "id": "link_label", "label": "Button label", "default": "Shop this Pal" }
+        {
+          "type": "text",
+          "id": "variant_name",
+          "label": "Variant name",
+          "info": "Only needed when the variant is spelled differently from the Pal's name above."
+        },
+        {
+          "type": "url",
+          "id": "link",
+          "label": "Secondary link",
+          "info": "Becomes the main button when there is no matching variant. Point it at the waitlist before launch."
+        },
+        { "type": "text", "id": "link_label", "label": "Secondary link label", "default": "Meet this Pal" }
       ]
     }
   ],
@@ -634,9 +983,10 @@
           "settings": {
             "name": "Pip",
             "trait": "First one out the door.",
+            "quote": "Ready! I did my shoes!",
             "body": "<p>Pip does not wait for anybody. Coat half on, shoes on the wrong feet, already halfway down the path — and a hankie in the pocket, because Pip packed it.</p>",
             "color": "#CFE1B9",
-            "link_label": "Shop Pip"
+            "link_label": "Meet Pip"
           }
         },
         {
@@ -644,9 +994,10 @@
           "settings": {
             "name": "Bo",
             "trait": "Takes his time about everything.",
+            "quote": "Wait. Look at the snail.",
             "body": "<p>Bo will get there. Bo has looked at the snail. Bo is not to be hurried, and honestly, Bo has a point.</p>",
             "color": "#ECA883",
-            "link_label": "Shop Bo"
+            "link_label": "Meet Bo"
           }
         },
         {
@@ -654,9 +1005,10 @@
           "settings": {
             "name": "June",
             "trait": "Wants to do it herself, thank you.",
+            "quote": "I do it. Me.",
             "body": "<p>Offer to help June and you will be told, politely and firmly, that she has got this. She usually has.</p>",
             "color": "#F7DDCD",
-            "link_label": "Shop June"
+            "link_label": "Meet June"
           }
         }
       ]

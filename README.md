@@ -12,8 +12,17 @@ anything moving.
 
 | File | Shows up in the editor as | What it is |
 | --- | --- | --- |
-| `sections/problem-cards.liquid` | **Problem blobs** | Eyebrow pill, display heading, three organic blob cards |
-| `sections/pals-picker.liquid` | **Meet the Pals** | Character picker: choosing a Pal swaps the photo, tint and copy |
+| [`sections/problem-cards.liquid`](sections/problem-cards.liquid) | **Problem blobs** | Eyebrow pill, display heading, three organic blob cards |
+| [`sections/pals-picker.liquid`](sections/pals-picker.liquid) | **Meet the Pals** | Character picker: choosing a Pal swaps the photo, tint and copy |
+
+Click a filename above, then use the **copy icon** in the toolbar over the code
+to take the whole file.
+
+**Do not use raw.githubusercontent.com links on this repo.** It is private, and
+raw URLs do not carry your browser session, so a bare raw link returns 404 for
+everybody including you. The Raw button inside GitHub works, because GitHub
+appends a short-lived token to it; a copied raw URL stops working once that
+token expires. Use the copy icon instead.
 
 ## Installing a section by hand
 

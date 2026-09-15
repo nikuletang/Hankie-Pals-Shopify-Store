@@ -38,16 +38,16 @@
     padding-block: var(--hp-pt) var(--hp-pb);
   }
 
-  /* --- Optional background pattern, with a veil so copy stays readable --- */
-  .hp-pals__bg,
-  .hp-pals__veil {
+  /* --- Optional background pattern ---------------------------------------
+     Opacity sits on the pattern itself rather than on a veil above it. Same
+     result against the section colour, but the slider runs the way you would
+     expect: higher means more pattern, not less. */
+  .hp-pals__bg {
     position: absolute;
     inset: 0;
+    z-index: -1;
     pointer-events: none;
-  }
-
-  .hp-pals__bg {
-    z-index: -2;
+    opacity: var(--hp-bg-opacity);
     background-position: center;
     background-repeat: repeat;
     background-size: var(--hp-tile-size) auto;
@@ -56,12 +56,6 @@
   .hp-pals--cover .hp-pals__bg {
     background-repeat: no-repeat;
     background-size: cover;
-  }
-
-  .hp-pals__veil {
-    z-index: -1;
-    background: var(--hp-bg);
-    opacity: var(--hp-veil);
   }
 
   .hp-pals__inner {
@@ -208,7 +202,7 @@
     display: none;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
     align-items: center;
-    gap: clamp(28px, 4vw, 72px);
+    gap: var(--hp-gap);
     max-width: min(100%, 1060px);
     margin-inline: auto;
   }
@@ -401,6 +395,12 @@
   .hp-pals--motion .hp-pals__copy > *:nth-child(4) { animation-delay: 290ms; }
   .hp-pals--motion .hp-pals__copy > *:nth-child(5) { animation-delay: 360ms; }
 
+  {%- if s.background_image != blank -%}
+    [data-hp-pals="{{ section.id }}"] .hp-pals__bg {
+      background-image: url("{{ s.background_image | image_url: width: 1600 }}");
+    }
+  {%- endif -%}
+
   /* --- Per-Pal state ----------------------------------------------------- */
   {%- for block in section.blocks -%}
     {%- assign k = block.id -%}
@@ -434,6 +434,8 @@
     }
 
     .hp-pals__photo { margin-inline: auto; }
+
+    .hp-pals__panel { gap: min(var(--hp-gap), 40px); }
 
     .hp-pals__body,
     .hp-pals__actions {
@@ -491,6 +493,7 @@
 
 <section
   id="hp-pals-{{ section.id }}"
+  data-hp-pals="{{ section.id }}"
   class="hp-pals{% if s.enable_motion %} hp-pals--motion{% endif %}{% unless s.background_repeat %} hp-pals--cover{% endunless %}"
   style="
     --hp-bg: {{ s.background }};
@@ -508,7 +511,8 @@
     --hp-photo-size: {{ s.photo_size }}px;
     --hp-shadow: {{ s.shadow_strength | divided_by: 200.0 }};
     --hp-drift: {{ s.drift_speed }}s;
-    --hp-veil: {{ s.background_overlay | divided_by: 100.0 }};
+    --hp-bg-opacity: {{ s.background_opacity | divided_by: 100.0 }};
+    --hp-gap: {{ s.column_gap }}px;
     --hp-tile-size: {{ s.background_tile_size }}px;
     --hp-pt: {{ s.padding_top }}px;
     --hp-pb: {{ s.padding_bottom }}px;
@@ -517,12 +521,7 @@
   "
 >
   {%- if s.background_image != blank -%}
-    <div
-      class="hp-pals__bg"
-      style="background-image: url({{ s.background_image | image_url: width: 1200 }});"
-      role="presentation"
-    ></div>
-    <div class="hp-pals__veil" role="presentation"></div>
+    <div class="hp-pals__bg" role="presentation"></div>
   {%- endif -%}
 
   <div class="hp-pals__inner">
@@ -822,14 +821,14 @@
     },
     {
       "type": "range",
-      "id": "background_overlay",
-      "label": "Veil over the pattern",
+      "id": "background_opacity",
+      "label": "Pattern strength",
       "unit": "%",
       "min": 0,
       "max": 100,
       "step": 5,
-      "default": 70,
-      "info": "The section background colour laid over the pattern. Higher keeps text readable — check the copy after changing it."
+      "default": 100,
+      "info": "Higher shows more of the pattern. Turn it down if a bold pattern makes the copy hard to read."
     },
     { "type": "header", "content": "Motion" },
     {
@@ -871,6 +870,17 @@
       "step": 2,
       "default": 52,
       "info": "Desktop size. Mobile scales down with it automatically."
+    },
+    {
+      "type": "range",
+      "id": "column_gap",
+      "label": "Gap between photo and text",
+      "unit": "px",
+      "min": 16,
+      "max": 160,
+      "step": 4,
+      "default": 72,
+      "info": "Becomes the vertical gap once the panel stacks on smaller screens, capped at 40px."
     },
     {
       "type": "range",

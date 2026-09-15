@@ -1,0 +1,666 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — "Meet the Pals" character picker
+  ---------------------------------------------------------------------------
+  A row of characters; picking one swaps the photo, the blob tint and the copy.
+
+  The picker is a radio group, so the switching is CSS only — no script needed
+  for it to work, arrow keys move between Pals natively, and a screen reader
+  announces it as the radio group it is. The only JS is an editor-only listener
+  so selecting a Pal block in the theme editor opens that Pal's panel.
+
+  Sizes are px: Dawn's root font-size is 62.5%, so rem renders at 62.5% of its
+  intended value. The theme's type sliders come through --font-body-scale and
+  --font-heading-scale instead.
+
+  Every selector is prefixed .hp-pals and every per-instance value arrives as an
+  inline custom property, so nothing here can reach another section.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+-%}
+
+{% style %}
+  .hp-pals {
+    --hp-body-scale: var(--font-body-scale, 1);
+    --hp-heading-scale: var(--font-heading-scale, 1);
+    background: var(--hp-bg);
+    padding-block: var(--hp-pt) var(--hp-pb);
+  }
+
+  .hp-pals__inner {
+    max-width: var(--hp-width);
+    margin-inline: auto;
+    padding-inline: clamp(16px, 3.5vw, 48px);
+  }
+
+  /* --- Eyebrow + heading ------------------------------------------------- */
+  .hp-pals__eyebrow {
+    display: flex;
+    justify-content: center;
+    margin: 0 0 clamp(20px, 2.4vw, 32px);
+  }
+
+  .hp-pals__eyebrow-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6em;
+    padding: 0.7em 1.4em;
+    border: 1px solid var(--hp-pill-border);
+    border-radius: 999px;
+    background: var(--hp-pill-bg);
+    box-shadow: 0 2px 8px rgba(47, 51, 38, 0.06);
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(clamp(12px, 0.95vw, 14px) * var(--hp-heading-scale));
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--hp-ink);
+    line-height: 1;
+  }
+
+  .hp-pals__dot {
+    width: 0.55em;
+    height: 0.55em;
+    border-radius: 50%;
+    background: var(--hp-dot);
+    flex: none;
+  }
+
+  .hp-pals__heading {
+    margin: 0 auto;
+    max-width: 28ch;
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(
+      clamp(calc(var(--hp-heading-size) * 0.5), 4.4vw, var(--hp-heading-size))
+      * var(--hp-heading-scale)
+    );
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    color: var(--hp-ink);
+    text-align: center;
+  }
+
+  .hp-pals__intro {
+    margin: clamp(14px, 1.4vw, 20px) auto 0;
+    max-width: 52ch;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-size: calc(clamp(15px, 1.2vw, 18px) * var(--hp-body-scale));
+    line-height: 1.55;
+    color: var(--hp-muted);
+    text-align: center;
+  }
+
+  .hp-pals__intro > p { margin: 0; }
+  .hp-pals__intro > p + p { margin-block-start: 0.6em; }
+
+  /* --- The radios themselves: off-screen but still focusable ------------- */
+  .hp-pals__radio {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* --- Chip row ---------------------------------------------------------- */
+  .hp-pals__chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: clamp(12px, 1.6vw, 28px);
+    margin-block-start: clamp(32px, 3.6vw, 56px);
+  }
+
+  .hp-pals__chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 24px;
+    transition: transform 160ms ease;
+  }
+
+  .hp-pals__chip:hover { transform: translateY(-3px); }
+
+  .hp-pals__chip-face {
+    width: var(--hp-chip-size);
+    height: var(--hp-chip-size);
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--hp-pal-tint);
+    box-shadow: 0 0 0 0 var(--hp-pal-tint), 0 6px 16px -8px rgba(47, 51, 38, 0.4);
+    transition: box-shadow 180ms ease;
+  }
+
+  .hp-pals__chip-face > img,
+  .hp-pals__chip-face > svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .hp-pals__chip-face > svg {
+    fill: rgba(47, 51, 38, 0.18);
+    background: rgba(252, 251, 246, 0.7);
+  }
+
+  .hp-pals__chip-name {
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(clamp(14px, 1.05vw, 17px) * var(--hp-heading-scale));
+    color: var(--hp-muted);
+    line-height: 1;
+    transition: color 160ms ease;
+  }
+
+  /* --- Stage ------------------------------------------------------------- */
+  .hp-pals__stage { margin-block-start: clamp(32px, 4vw, 60px); }
+
+  .hp-pals__panel {
+    display: none;
+    grid-template-columns: minmax(0, auto) minmax(0, 48ch);
+    justify-content: center;
+    align-items: center;
+    gap: clamp(28px, 4vw, 72px);
+  }
+
+  .hp-pals__photo {
+    position: relative;
+    width: min(100%, var(--hp-photo-size));
+    aspect-ratio: 1 / 1;
+    background: var(--hp-pal-tint);
+    border-radius: 58% 42% 51% 49% / 47% 55% 45% 53%;
+    overflow: hidden;
+    box-shadow: 0 20px 48px -22px rgba(47, 51, 38, var(--hp-shadow));
+  }
+
+  .hp-pals__photo > img,
+  .hp-pals__photo > svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .hp-pals__photo > svg {
+    fill: rgba(47, 51, 38, 0.16);
+    background: transparent;
+  }
+
+  .hp-pals__name {
+    margin: 0;
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(clamp(30px, 3.4vw, 52px) * var(--hp-heading-scale));
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    color: var(--hp-ink);
+  }
+
+  .hp-pals__trait {
+    margin: clamp(10px, 1vw, 16px) 0 0;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-weight: 600;
+    font-size: calc(clamp(17px, 1.5vw, 23px) * var(--hp-body-scale));
+    line-height: 1.35;
+    color: var(--hp-accent-ink);
+  }
+
+  .hp-pals__body {
+    margin: clamp(14px, 1.4vw, 22px) 0 0;
+    max-width: 44ch;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-size: calc(clamp(15px, 1.2vw, 18px) * var(--hp-body-scale));
+    line-height: 1.55;
+    color: var(--hp-muted);
+  }
+
+  .hp-pals__body > p { margin: 0; }
+  .hp-pals__body > p + p { margin-block-start: 0.7em; }
+
+  .hp-pals__button {
+    display: inline-block;
+    margin-block-start: clamp(20px, 2vw, 30px);
+    padding: 15px 34px;
+    border-radius: 999px;
+    background: var(--hp-btn-bg);
+    color: var(--hp-btn-ink);
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(clamp(15px, 1.1vw, 17px) * var(--hp-heading-scale));
+    line-height: 1;
+    text-decoration: none;
+    transition: transform 160ms ease, filter 160ms ease;
+  }
+
+  .hp-pals__button:hover {
+    transform: translateY(-2px);
+    filter: brightness(0.96);
+  }
+
+  /* --- Closing line ------------------------------------------------------ */
+  .hp-pals__footnote {
+    margin: clamp(36px, 4vw, 64px) auto 0;
+    max-width: 46ch;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-size: calc(clamp(15px, 1.2vw, 18px) * var(--hp-body-scale));
+    line-height: 1.55;
+    color: var(--hp-muted);
+    text-align: center;
+  }
+
+  .hp-pals__footnote a {
+    color: var(--hp-ink);
+    text-underline-offset: 3px;
+  }
+
+  /* --- Per-Pal state: which chip reads as chosen, which panel shows ------ */
+  {%- for block in section.blocks -%}
+    {%- assign k = block.id -%}
+    .hp-pals__radio[data-pal="{{ k }}"]:checked ~ .hp-pals__stage .hp-pals__panel[data-pal="{{ k }}"] {
+      display: grid;
+    }
+
+    .hp-pals__radio[data-pal="{{ k }}"]:checked ~ .hp-pals__chips .hp-pals__chip[data-pal="{{ k }}"] .hp-pals__chip-face {
+      box-shadow: 0 0 0 4px var(--hp-bg), 0 0 0 8px var(--hp-pal-tint), 0 10px 22px -10px rgba(47, 51, 38, 0.45);
+    }
+
+    .hp-pals__radio[data-pal="{{ k }}"]:checked ~ .hp-pals__chips .hp-pals__chip[data-pal="{{ k }}"] .hp-pals__chip-name {
+      color: var(--hp-ink);
+    }
+
+    .hp-pals__radio[data-pal="{{ k }}"]:focus-visible ~ .hp-pals__chips .hp-pals__chip[data-pal="{{ k }}"] {
+      outline: 3px solid var(--hp-ink);
+      outline-offset: 3px;
+    }
+  {%- endfor -%}
+
+  @media screen and (max-width: 989px) {
+    .hp-pals__panel {
+      grid-template-columns: minmax(0, 1fr);
+      justify-items: center;
+      text-align: center;
+    }
+
+    .hp-pals__body { margin-inline: auto; }
+  }
+
+  @media screen and (max-width: 749px) {
+    .hp-pals {
+      padding-block: var(--hp-pt-mobile) var(--hp-pb-mobile);
+    }
+
+    /* One scrolling row rather than a wrapped grid of half-rows. */
+    .hp-pals__chips {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      justify-content: flex-start;
+      padding-block-end: 8px;
+      margin-inline: calc(clamp(16px, 3.5vw, 48px) * -1);
+      padding-inline: clamp(16px, 3.5vw, 48px);
+      scroll-snap-type: x proximity;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .hp-pals__chip {
+      flex: none;
+      scroll-snap-align: center;
+    }
+
+    .hp-pals__chip:hover { transform: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hp-pals__chip,
+    .hp-pals__chip-face,
+    .hp-pals__chip-name,
+    .hp-pals__button {
+      transition: none;
+    }
+
+    .hp-pals__chip:hover,
+    .hp-pals__button:hover {
+      transform: none;
+    }
+  }
+{% endstyle %}
+
+<section
+  class="hp-pals"
+  style="
+    --hp-bg: {{ s.background }};
+    --hp-ink: {{ s.heading_color }};
+    --hp-muted: {{ s.body_color }};
+    --hp-accent-ink: {{ s.trait_color }};
+    --hp-dot: {{ s.pill_dot_color }};
+    --hp-pill-bg: {{ s.pill_background }};
+    --hp-pill-border: {{ s.pill_border_color }};
+    --hp-btn-bg: {{ s.button_background }};
+    --hp-btn-ink: {{ s.button_text_color }};
+    --hp-width: {{ s.content_width }}px;
+    --hp-heading-size: {{ s.heading_size }}px;
+    --hp-chip-size: {{ s.chip_size }}px;
+    --hp-photo-size: {{ s.photo_size }}px;
+    --hp-shadow: {{ s.shadow_strength | divided_by: 200.0 }};
+    --hp-pt: {{ s.padding_top }}px;
+    --hp-pb: {{ s.padding_bottom }}px;
+    --hp-pt-mobile: {{ s.padding_top_mobile }}px;
+    --hp-pb-mobile: {{ s.padding_bottom_mobile }}px;
+  "
+>
+  <div class="hp-pals__inner">
+    {%- if s.eyebrow != blank -%}
+      <p class="hp-pals__eyebrow">
+        <span class="hp-pals__eyebrow-inner">
+          <span class="hp-pals__dot" aria-hidden="true"></span>
+          {{ s.eyebrow | escape }}
+        </span>
+      </p>
+    {%- endif -%}
+
+    {%- if s.heading != blank -%}
+      <h2 class="hp-pals__heading">{{ s.heading | escape }}</h2>
+    {%- endif -%}
+
+    {%- if s.intro != blank -%}
+      <div class="hp-pals__intro">{{ s.intro }}</div>
+    {%- endif -%}
+
+    {%- if section.blocks.size > 0 -%}
+      <div class="hp-pals__picker">
+        {%- for block in section.blocks -%}
+          {%- assign uid = 'Pal-' | append: section.id | append: '-' | append: block.id -%}
+          <input
+            class="hp-pals__radio"
+            type="radio"
+            name="hp-pals-{{ section.id }}"
+            id="{{ uid }}"
+            data-pal="{{ block.id }}"
+            {% if forloop.first %}checked{% endif %}
+          >
+        {%- endfor -%}
+
+        <div class="hp-pals__chips">
+          {%- for block in section.blocks -%}
+            {%- liquid
+              assign uid = 'Pal-' | append: section.id | append: '-' | append: block.id
+              assign face = block.settings.avatar | default: block.settings.image
+            -%}
+            <label
+              class="hp-pals__chip"
+              for="{{ uid }}"
+              data-pal="{{ block.id }}"
+              style="--hp-pal-tint: {{ block.settings.color }};"
+              {{ block.shopify_attributes }}
+            >
+              <span class="hp-pals__chip-face">
+                {%- if face != blank -%}
+                  {{
+                    face
+                    | image_url: width: 320
+                    | image_tag: loading: 'lazy', widths: '80, 120, 160, 240, 320', sizes: '120px', alt: ''
+                  }}
+                {%- else -%}
+                  {{ 'image' | placeholder_svg_tag }}
+                {%- endif -%}
+              </span>
+              <span class="hp-pals__chip-name">{{ block.settings.name | escape }}</span>
+            </label>
+          {%- endfor -%}
+        </div>
+
+        <div class="hp-pals__stage">
+          {%- for block in section.blocks -%}
+            {%- liquid
+              assign b = block.settings
+              assign alt = b.image_alt | default: b.image.alt | default: b.name
+            -%}
+            <div
+              class="hp-pals__panel"
+              data-pal="{{ block.id }}"
+              style="--hp-pal-tint: {{ b.color }};"
+            >
+              <div class="hp-pals__photo">
+                {%- if b.image != blank -%}
+                  {{
+                    b.image
+                    | image_url: width: 1000
+                    | image_tag:
+                      loading: 'lazy',
+                      widths: '400, 560, 720, 1000',
+                      sizes: '(min-width: 990px) 46vw, 90vw',
+                      alt: alt
+                  }}
+                {%- else -%}
+                  {{ 'image' | placeholder_svg_tag }}
+                {%- endif -%}
+              </div>
+
+              <div class="hp-pals__copy">
+                {%- if b.name != blank -%}
+                  <h3 class="hp-pals__name">{{ b.name | escape }}</h3>
+                {%- endif -%}
+
+                {%- if b.trait != blank -%}
+                  <p class="hp-pals__trait">{{ b.trait | escape }}</p>
+                {%- endif -%}
+
+                {%- if b.body != blank -%}
+                  <div class="hp-pals__body">{{ b.body }}</div>
+                {%- endif -%}
+
+                {%- if b.link != blank and b.link_label != blank -%}
+                  <a class="hp-pals__button" href="{{ b.link }}">{{ b.link_label | escape }}</a>
+                {%- endif -%}
+              </div>
+            </div>
+          {%- endfor -%}
+        </div>
+      </div>
+    {%- endif -%}
+
+    {%- if s.footnote != blank -%}
+      <div class="hp-pals__footnote">{{ s.footnote }}</div>
+    {%- endif -%}
+  </div>
+</section>
+
+{%- comment -%}
+  Editor only: clicking a Pal block in the sidebar opens that Pal's panel.
+  The section works with this stripped out; it just would not follow along.
+{%- endcomment -%}
+<script>
+  if (window.Shopify && Shopify.designMode) {
+    document.addEventListener('shopify:block:select', function (event) {
+      var radio = event.target
+        .closest('.hp-pals')
+        ?.querySelector('.hp-pals__radio[data-pal="' + event.detail.blockId + '"]');
+      if (radio) radio.checked = true;
+    });
+  }
+</script>
+
+{% schema %}
+{
+  "name": "Meet the Pals",
+  "tag": "div",
+  "class": "hp-pals-section",
+  "max_blocks": 8,
+  "settings": [
+    { "type": "header", "content": "Content" },
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow label", "default": "Meet the Pals" },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Every Hankie Pal has a name."
+    },
+    {
+      "type": "richtext",
+      "id": "intro",
+      "label": "Intro",
+      "default": "<p>Ask a toddler for the fox one and you will get a blank look. Ask for Pip and you will get a hand held out.</p>"
+    },
+    {
+      "type": "richtext",
+      "id": "footnote",
+      "label": "Closing line",
+      "default": "<p>More Pals on the way. Waitlist members get to vote on who comes next.</p>"
+    },
+    { "type": "header", "content": "Layout" },
+    {
+      "type": "range",
+      "id": "content_width",
+      "label": "Maximum content width",
+      "unit": "px",
+      "min": 1000,
+      "max": 1800,
+      "step": 20,
+      "default": 1320
+    },
+    {
+      "type": "range",
+      "id": "heading_size",
+      "label": "Heading size",
+      "unit": "px",
+      "min": 28,
+      "max": 88,
+      "step": 2,
+      "default": 52,
+      "info": "Desktop size. Mobile scales down with it automatically."
+    },
+    {
+      "type": "range",
+      "id": "chip_size",
+      "label": "Character circle size",
+      "unit": "px",
+      "min": 56,
+      "max": 140,
+      "step": 4,
+      "default": 92
+    },
+    {
+      "type": "range",
+      "id": "photo_size",
+      "label": "Main photo size",
+      "unit": "px",
+      "min": 280,
+      "max": 620,
+      "step": 10,
+      "default": 430
+    },
+    {
+      "type": "range",
+      "id": "shadow_strength",
+      "label": "Photo shadow",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "default": 40,
+      "info": "0 removes the shadow entirely."
+    },
+    { "type": "header", "content": "Colors" },
+    { "type": "color", "id": "background", "label": "Section background", "default": "#FCFBF6" },
+    { "type": "color", "id": "heading_color", "label": "Heading and names", "default": "#2F3326" },
+    { "type": "color", "id": "body_color", "label": "Body text", "default": "#5C6150" },
+    {
+      "type": "color",
+      "id": "trait_color",
+      "label": "Personality line",
+      "default": "#6B7056",
+      "info": "The one-liner under each Pal's name."
+    },
+    { "type": "color", "id": "pill_background", "label": "Eyebrow pill background", "default": "#FCFBF6" },
+    { "type": "color", "id": "pill_border_color", "label": "Eyebrow pill outline", "default": "#ECA883" },
+    { "type": "color", "id": "pill_dot_color", "label": "Eyebrow dot", "default": "#B5C99A" },
+    { "type": "color", "id": "button_background", "label": "Button background", "default": "#D88B6D" },
+    { "type": "color", "id": "button_text_color", "label": "Button text", "default": "#2F3326" },
+    { "type": "header", "content": "Spacing" },
+    { "type": "range", "id": "padding_top", "label": "Top padding (desktop)", "unit": "px", "min": 0, "max": 180, "step": 4, "default": 96 },
+    { "type": "range", "id": "padding_bottom", "label": "Bottom padding (desktop)", "unit": "px", "min": 0, "max": 180, "step": 4, "default": 96 },
+    { "type": "range", "id": "padding_top_mobile", "label": "Top padding (mobile)", "unit": "px", "min": 0, "max": 140, "step": 4, "default": 60 },
+    { "type": "range", "id": "padding_bottom_mobile", "label": "Bottom padding (mobile)", "unit": "px", "min": 0, "max": 140, "step": 4, "default": 60 }
+  ],
+  "blocks": [
+    {
+      "type": "pal",
+      "name": "Pal",
+      "settings": [
+        { "type": "text", "id": "name", "label": "Name", "default": "Pal" },
+        {
+          "type": "text",
+          "id": "trait",
+          "label": "Personality line",
+          "info": "One line, and make it a kid a parent recognises — not a description of the animal."
+        },
+        { "type": "richtext", "id": "body", "label": "Body" },
+        {
+          "type": "image_picker",
+          "id": "image",
+          "label": "Main photo",
+          "info": "Shown large when this Pal is selected. A square crop works best."
+        },
+        { "type": "text", "id": "image_alt", "label": "Main photo alt text" },
+        {
+          "type": "image_picker",
+          "id": "avatar",
+          "label": "Character circle",
+          "info": "The small round portrait in the picker row. Leave empty to reuse the main photo."
+        },
+        { "type": "color", "id": "color", "label": "Pal colour", "default": "#CFE1B9" },
+        { "type": "url", "id": "link", "label": "Button link" },
+        { "type": "text", "id": "link_label", "label": "Button label", "default": "Shop this Pal" }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Meet the Pals",
+      "blocks": [
+        {
+          "type": "pal",
+          "settings": {
+            "name": "Pip",
+            "trait": "First one out the door.",
+            "body": "<p>Pip does not wait for anybody. Coat half on, shoes on the wrong feet, already halfway down the path — and a hankie in the pocket, because Pip packed it.</p>",
+            "color": "#CFE1B9",
+            "link_label": "Shop Pip"
+          }
+        },
+        {
+          "type": "pal",
+          "settings": {
+            "name": "Bo",
+            "trait": "Takes his time about everything.",
+            "body": "<p>Bo will get there. Bo has looked at the snail. Bo is not to be hurried, and honestly, Bo has a point.</p>",
+            "color": "#ECA883",
+            "link_label": "Shop Bo"
+          }
+        },
+        {
+          "type": "pal",
+          "settings": {
+            "name": "June",
+            "trait": "Wants to do it herself, thank you.",
+            "body": "<p>Offer to help June and you will be told, politely and firmly, that she has got this. She usually has.</p>",
+            "color": "#F7DDCD",
+            "link_label": "Shop June"
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

@@ -13,6 +13,7 @@ anything moving.
 | File | Shows up in the editor as | What it is |
 | --- | --- | --- |
 | `sections/problem-cards.liquid` | **Problem blobs** | Eyebrow pill, display heading, three organic blob cards |
+| `sections/pals-picker.liquid` | **Meet the Pals** | Character picker: choosing a Pal swaps the photo, tint and copy |
 
 ## Installing a section by hand
 

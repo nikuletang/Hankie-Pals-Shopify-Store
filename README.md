@@ -86,6 +86,25 @@ leaving the page. If the theme has no `cart-drawer`, or JavaScript is off, the
 form submits normally and lands on the cart page. Nothing is conditional on the
 script running.
 
+## Adding a setting to a section that is already on a page
+
+A section instance stores only the settings it was saved with. Add a new setting
+to the schema and existing instances have no value for it, so `section.settings`
+returns nil for that key — the schema default does not retroactively fill it in.
+
+Interpolated straight into CSS, that nil is silently destructive:
+
+    --wash-spread: {{ s.wash_spread }}px;    ->  --wash-spread: px;
+    inset: calc(var(--wash-spread) * -1);    ->  invalid, declaration dropped
+
+An absolutely positioned element then has no offsets and collapses to zero by
+zero. Nothing renders, nothing errors, and the theme editor shows the setting at
+what looks like a sensible value.
+
+So every `{{ s.something }}` that lands in CSS carries a `| default:` matching
+its schema default. A CSS-level `var(--x, fallback)` does not help here: the
+property *is* set, just to a broken token.
+
 ## Brand tokens
 
 From the Totterful brand sheet.

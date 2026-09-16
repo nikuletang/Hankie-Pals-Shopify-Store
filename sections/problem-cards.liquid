@@ -216,21 +216,21 @@
 <section
   class="hp-problem"
   style="
-    --hp-bg: {{ s.background }};
-    --hp-ink: {{ s.heading_color }};
-    --hp-dot: {{ s.pill_dot_color }};
-    --hp-pill-bg: {{ s.pill_background }};
-    --hp-pill-border: {{ s.pill_border_color }};
-    --hp-width: {{ s.content_width }}px;
-    --hp-card-scale: {{ s.card_scale | divided_by: 100.0 }};
-    --hp-heading-size: {{ s.heading_size }}px;
-    --hp-image-size: {{ s.image_size }}%;
-    --hp-shadow: {{ s.shadow_strength | divided_by: 200.0 }};
-    --hp-heading-width: {{ s.heading_width }}ch;
-    --hp-pt: {{ s.padding_top }}px;
-    --hp-pb: {{ s.padding_bottom }}px;
-    --hp-pt-mobile: {{ s.padding_top_mobile }}px;
-    --hp-pb-mobile: {{ s.padding_bottom_mobile }}px;
+    --hp-bg: {{ s.background | default: '#FCFBF6' }};
+    --hp-ink: {{ s.heading_color | default: '#2F3326' }};
+    --hp-dot: {{ s.pill_dot_color | default: '#B5C99A' }};
+    --hp-pill-bg: {{ s.pill_background | default: '#FCFBF6' }};
+    --hp-pill-border: {{ s.pill_border_color | default: '#ECA883' }};
+    --hp-width: {{ s.content_width | default: 1500 }}px;
+    --hp-card-scale: {{ s.card_scale | default: 100 | divided_by: 100.0  }};
+    --hp-heading-size: {{ s.heading_size | default: 56 }}px;
+    --hp-image-size: {{ s.image_size | default: 64 }}%;
+    --hp-shadow: {{ s.shadow_strength | default: 40 | divided_by: 200.0  }};
+    --hp-heading-width: {{ s.heading_width | default: 26 }}ch;
+    --hp-pt: {{ s.padding_top | default: 96 }}px;
+    --hp-pb: {{ s.padding_bottom | default: 96 }}px;
+    --hp-pt-mobile: {{ s.padding_top_mobile | default: 60 }}px;
+    --hp-pb-mobile: {{ s.padding_bottom_mobile | default: 60 }}px;
   "
 >
   <div class="hp-problem__inner">
@@ -238,13 +238,13 @@
       <p class="hp-problem__pill">
         <span class="hp-problem__pill-inner">
           <span class="hp-problem__dot" aria-hidden="true"></span>
-          {{ s.eyebrow | escape }}
+          {{ s.eyebrow | default: 'The problem' | escape  }}
         </span>
       </p>
     {%- endif -%}
 
     {%- if s.heading != blank -%}
-      <h2 class="hp-problem__heading">{{ s.heading | escape }}</h2>
+      <h2 class="hp-problem__heading">{{ s.heading | default: 'They resist tissues and wipe on their sleeves.' | escape  }}</h2>
     {%- endif -%}
 
     {%- if section.blocks.size > 0 -%}

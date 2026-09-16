@@ -348,36 +348,36 @@
 <section
   class="hp-sol{% if s.image_frame == 'blob' %} hp-sol--blob{% endif %}"
   style="
-    --hp-bg: {{ s.background }};
-    --hp-ink: {{ s.text_color }};
-    --hp-muted: {{ s.body_color }};
-    --hp-accent: {{ s.accent_color }};
-    --hp-pill-bg: {{ s.pill_background }};
-    --hp-pill-border: {{ s.pill_border_color }};
-    --hp-tab-bg: {{ s.tab_background }};
-    --hp-tab-hover: {{ s.tab_hover_background }};
-    --hp-tab-active: {{ s.tab_active_background }};
-    --hp-tab-border: {{ s.tab_border_color }};
-    --hp-placeholder: {{ s.tab_background }};
-    --hp-width: {{ s.content_width }}px;
-    --hp-heading-width: {{ s.heading_width }}ch;
-    --hp-heading-size: {{ s.heading_size }}px;
-    --hp-media-share: {{ s.media_share }}%;
-    --hp-gap: {{ s.column_gap }}px;
-    --hp-radius: {{ s.image_radius }}px;
-    --hp-tab-radius: {{ s.tab_radius }}px;
-    --hp-ratio: {{ s.image_ratio }};
-    --hp-object-position: {{ s.image_position }};
-    --hp-thumb-size: {{ s.thumb_size }}px;
-    --hp-title-size: {{ s.title_size }}px;
-    --hp-body-size: {{ s.body_size }}px;
-    --hp-body-leading: {{ s.body_line_height | divided_by: 100.0 }};
-    --hp-wash-spread: {% if s.show_wash %}{{ s.wash_spread }}px{% else %}0px{% endif %};
-    --hp-wash-blur: {{ s.wash_blur }}px;
-    --hp-pt: {{ s.padding_top }}px;
-    --hp-pb: {{ s.padding_bottom }}px;
-    --hp-pt-mobile: {{ s.padding_top_mobile }}px;
-    --hp-pb-mobile: {{ s.padding_bottom_mobile }}px;
+    --hp-bg: {{ s.background | default: '#FCFBF6' }};
+    --hp-ink: {{ s.text_color | default: '#2F3326' }};
+    --hp-muted: {{ s.body_color | default: '#5C6150' }};
+    --hp-accent: {{ s.accent_color | default: '#3F4630' }};
+    --hp-pill-bg: {{ s.pill_background | default: '#FCFBF6' }};
+    --hp-pill-border: {{ s.pill_border_color | default: '#ECA883' }};
+    --hp-tab-bg: {{ s.tab_background | default: '#FFFFFF' }};
+    --hp-tab-hover: {{ s.tab_hover_background | default: '#F7F5EC' }};
+    --hp-tab-active: {{ s.tab_active_background | default: '#ECA883' }};
+    --hp-tab-border: {{ s.tab_border_color | default: '#E4E1D3' }};
+    --hp-placeholder: {{ s.tab_background | default: '#FFFFFF' }};
+    --hp-width: {{ s.content_width | default: 1320 }}px;
+    --hp-heading-width: {{ s.heading_width | default: 28 }}ch;
+    --hp-heading-size: {{ s.heading_size | default: 52 }}px;
+    --hp-media-share: {{ s.media_share | default: 56 }}%;
+    --hp-gap: {{ s.column_gap | default: 64 }}px;
+    --hp-radius: {{ s.image_radius | default: 28 }}px;
+    --hp-tab-radius: {{ s.tab_radius | default: 24 }}px;
+    --hp-ratio: {{ s.image_ratio | default: '4 / 3' }};
+    --hp-object-position: {{ s.image_position | default: 'center' }};
+    --hp-thumb-size: {{ s.thumb_size | default: 56 }}px;
+    --hp-title-size: {{ s.title_size | default: 20 }}px;
+    --hp-body-size: {{ s.body_size | default: 16 }}px;
+    --hp-body-leading: {{ s.body_line_height | default: 140 | divided_by: 100.0  }};
+    --hp-wash-spread: {% if s.show_wash != false %}{{ s.wash_spread | default: 22 }}px{% else %}0px{% endif %};
+    --hp-wash-blur: {{ s.wash_blur | default: 40 }}px;
+    --hp-pt: {{ s.padding_top | default: 96 }}px;
+    --hp-pb: {{ s.padding_bottom | default: 96 }}px;
+    --hp-pt-mobile: {{ s.padding_top_mobile | default: 60 }}px;
+    --hp-pb-mobile: {{ s.padding_bottom_mobile | default: 60 }}px;
   "
 >
   <div class="hp-sol__inner">
@@ -385,19 +385,19 @@
       <p class="hp-sol__eyebrow">
         <span class="hp-sol__eyebrow-inner">
           <span class="hp-sol__dot" aria-hidden="true"></span>
-          {{ s.eyebrow | escape }}
+          {{ s.eyebrow | default: 'The solution' | escape  }}
         </span>
       </p>
     {%- endif -%}
 
     {%- if s.heading != blank -%}
-      <h2 class="hp-sol__heading" id="SolHeading-{{ section.id }}">{{ s.heading | escape }}</h2>
+      <h2 class="hp-sol__heading" id="SolHeading-{{ section.id }}">{{ s.heading | default: 'A reusable nose wipe companion that’s always there within reach.' | escape  }}</h2>
     {%- endif -%}
 
     {%- if section.blocks.size > 0 -%}
       <hp-solution-tabs class="hp-sol__grid">
         <div class="hp-sol__stage">
-          {%- if s.show_wash -%}
+          {%- if s.show_wash != false -%}
             <div class="hp-sol__wash" aria-hidden="true"></div>
           {%- endif -%}
           <div class="hp-sol__media">
@@ -436,7 +436,7 @@
           class="hp-sol__tabs"
           role="tablist"
           aria-orientation="vertical"
-          {% if s.heading != blank %}aria-labelledby="SolHeading-{{ section.id }}"{% else %}aria-label="{{ s.eyebrow | escape }}"{% endif %}
+          {% if s.heading != blank %}aria-labelledby="SolHeading-{{ section.id }}"{% else %}aria-label="{{ s.eyebrow | default: 'The solution' | escape  }}"{% endif %}
         >
           {%- for block in section.blocks -%}
             {%- liquid
@@ -482,7 +482,7 @@
                 {%- endif -%}
               </span>
 
-              {%- if s.show_numbers -%}
+              {%- if s.show_numbers != false -%}
                 <span class="hp-sol__num" aria-hidden="true">
                   {%- if forloop.index < 10 -%}0{%- endif -%}{{ forloop.index }}
                 </span>

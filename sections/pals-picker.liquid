@@ -386,7 +386,7 @@
         url("{{ s.background_image | image_url: width: 1600 }}");
       background-position: center, center;
       background-repeat: repeat, repeat;
-      background-size: auto, {{ s.background_tile_size }}px auto;
+      background-size: auto, {{ s.background_tile_size | default: 240 }}px auto;
     }
 
     [data-hp-pals="{{ section.id }}"].hp-pals--cover {
@@ -489,28 +489,28 @@
 <section
   id="hp-pals-{{ section.id }}"
   data-hp-pals="{{ section.id }}"
-  class="hp-pals{% if s.enable_motion %} hp-pals--motion{% endif %}{% unless s.background_repeat %} hp-pals--cover{% endunless %}"
+  class="hp-pals{% if s.enable_motion != false %} hp-pals--motion{% endif %}{% unless s.background_repeat %} hp-pals--cover{% endunless %}"
   style="
-    --hp-bg: {{ s.background }};
-    --hp-ink: {{ s.heading_color }};
-    --hp-muted: {{ s.body_color }};
-    --hp-accent-ink: {{ s.trait_color }};
-    --hp-dot: {{ s.pill_dot_color }};
-    --hp-pill-bg: {{ s.pill_background }};
-    --hp-pill-border: {{ s.pill_border_color }};
-    --hp-btn-bg: {{ s.button_background }};
-    --hp-btn-ink: {{ s.button_text_color }};
-    --hp-width: {{ s.content_width }}px;
-    --hp-heading-size: {{ s.heading_size }}px;
-    --hp-chip-size: {{ s.chip_size }}px;
-    --hp-photo-size: {{ s.photo_size }}px;
-    --hp-shadow: {{ s.shadow_strength | divided_by: 200.0 }};
-    --hp-drift: {{ s.drift_speed }}s;
-    --hp-gap: {{ s.column_gap }}px;
-    --hp-pt: {{ s.padding_top }}px;
-    --hp-pb: {{ s.padding_bottom }}px;
-    --hp-pt-mobile: {{ s.padding_top_mobile }}px;
-    --hp-pb-mobile: {{ s.padding_bottom_mobile }}px;
+    --hp-bg: {{ s.background | default: '#FCFBF6' }};
+    --hp-ink: {{ s.heading_color | default: '#2F3326' }};
+    --hp-muted: {{ s.body_color | default: '#5C6150' }};
+    --hp-accent-ink: {{ s.trait_color | default: '#6B7056' }};
+    --hp-dot: {{ s.pill_dot_color | default: '#B5C99A' }};
+    --hp-pill-bg: {{ s.pill_background | default: '#FCFBF6' }};
+    --hp-pill-border: {{ s.pill_border_color | default: '#ECA883' }};
+    --hp-btn-bg: {{ s.button_background | default: '#D88B6D' }};
+    --hp-btn-ink: {{ s.button_text_color | default: '#2F3326' }};
+    --hp-width: {{ s.content_width | default: 1320 }}px;
+    --hp-heading-size: {{ s.heading_size | default: 52 }}px;
+    --hp-chip-size: {{ s.chip_size | default: 92 }}px;
+    --hp-photo-size: {{ s.photo_size | default: 430 }}px;
+    --hp-shadow: {{ s.shadow_strength | default: 40 | divided_by: 200.0  }};
+    --hp-drift: {{ s.drift_speed | default: 18 }}s;
+    --hp-gap: {{ s.column_gap | default: 72 }}px;
+    --hp-pt: {{ s.padding_top | default: 96 }}px;
+    --hp-pb: {{ s.padding_bottom | default: 96 }}px;
+    --hp-pt-mobile: {{ s.padding_top_mobile | default: 60 }}px;
+    --hp-pb-mobile: {{ s.padding_bottom_mobile | default: 60 }}px;
   "
 >
   <div class="hp-pals__inner">
@@ -518,17 +518,17 @@
       <p class="hp-pals__eyebrow">
         <span class="hp-pals__eyebrow-inner">
           <span class="hp-pals__dot" aria-hidden="true"></span>
-          {{ s.eyebrow | escape }}
+          {{ s.eyebrow | default: 'Meet the Pals' | escape  }}
         </span>
       </p>
     {%- endif -%}
 
     {%- if s.heading != blank -%}
-      <h2 class="hp-pals__heading">{{ s.heading | escape }}</h2>
+      <h2 class="hp-pals__heading">{{ s.heading | default: 'Every Hankie Pal has a name.' | escape  }}</h2>
     {%- endif -%}
 
     {%- if s.intro != blank -%}
-      <div class="hp-pals__intro">{{ s.intro }}</div>
+      <div class="hp-pals__intro">{{ s.intro | default: '<p>Ask a toddler for the fox one and you will get a blank look. Ask for Pip and you will get a hand held out.</p>' }}</div>
     {%- endif -%}
 
     {%- if section.blocks.size > 0 -%}
@@ -644,7 +644,7 @@
                         <input type="hidden" name="id" value="{{ pal_variant.id }}">
                         <input type="hidden" name="quantity" value="1">
                         <button type="submit" class="hp-pals__button">
-                          {{ s.buy_label | escape }}
+                          {{ s.buy_label | default: 'Buy now' | escape  }}
                           {%- if s.show_price %}
                             <span class="hp-pals__price">· {{ pal_variant.price | money }}</span>
                           {%- endif -%}
@@ -652,7 +652,7 @@
                       {%- endform -%}
                     {%- else -%}
                       <button type="button" class="hp-pals__button" disabled>
-                        {{ s.sold_out_label | escape }}
+                        {{ s.sold_out_label | default: 'Back soon' | escape  }}
                       </button>
                     {%- endif -%}
 
@@ -671,7 +671,7 @@
     {%- endif -%}
 
     {%- if s.footnote != blank -%}
-      <div class="hp-pals__footnote">{{ s.footnote }}</div>
+      <div class="hp-pals__footnote">{{ s.footnote | default: '<p>More Pals on the way. Waitlist members get to vote on who comes next.</p>' }}</div>
     {%- endif -%}
   </div>
 </section>

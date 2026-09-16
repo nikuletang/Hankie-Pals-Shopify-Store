@@ -106,26 +106,19 @@
     position: relative;
   }
 
-  .hp-sol__wash {
-    position: absolute;
-    inset: calc(var(--hp-wash-spread) * -1);
-    z-index: 0;
-    background: var(--hp-wash, var(--hp-tab-active));
-    border-radius: 44% 56% 62% 38% / 55% 42% 58% 45%;
-    /* Blurred, so it reads as colour bleeding out from behind the photo
-       rather than a ring drawn around it. */
-    filter: blur(var(--hp-wash-blur));
-    transition: background-color 420ms ease;
-  }
-
   .hp-sol__media {
     position: relative;
-    z-index: 1;
     aspect-ratio: var(--hp-ratio);
     border-radius: var(--hp-radius);
     overflow: hidden;
     background: var(--hp-placeholder);
-    box-shadow: 0 24px 48px -28px rgba(47, 51, 38, 0.45);
+    /* The wash: a spread shadow in the selected feature's colour. A spread
+       shadow traces border-radius, so it hugs the blob exactly, and it needs
+       no extra element, no positioning and no stacking context. */
+    box-shadow:
+      0 0 var(--hp-wash-blur) var(--hp-wash-spread) var(--hp-wash, var(--hp-tab-active)),
+      0 24px 48px -28px rgba(47, 51, 38, 0.45);
+    transition: box-shadow 420ms ease;
   }
 
   /* Organic frame: the same lopsided radius language as the rest of the page,
@@ -331,7 +324,6 @@
     .hp-sol__panel[data-active],
     .hp-sol__panel > img,
     .hp-sol__panel > svg,
-    .hp-sol__wash,
     .hp-sol__tab,
     .hp-sol__tab::before,
     .hp-sol__num {
@@ -397,9 +389,6 @@
     {%- if section.blocks.size > 0 -%}
       <hp-solution-tabs class="hp-sol__grid">
         <div class="hp-sol__stage">
-          {%- if s.wash_spread == blank or s.wash_spread > 0 -%}
-            <div class="hp-sol__wash" aria-hidden="true"></div>
-          {%- endif -%}
           <div class="hp-sol__media">
           {%- for block in section.blocks -%}
             {%- liquid
@@ -514,9 +503,9 @@
         var first = this.tabs.find(function (tab) {
           return tab.getAttribute('aria-selected') === 'true';
         }) || this.tabs[0];
-        var stage = this.querySelector('.hp-sol__stage');
-        if (stage && first.dataset.wash) {
-          stage.style.setProperty('--hp-wash', first.dataset.wash);
+        this.media = this.querySelector('.hp-sol__media');
+        if (this.media && first.dataset.wash) {
+          this.media.style.setProperty('--hp-wash', first.dataset.wash);
         }
 
         /* Editor: selecting a feature block opens that feature. */
@@ -576,11 +565,8 @@
           panel.toggleAttribute('data-active', on);
           panel.setAttribute('aria-hidden', on ? 'false' : 'true');
 
-          if (on) {
-            var stage = this.querySelector('.hp-sol__stage');
-            if (stage && tab.dataset.wash) {
-              stage.style.setProperty('--hp-wash', tab.dataset.wash);
-            }
+          if (on && this.media && tab.dataset.wash) {
+            this.media.style.setProperty('--hp-wash', tab.dataset.wash);
           }
         });
 
@@ -718,8 +704,8 @@
       "min": 0,
       "max": 90,
       "step": 2,
-      "default": 40,
-      "info": "0 gives a hard edge. Higher makes the colour bleed out like a glow."
+      "default": 60,
+      "info": "0 gives a hard ring of colour. Higher makes it bleed out like a glow."
     },
     {
       "type": "checkbox",

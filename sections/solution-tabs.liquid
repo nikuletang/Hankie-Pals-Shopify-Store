@@ -23,6 +23,15 @@
 
 {%- liquid
   assign s = section.settings
+
+  # The wash colour carries its own alpha, so "how strong" is part of the colour
+  # rather than another layer. Off emits no colour at all, which makes the
+  # shadow draw nothing without touching the spread or blur.
+  assign wash_on = true
+  if s.show_wash == false
+    assign wash_on = false
+  endif
+  assign wash_alpha = s.wash_opacity | default: 55 | divided_by: 100.0
 -%}
 
 {% style %}
@@ -116,7 +125,7 @@
        shadow traces border-radius, so it hugs the blob exactly, and it needs
        no extra element, no positioning and no stacking context. */
     box-shadow:
-      0 0 var(--hp-wash-blur) var(--hp-wash-spread) var(--hp-wash, var(--hp-tab-active)),
+      0 0 var(--hp-wash-blur) var(--hp-wash-spread) var(--hp-wash, transparent),
       0 24px 48px -28px rgba(47, 51, 38, 0.45);
     transition: box-shadow 420ms ease;
   }
@@ -365,6 +374,7 @@
     --hp-body-size: {{ s.body_size | default: 16 }}px;
     --hp-body-leading: {{ s.body_line_height | default: 140 | divided_by: 100.0  }};
     --hp-wash-spread: {{ s.wash_spread | default: 22 }}px;
+    --hp-wash: {% if wash_on %}{{ s.tab_active_background | default: '#ECA883' | color_modify: 'alpha', wash_alpha }}{% else %}transparent{% endif %};
     --hp-wash-blur: {{ s.wash_blur | default: 40 }}px;
     --hp-pt: {{ s.padding_top | default: 96 }}px;
     --hp-pb: {{ s.padding_bottom | default: 96 }}px;
@@ -430,7 +440,8 @@
           {%- for block in section.blocks -%}
             {%- liquid
               assign b = block.settings
-              assign active_bg = b.active_color | default: s.tab_active_background
+              assign active_bg = b.active_color | default: s.tab_active_background | default: '#ECA883'
+              assign wash_color = active_bg | color_modify: 'alpha', wash_alpha
             -%}
             <button
               type="button"
@@ -441,7 +452,7 @@
               aria-controls="SolPanel-{{ section.id }}-{{ block.id }}"
               tabindex="{% if forloop.first %}0{% else %}-1{% endif %}"
               style="--hp-tab-active: {{ active_bg }};"
-              data-wash="{{ active_bg }}"
+{% if wash_on %}data-wash="{{ wash_color }}"{% endif %}
               {{ block.shopify_attributes }}
             >
               <span class="hp-sol__thumb">
@@ -684,6 +695,24 @@
       ],
       "default": "blob",
       "info": "Blob uses the same organic shape language as the rest of the page. Corner radius below only applies to the rounded frame."
+    },
+    {
+      "type": "checkbox",
+      "id": "show_wash",
+      "label": "Colour wash behind the image",
+      "default": true,
+      "info": "A soft cloud of the selected feature's colour around the photo."
+    },
+    {
+      "type": "range",
+      "id": "wash_opacity",
+      "label": "Wash strength",
+      "unit": "%",
+      "min": 5,
+      "max": 100,
+      "step": 5,
+      "default": 55,
+      "info": "Lower is subtler. Try 30-45 if it competes with the photo."
     },
     {
       "type": "range",

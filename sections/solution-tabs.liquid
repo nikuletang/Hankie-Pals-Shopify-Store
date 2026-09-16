@@ -1,0 +1,746 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — "The solution" feature tabs
+  ---------------------------------------------------------------------------
+  A large image on the left, three feature cards on the right; picking a card
+  crossfades the image.
+
+  This one needs script — a crossfade between stacked panels with roving
+  tabindex is not something CSS alone does correctly — so it is a custom
+  element. That means every instance wires itself up on insertion, including
+  the ones the theme editor injects when a section reloads, with no listener
+  for shopify:section:load and nothing global to collide with.
+
+  All panels are in the DOM, stacked in a fixed-ratio box, so switching cannot
+  move the page. Sizes are px: Dawn's root font-size is 62.5%, so rem renders at
+  62.5% of its intended value; theme type sliders arrive via --font-body-scale
+  and --font-heading-scale.
+
+  Every selector is prefixed .hp-sol and every per-instance value arrives as an
+  inline custom property, so nothing here can reach another section.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+-%}
+
+{% style %}
+  .hp-sol {
+    --hp-body-scale: var(--font-body-scale, 1);
+    --hp-heading-scale: var(--font-heading-scale, 1);
+    background-color: var(--hp-bg);
+    padding-block: var(--hp-pt) var(--hp-pb);
+  }
+
+  .hp-sol__inner {
+    max-width: var(--hp-width);
+    margin-inline: auto;
+    padding-inline: clamp(16px, 3.5vw, 48px);
+  }
+
+  /* --- Header ------------------------------------------------------------ */
+  .hp-sol__eyebrow {
+    display: flex;
+    justify-content: center;
+    margin: 0 0 clamp(20px, 2.4vw, 32px);
+  }
+
+  .hp-sol__eyebrow-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6em;
+    padding: 0.7em 1.4em;
+    border: 1px solid var(--hp-pill-border);
+    border-radius: 999px;
+    background: var(--hp-pill-bg);
+    box-shadow: 0 2px 8px rgba(47, 51, 38, 0.06);
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(clamp(12px, 0.95vw, 14px) * var(--hp-heading-scale));
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--hp-ink);
+    line-height: 1;
+  }
+
+  .hp-sol__dot {
+    width: 0.55em;
+    height: 0.55em;
+    border-radius: 50%;
+    background: var(--hp-accent);
+    flex: none;
+  }
+
+  .hp-sol__heading {
+    margin: 0 auto;
+    max-width: var(--hp-heading-width);
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(
+      clamp(calc(var(--hp-heading-size) * 0.5), 4.4vw, var(--hp-heading-size))
+      * var(--hp-heading-scale)
+    );
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    color: var(--hp-ink);
+    text-align: center;
+  }
+
+  /* --- Two columns ------------------------------------------------------- */
+  .hp-sol__grid {
+    display: grid;
+    grid-template-columns: var(--hp-media-share) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--hp-gap);
+    margin-block-start: clamp(40px, 5.5vw, 88px);
+  }
+
+  /* --- Media ------------------------------------------------------------
+     Fixed ratio with every panel stacked inside it, so a switch cannot
+     change the height of anything. */
+  .hp-sol__media {
+    position: relative;
+    aspect-ratio: var(--hp-ratio);
+    border-radius: var(--hp-radius);
+    overflow: hidden;
+    background: var(--hp-placeholder);
+    box-shadow: 0 24px 48px -28px rgba(47, 51, 38, 0.45);
+  }
+
+  .hp-sol__panel {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 320ms ease, visibility 0s linear 320ms;
+  }
+
+  .hp-sol__panel[data-active] {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 320ms ease, visibility 0s;
+  }
+
+  .hp-sol__panel > img,
+  .hp-sol__panel > svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: var(--hp-object-position);
+  }
+
+  .hp-sol__panel > svg {
+    fill: rgba(47, 51, 38, 0.16);
+    background: var(--hp-placeholder);
+  }
+
+  /* --- Tabs -------------------------------------------------------------- */
+  .hp-sol__tabs {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(12px, 1.2vw, 18px);
+  }
+
+  .hp-sol__tab {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+    gap: clamp(12px, 1.2vw, 20px);
+    width: 100%;
+    margin: 0;
+    padding: clamp(18px, 1.8vw, 26px) clamp(18px, 1.8vw, 26px) clamp(18px, 1.8vw, 26px)
+      clamp(20px, 2vw, 30px);
+    border: 1px solid var(--hp-tab-border);
+    border-radius: var(--hp-tab-radius);
+    background: var(--hp-tab-bg);
+    color: var(--hp-ink);
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+    overflow: hidden;
+    box-shadow: 0 4px 14px -10px rgba(47, 51, 38, 0.35);
+    transition: background-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
+  }
+
+  /* The left accent. Zero width until active, so the active card differs in
+     shape and not only in colour. */
+  .hp-sol__tab::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    width: 0;
+    background: var(--hp-accent);
+    transition: width 200ms ease;
+  }
+
+  .hp-sol__tab:hover {
+    background: var(--hp-tab-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px -14px rgba(47, 51, 38, 0.45);
+  }
+
+  .hp-sol__tab:focus-visible {
+    outline: 3px solid var(--hp-ink);
+    outline-offset: 3px;
+  }
+
+  .hp-sol__tab[aria-selected="true"] {
+    background: var(--hp-tab-active);
+    box-shadow: 0 14px 30px -16px rgba(47, 51, 38, 0.5);
+  }
+
+  .hp-sol__tab[aria-selected="true"]::before { width: 6px; }
+
+  /* Muted body copy measures 3.2:1 on the peach card, under AA for text this
+     size. The selected card takes the full ink colour instead: 6.5:1. */
+  .hp-sol__tab[aria-selected="true"] .hp-sol__tab-body {
+    color: var(--hp-ink);
+  }
+
+  .hp-sol__tab[aria-selected="true"]:hover {
+    background: var(--hp-tab-active);
+    transform: none;
+  }
+
+  .hp-sol__thumb {
+    width: var(--hp-thumb-size);
+    height: var(--hp-thumb-size);
+    border-radius: 50%;
+    overflow: hidden;
+    flex: none;
+    background: var(--hp-placeholder);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6);
+  }
+
+  .hp-sol__thumb > img,
+  .hp-sol__thumb > svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .hp-sol__thumb > svg { fill: rgba(47, 51, 38, 0.18); }
+
+  .hp-sol__tab-title {
+    margin: 0;
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(clamp(17px, 1.35vw, 21px) * var(--hp-heading-scale));
+    line-height: 1.25;
+    color: var(--hp-ink);
+  }
+
+  .hp-sol__tab-body {
+    margin: 8px 0 0;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-size: calc(clamp(14px, 1.05vw, 16px) * var(--hp-body-scale));
+    line-height: 1.55;
+    color: var(--hp-muted);
+  }
+
+  .hp-sol__tab-body > p { margin: 0; }
+  .hp-sol__tab-body > p + p { margin-block-start: 0.6em; }
+
+  /* A shape, not a colour: only the selected card shows the mark. */
+  .hp-sol__mark {
+    width: 22px;
+    height: 22px;
+    margin-block-start: 2px;
+    flex: none;
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: opacity 200ms ease, transform 200ms ease;
+  }
+
+  .hp-sol__tab[aria-selected="true"] .hp-sol__mark {
+    opacity: 1;
+    transform: none;
+  }
+
+  .hp-sol__mark svg { display: block; width: 100%; height: 100%; }
+
+  /* --- Tablet: tighter, then stacked before anything is cramped ---------- */
+  @media screen and (max-width: 1199px) and (min-width: 990px) {
+    .hp-sol__grid { gap: clamp(24px, 3vw, 40px); }
+    .hp-sol__tab { padding: 18px 18px 18px 22px; }
+  }
+
+  @media screen and (max-width: 989px) {
+    .hp-sol__grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: clamp(24px, 4vw, 40px);
+      margin-block-start: clamp(32px, 5vw, 56px);
+    }
+
+    /* Image above the cards, which is also its DOM order. */
+    .hp-sol__media { max-width: 720px; margin-inline: auto; width: 100%; }
+    .hp-sol__tabs { max-width: 720px; margin-inline: auto; width: 100%; }
+  }
+
+  @media screen and (max-width: 749px) {
+    .hp-sol { padding-block: var(--hp-pt-mobile) var(--hp-pb-mobile); }
+    .hp-sol__tab { padding: 18px 16px 18px 20px; gap: 14px; }
+    .hp-sol__mark { display: none; }
+    .hp-sol__tab[aria-selected="true"]::before { width: 5px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hp-sol__panel,
+    .hp-sol__panel[data-active],
+    .hp-sol__tab,
+    .hp-sol__tab::before,
+    .hp-sol__mark {
+      transition: none;
+    }
+
+    .hp-sol__tab:hover { transform: none; }
+  }
+{% endstyle %}
+
+<section
+  class="hp-sol"
+  style="
+    --hp-bg: {{ s.background }};
+    --hp-ink: {{ s.text_color }};
+    --hp-muted: {{ s.body_color }};
+    --hp-accent: {{ s.accent_color }};
+    --hp-pill-bg: {{ s.pill_background }};
+    --hp-pill-border: {{ s.pill_border_color }};
+    --hp-tab-bg: {{ s.tab_background }};
+    --hp-tab-hover: {{ s.tab_hover_background }};
+    --hp-tab-active: {{ s.tab_active_background }};
+    --hp-tab-border: {{ s.tab_border_color }};
+    --hp-placeholder: {{ s.tab_background }};
+    --hp-width: {{ s.content_width }}px;
+    --hp-heading-width: {{ s.heading_width }}ch;
+    --hp-heading-size: {{ s.heading_size }}px;
+    --hp-media-share: {{ s.media_share }}%;
+    --hp-gap: {{ s.column_gap }}px;
+    --hp-radius: {{ s.image_radius }}px;
+    --hp-tab-radius: {{ s.tab_radius }}px;
+    --hp-ratio: {{ s.image_ratio }};
+    --hp-object-position: {{ s.image_position }};
+    --hp-thumb-size: {{ s.thumb_size }}px;
+    --hp-pt: {{ s.padding_top }}px;
+    --hp-pb: {{ s.padding_bottom }}px;
+    --hp-pt-mobile: {{ s.padding_top_mobile }}px;
+    --hp-pb-mobile: {{ s.padding_bottom_mobile }}px;
+  "
+>
+  <div class="hp-sol__inner">
+    {%- if s.eyebrow != blank -%}
+      <p class="hp-sol__eyebrow">
+        <span class="hp-sol__eyebrow-inner">
+          <span class="hp-sol__dot" aria-hidden="true"></span>
+          {{ s.eyebrow | escape }}
+        </span>
+      </p>
+    {%- endif -%}
+
+    {%- if s.heading != blank -%}
+      <h2 class="hp-sol__heading" id="SolHeading-{{ section.id }}">{{ s.heading | escape }}</h2>
+    {%- endif -%}
+
+    {%- if section.blocks.size > 0 -%}
+      <hp-solution-tabs class="hp-sol__grid">
+        <div class="hp-sol__media">
+          {%- for block in section.blocks -%}
+            {%- liquid
+              assign b = block.settings
+              assign alt = b.image_alt | default: b.image.alt | default: b.title
+            -%}
+            <div
+              class="hp-sol__panel"
+              id="SolPanel-{{ section.id }}-{{ block.id }}"
+              role="tabpanel"
+              aria-labelledby="SolTab-{{ section.id }}-{{ block.id }}"
+              aria-hidden="{% if forloop.first %}false{% else %}true{% endif %}"
+              {% if forloop.first %}data-active{% endif %}
+            >
+              {%- if b.image != blank -%}
+                {{
+                  b.image
+                  | image_url: width: 1400
+                  | image_tag:
+                    loading: 'lazy',
+                    widths: '480, 720, 960, 1200, 1400',
+                    sizes: '(min-width: 990px) 56vw, 92vw',
+                    alt: alt
+                }}
+              {%- else -%}
+                {{ 'image' | placeholder_svg_tag }}
+              {%- endif -%}
+            </div>
+          {%- endfor -%}
+        </div>
+
+        <div
+          class="hp-sol__tabs"
+          role="tablist"
+          aria-orientation="vertical"
+          {% if s.heading != blank %}aria-labelledby="SolHeading-{{ section.id }}"{% else %}aria-label="{{ s.eyebrow | escape }}"{% endif %}
+        >
+          {%- for block in section.blocks -%}
+            {%- liquid
+              assign b = block.settings
+              assign active_bg = b.active_color | default: s.tab_active_background
+            -%}
+            <button
+              type="button"
+              class="hp-sol__tab"
+              id="SolTab-{{ section.id }}-{{ block.id }}"
+              role="tab"
+              aria-selected="{% if forloop.first %}true{% else %}false{% endif %}"
+              aria-controls="SolPanel-{{ section.id }}-{{ block.id }}"
+              tabindex="{% if forloop.first %}0{% else %}-1{% endif %}"
+              style="--hp-tab-active: {{ active_bg }};"
+              {{ block.shopify_attributes }}
+            >
+              <span class="hp-sol__thumb">
+                {%- if b.thumbnail != blank -%}
+                  {{
+                    b.thumbnail
+                    | image_url: width: 200
+                    | image_tag: loading: 'lazy', widths: '64, 96, 128, 200', sizes: '64px', alt: ''
+                  }}
+                {%- elsif b.image != blank -%}
+                  {{
+                    b.image
+                    | image_url: width: 200
+                    | image_tag: loading: 'lazy', widths: '64, 96, 128, 200', sizes: '64px', alt: ''
+                  }}
+                {%- else -%}
+                  {{ 'image' | placeholder_svg_tag }}
+                {%- endif -%}
+              </span>
+
+              <span class="hp-sol__tab-copy">
+                {%- if b.title != blank -%}
+                  <span class="hp-sol__tab-title">{{ b.title | escape }}</span>
+                {%- endif -%}
+                {%- if b.body != blank -%}
+                  <span class="hp-sol__tab-body">{{ b.body }}</span>
+                {%- endif -%}
+              </span>
+
+              <span class="hp-sol__mark" aria-hidden="true">
+                <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2.2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 11h13M12 6l5 5-5 5" />
+                </svg>
+              </span>
+            </button>
+          {%- endfor -%}
+        </div>
+      </hp-solution-tabs>
+    {%- endif -%}
+  </div>
+</section>
+
+<script>
+  (function () {
+    if (customElements.get('hp-solution-tabs')) return;
+
+    class HpSolutionTabs extends HTMLElement {
+      connectedCallback() {
+        this.tabs = Array.from(this.querySelectorAll('[role="tab"]'));
+        if (!this.tabs.length) return;
+
+        this.panels = this.tabs.map(function (tab) {
+          return document.getElementById(tab.getAttribute('aria-controls'));
+        });
+
+        this.addEventListener('click', this.onClick);
+        this.addEventListener('keydown', this.onKeydown);
+
+        /* Editor: selecting a feature block opens that feature. */
+        if (window.Shopify && window.Shopify.designMode) {
+          this.onBlockSelect = function (event) {
+            var tab = this.querySelector('[id$="-' + event.detail.blockId + '"][role="tab"]');
+            if (tab) this.select(this.tabs.indexOf(tab), false);
+          }.bind(this);
+          document.addEventListener('shopify:block:select', this.onBlockSelect);
+        }
+      }
+
+      disconnectedCallback() {
+        if (this.onBlockSelect) {
+          document.removeEventListener('shopify:block:select', this.onBlockSelect);
+        }
+      }
+
+      onClick = (event) => {
+        var tab = event.target.closest('[role="tab"]');
+        if (tab) this.select(this.tabs.indexOf(tab), false);
+      };
+
+      onKeydown = (event) => {
+        var current = this.tabs.indexOf(document.activeElement.closest('[role="tab"]'));
+        if (current < 0) return;
+
+        var last = this.tabs.length - 1;
+        var next;
+
+        switch (event.key) {
+          case 'ArrowDown':
+          case 'ArrowRight': next = current === last ? 0 : current + 1; break;
+          case 'ArrowUp':
+          case 'ArrowLeft': next = current === 0 ? last : current - 1; break;
+          case 'Home': next = 0; break;
+          case 'End': next = last; break;
+          default: return;
+        }
+
+        event.preventDefault();
+        this.select(next, true);
+      };
+
+      /* Selection follows focus, which is the recommended behaviour when
+         switching panels is instant — every image is already in the DOM. */
+      select(index, moveFocus) {
+        if (index < 0 || index >= this.tabs.length) return;
+
+        this.tabs.forEach((tab, i) => {
+          var on = i === index;
+          tab.setAttribute('aria-selected', on ? 'true' : 'false');
+          tab.tabIndex = on ? 0 : -1;
+
+          var panel = this.panels[i];
+          if (!panel) return;
+          panel.toggleAttribute('data-active', on);
+          panel.setAttribute('aria-hidden', on ? 'false' : 'true');
+        });
+
+        if (moveFocus) this.tabs[index].focus();
+      }
+    }
+
+    customElements.define('hp-solution-tabs', HpSolutionTabs);
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Solution tabs",
+  "tag": "div",
+  "class": "hp-sol-section",
+  "max_blocks": 3,
+  "settings": [
+    { "type": "header", "content": "Content" },
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow label", "default": "The solution" },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "A reusable nose wipe companion that’s always there within reach."
+    },
+    {
+      "type": "range",
+      "id": "heading_width",
+      "label": "Heading line length",
+      "unit": "ch",
+      "min": 14,
+      "max": 40,
+      "step": 1,
+      "default": 28,
+      "info": "Lower numbers force the heading onto more lines."
+    },
+    { "type": "header", "content": "Layout" },
+    {
+      "type": "range",
+      "id": "content_width",
+      "label": "Maximum content width",
+      "unit": "px",
+      "min": 1000,
+      "max": 1800,
+      "step": 20,
+      "default": 1320
+    },
+    {
+      "type": "range",
+      "id": "heading_size",
+      "label": "Heading size",
+      "unit": "px",
+      "min": 28,
+      "max": 88,
+      "step": 2,
+      "default": 52,
+      "info": "Desktop size. Mobile scales down with it automatically."
+    },
+    {
+      "type": "range",
+      "id": "media_share",
+      "label": "Image width",
+      "unit": "%",
+      "min": 40,
+      "max": 65,
+      "step": 1,
+      "default": 56,
+      "info": "Share of the row taken by the image. The cards take what is left."
+    },
+    {
+      "type": "range",
+      "id": "column_gap",
+      "label": "Gap between image and cards",
+      "unit": "px",
+      "min": 16,
+      "max": 140,
+      "step": 4,
+      "default": 64
+    },
+    {
+      "type": "select",
+      "id": "image_ratio",
+      "label": "Image shape",
+      "options": [
+        { "value": "4 / 3", "label": "Landscape (4:3)" },
+        { "value": "3 / 2", "label": "Landscape (3:2)" },
+        { "value": "16 / 10", "label": "Wide (16:10)" },
+        { "value": "1 / 1", "label": "Square" },
+        { "value": "4 / 5", "label": "Portrait (4:5)" }
+      ],
+      "default": "4 / 3"
+    },
+    {
+      "type": "select",
+      "id": "image_position",
+      "label": "Image focus",
+      "info": "Which part of the photo to keep when it is cropped to the shape above.",
+      "options": [
+        { "value": "center", "label": "Centre" },
+        { "value": "top", "label": "Top" },
+        { "value": "bottom", "label": "Bottom" },
+        { "value": "left", "label": "Left" },
+        { "value": "right", "label": "Right" }
+      ],
+      "default": "center"
+    },
+    {
+      "type": "range",
+      "id": "image_radius",
+      "label": "Image corner radius",
+      "unit": "px",
+      "min": 0,
+      "max": 64,
+      "step": 2,
+      "default": 28
+    },
+    {
+      "type": "range",
+      "id": "tab_radius",
+      "label": "Card corner radius",
+      "unit": "px",
+      "min": 0,
+      "max": 48,
+      "step": 2,
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "thumb_size",
+      "label": "Card thumbnail size",
+      "unit": "px",
+      "min": 0,
+      "max": 96,
+      "step": 4,
+      "default": 56,
+      "info": "0 hides the thumbnails."
+    },
+    { "type": "header", "content": "Colors" },
+    { "type": "color", "id": "background", "label": "Section background", "default": "#FCFBF6" },
+    { "type": "color", "id": "text_color", "label": "Headings and titles", "default": "#2F3326" },
+    { "type": "color", "id": "body_color", "label": "Body text", "default": "#5C6150" },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Accent",
+      "default": "#3F4630",
+      "info": "The eyebrow dot and the bar down the left of the selected card. Keep it dark enough to read against the selected card colour — a light sage on peach is not distinguishable."
+    },
+    { "type": "color", "id": "tab_background", "label": "Card background", "default": "#FFFFFF" },
+    { "type": "color", "id": "tab_hover_background", "label": "Card background on hover", "default": "#F7F5EC" },
+    {
+      "type": "color",
+      "id": "tab_active_background",
+      "label": "Selected card background",
+      "default": "#ECA883",
+      "info": "A feature block can override this for itself."
+    },
+    { "type": "color", "id": "tab_border_color", "label": "Card outline", "default": "#E4E1D3" },
+    { "type": "color", "id": "pill_background", "label": "Eyebrow pill background", "default": "#FCFBF6" },
+    { "type": "color", "id": "pill_border_color", "label": "Eyebrow pill outline", "default": "#ECA883" },
+    { "type": "header", "content": "Spacing" },
+    { "type": "range", "id": "padding_top", "label": "Top padding (desktop)", "unit": "px", "min": 0, "max": 180, "step": 4, "default": 96 },
+    { "type": "range", "id": "padding_bottom", "label": "Bottom padding (desktop)", "unit": "px", "min": 0, "max": 180, "step": 4, "default": 96 },
+    { "type": "range", "id": "padding_top_mobile", "label": "Top padding (mobile)", "unit": "px", "min": 0, "max": 140, "step": 4, "default": 60 },
+    { "type": "range", "id": "padding_bottom_mobile", "label": "Bottom padding (mobile)", "unit": "px", "min": 0, "max": 140, "step": 4, "default": 60 }
+  ],
+  "blocks": [
+    {
+      "type": "feature",
+      "name": "Feature",
+      "settings": [
+        { "type": "text", "id": "title", "label": "Title", "default": "Feature title" },
+        {
+          "type": "richtext",
+          "id": "body",
+          "label": "Description",
+          "default": "<p>Describe the feature in a sentence or two.</p>"
+        },
+        {
+          "type": "image_picker",
+          "id": "image",
+          "label": "Large image",
+          "info": "Shown in the big frame when this feature is selected."
+        },
+        { "type": "text", "id": "image_alt", "label": "Large image alt text" },
+        {
+          "type": "image_picker",
+          "id": "thumbnail",
+          "label": "Card thumbnail",
+          "info": "The small round image on the card. Leave empty to reuse the large image."
+        },
+        {
+          "type": "color",
+          "id": "active_color",
+          "label": "Selected background",
+          "info": "Optional. Overrides the section's selected-card colour for this feature only."
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Solution tabs",
+      "blocks": [
+        {
+          "type": "feature",
+          "settings": {
+            "title": "Always Accessible",
+            "body": "<p>No more searching for tissues when a sniffle strikes. Hankie Pals stays clipped to your child’s shirt, keeping a soft nose wipe close by wherever they go.</p>"
+          }
+        },
+        {
+          "type": "feature",
+          "settings": {
+            "title": "Encourages Independence",
+            "body": "<p>Designed for the “I can do it myself!” stage, Hankie Pals gives toddlers a simple way to wipe their own noses while building everyday independence.</p>"
+          }
+        },
+        {
+          "type": "feature",
+          "settings": {
+            "title": "Emotional Character Appeal",
+            "body": "<p>With a friendly animal face that’s always close by, Hankie Pals feels more like a companion than a nose wipe—making toddlers more willing to use it.</p>"
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

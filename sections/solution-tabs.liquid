@@ -372,7 +372,7 @@
     --hp-title-size: {{ s.title_size | default: 20 }}px;
     --hp-body-size: {{ s.body_size | default: 16 }}px;
     --hp-body-leading: {{ s.body_line_height | default: 140 | divided_by: 100.0  }};
-    --hp-wash-spread: {% if s.show_wash != false %}{{ s.wash_spread | default: 22 }}px{% else %}0px{% endif %};
+    --hp-wash-spread: {{ s.wash_spread | default: 22 }}px;
     --hp-wash-blur: {{ s.wash_blur | default: 40 }}px;
     --hp-pt: {{ s.padding_top | default: 96 }}px;
     --hp-pb: {{ s.padding_bottom | default: 96 }}px;
@@ -397,7 +397,7 @@
     {%- if section.blocks.size > 0 -%}
       <hp-solution-tabs class="hp-sol__grid">
         <div class="hp-sol__stage">
-          {%- if s.show_wash != false -%}
+          {%- if s.wash_spread == blank or s.wash_spread > 0 -%}
             <div class="hp-sol__wash" aria-hidden="true"></div>
           {%- endif -%}
           <div class="hp-sol__media">
@@ -700,13 +700,6 @@
       "info": "Blob uses the same organic shape language as the rest of the page. Corner radius below only applies to the rounded frame."
     },
     {
-      "type": "checkbox",
-      "id": "show_wash",
-      "label": "Colour wash behind the image",
-      "default": true,
-      "info": "A soft shape behind the photo that takes the selected feature's colour, so both columns react together."
-    },
-    {
       "type": "range",
       "id": "wash_spread",
       "label": "Wash spread",
@@ -715,7 +708,7 @@
       "max": 80,
       "step": 2,
       "default": 22,
-      "info": "How far the wash reaches past the edge of the photo."
+      "info": "A soft cloud of the selected feature's colour behind the photo. This is how far it reaches past the edge — set it to 0 to remove it."
     },
     {
       "type": "range",

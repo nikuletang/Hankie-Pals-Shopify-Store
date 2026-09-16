@@ -99,13 +99,39 @@
   /* --- Media ------------------------------------------------------------
      Fixed ratio with every panel stacked inside it, so a switch cannot
      change the height of anything. */
+  /* The stage holds the image and, behind it, a wash of the selected
+     feature's colour. Positive z-index only — the wash sits above the stage's
+     own background and below the image, with nothing negative involved. */
+  .hp-sol__stage {
+    position: relative;
+  }
+
+  .hp-sol__wash {
+    position: absolute;
+    inset: calc(var(--hp-wash-spread) * -1);
+    z-index: 0;
+    background: var(--hp-wash, var(--hp-tab-active));
+    border-radius: 44% 56% 62% 38% / 55% 42% 58% 45%;
+    /* Blurred, so it reads as colour bleeding out from behind the photo
+       rather than a ring drawn around it. */
+    filter: blur(var(--hp-wash-blur));
+    transition: background-color 420ms ease;
+  }
+
   .hp-sol__media {
     position: relative;
+    z-index: 1;
     aspect-ratio: var(--hp-ratio);
     border-radius: var(--hp-radius);
     overflow: hidden;
     background: var(--hp-placeholder);
     box-shadow: 0 24px 48px -28px rgba(47, 51, 38, 0.45);
+  }
+
+  /* Organic frame: the same lopsided radius language as the rest of the page,
+     each edge's pair summing to 100% so nothing is scaled back to an ellipse. */
+  .hp-sol--blob .hp-sol__media {
+    border-radius: 58% 42% 51% 49% / 47% 55% 45% 53%;
   }
 
   .hp-sol__panel {
@@ -129,6 +155,15 @@
     height: 100%;
     object-fit: cover;
     object-position: var(--hp-object-position);
+    /* Settles in from slightly oversize, and the outgoing one eases back to
+       it. Nothing leaves the frame, so no layout is touched. */
+    transform: scale(1.04);
+    transition: transform 560ms cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+
+  .hp-sol__panel[data-active] > img,
+  .hp-sol__panel[data-active] > svg {
+    transform: none;
   }
 
   .hp-sol__panel > svg {
@@ -230,7 +265,7 @@
     margin: 0;
     font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
     font-weight: var(--font-heading-weight, 700);
-    font-size: calc(clamp(17px, 1.35vw, 21px) * var(--hp-heading-scale));
+    font-size: calc(var(--hp-title-size) * var(--hp-heading-scale));
     line-height: 1.25;
     color: var(--hp-ink);
   }
@@ -238,31 +273,31 @@
   .hp-sol__tab-body {
     margin: 8px 0 0;
     font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
-    font-size: calc(clamp(14px, 1.05vw, 16px) * var(--hp-body-scale));
-    line-height: 1.55;
+    font-size: calc(var(--hp-body-size) * var(--hp-body-scale));
+    line-height: var(--hp-body-leading);
     color: var(--hp-muted);
   }
 
   .hp-sol__tab-body > p { margin: 0; }
   .hp-sol__tab-body > p + p { margin-block-start: 0.6em; }
 
-  /* A shape, not a colour: only the selected card shows the mark. */
-  .hp-sol__mark {
-    width: 22px;
-    height: 22px;
-    margin-block-start: 2px;
+  .hp-sol__num {
     flex: none;
-    opacity: 0;
-    transform: translateX(-4px);
-    transition: opacity 200ms ease, transform 200ms ease;
+    margin-block-start: 2px;
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(var(--hp-title-size) * 0.85 * var(--hp-heading-scale));
+    line-height: 1;
+    letter-spacing: 0.04em;
+    color: var(--hp-muted);
+    opacity: 0.55;
+    transition: color 200ms ease, opacity 200ms ease;
   }
 
-  .hp-sol__tab[aria-selected="true"] .hp-sol__mark {
+  .hp-sol__tab[aria-selected="true"] .hp-sol__num {
+    color: var(--hp-ink);
     opacity: 1;
-    transform: none;
   }
-
-  .hp-sol__mark svg { display: block; width: 100%; height: 100%; }
 
   /* --- Tablet: tighter, then stacked before anything is cramped ---------- */
   @media screen and (max-width: 1199px) and (min-width: 990px) {
@@ -277,33 +312,41 @@
       margin-block-start: clamp(32px, 5vw, 56px);
     }
 
-    /* Image above the cards, which is also its DOM order. */
-    .hp-sol__media { max-width: 720px; margin-inline: auto; width: 100%; }
+    /* Image above the cards, which is also its DOM order. The cap goes on the
+       stage, not the image: the wash is inset against the stage, so capping the
+       image alone would let the wash spread wider than the photo. */
+    .hp-sol__stage { max-width: 720px; margin-inline: auto; width: 100%; }
     .hp-sol__tabs { max-width: 720px; margin-inline: auto; width: 100%; }
   }
 
   @media screen and (max-width: 749px) {
     .hp-sol { padding-block: var(--hp-pt-mobile) var(--hp-pb-mobile); }
     .hp-sol__tab { padding: 18px 16px 18px 20px; gap: 14px; }
-    .hp-sol__mark { display: none; }
+    .hp-sol__num { display: none; }
     .hp-sol__tab[aria-selected="true"]::before { width: 5px; }
   }
 
   @media (prefers-reduced-motion: reduce) {
     .hp-sol__panel,
     .hp-sol__panel[data-active],
+    .hp-sol__panel > img,
+    .hp-sol__panel > svg,
+    .hp-sol__wash,
     .hp-sol__tab,
     .hp-sol__tab::before,
-    .hp-sol__mark {
+    .hp-sol__num {
       transition: none;
     }
+
+    .hp-sol__panel > img,
+    .hp-sol__panel > svg { transform: none; }
 
     .hp-sol__tab:hover { transform: none; }
   }
 {% endstyle %}
 
 <section
-  class="hp-sol"
+  class="hp-sol{% if s.image_frame == 'blob' %} hp-sol--blob{% endif %}"
   style="
     --hp-bg: {{ s.background }};
     --hp-ink: {{ s.text_color }};
@@ -326,6 +369,11 @@
     --hp-ratio: {{ s.image_ratio }};
     --hp-object-position: {{ s.image_position }};
     --hp-thumb-size: {{ s.thumb_size }}px;
+    --hp-title-size: {{ s.title_size }}px;
+    --hp-body-size: {{ s.body_size }}px;
+    --hp-body-leading: {{ s.body_line_height | divided_by: 100.0 }};
+    --hp-wash-spread: {% if s.show_wash %}{{ s.wash_spread }}px{% else %}0px{% endif %};
+    --hp-wash-blur: {{ s.wash_blur }}px;
     --hp-pt: {{ s.padding_top }}px;
     --hp-pb: {{ s.padding_bottom }}px;
     --hp-pt-mobile: {{ s.padding_top_mobile }}px;
@@ -348,7 +396,11 @@
 
     {%- if section.blocks.size > 0 -%}
       <hp-solution-tabs class="hp-sol__grid">
-        <div class="hp-sol__media">
+        <div class="hp-sol__stage">
+          {%- if s.show_wash -%}
+            <div class="hp-sol__wash" aria-hidden="true"></div>
+          {%- endif -%}
+          <div class="hp-sol__media">
           {%- for block in section.blocks -%}
             {%- liquid
               assign b = block.settings
@@ -377,6 +429,7 @@
               {%- endif -%}
             </div>
           {%- endfor -%}
+          </div>
         </div>
 
         <div
@@ -399,6 +452,7 @@
               aria-controls="SolPanel-{{ section.id }}-{{ block.id }}"
               tabindex="{% if forloop.first %}0{% else %}-1{% endif %}"
               style="--hp-tab-active: {{ active_bg }};"
+              data-wash="{{ active_bg }}"
               {{ block.shopify_attributes }}
             >
               <span class="hp-sol__thumb">
@@ -428,12 +482,11 @@
                 {%- endif -%}
               </span>
 
-              <span class="hp-sol__mark" aria-hidden="true">
-                <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2.2"
-                     stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M4 11h13M12 6l5 5-5 5" />
-                </svg>
-              </span>
+              {%- if s.show_numbers -%}
+                <span class="hp-sol__num" aria-hidden="true">
+                  {%- if forloop.index < 10 -%}0{%- endif -%}{{ forloop.index }}
+                </span>
+              {%- endif -%}
             </button>
           {%- endfor -%}
         </div>
@@ -457,6 +510,14 @@
 
         this.addEventListener('click', this.onClick);
         this.addEventListener('keydown', this.onKeydown);
+
+        var first = this.tabs.find(function (tab) {
+          return tab.getAttribute('aria-selected') === 'true';
+        }) || this.tabs[0];
+        var stage = this.querySelector('.hp-sol__stage');
+        if (stage && first.dataset.wash) {
+          stage.style.setProperty('--hp-wash', first.dataset.wash);
+        }
 
         /* Editor: selecting a feature block opens that feature. */
         if (window.Shopify && window.Shopify.designMode) {
@@ -514,6 +575,13 @@
           if (!panel) return;
           panel.toggleAttribute('data-active', on);
           panel.setAttribute('aria-hidden', on ? 'false' : 'true');
+
+          if (on) {
+            var stage = this.querySelector('.hp-sol__stage');
+            if (stage && tab.dataset.wash) {
+              stage.style.setProperty('--hp-wash', tab.dataset.wash);
+            }
+          }
         });
 
         if (moveFocus) this.tabs[index].focus();
@@ -621,6 +689,52 @@
       "default": "center"
     },
     {
+      "type": "select",
+      "id": "image_frame",
+      "label": "Image frame",
+      "options": [
+        { "value": "rounded", "label": "Rounded rectangle" },
+        { "value": "blob", "label": "Blob" }
+      ],
+      "default": "blob",
+      "info": "Blob uses the same organic shape language as the rest of the page. Corner radius below only applies to the rounded frame."
+    },
+    {
+      "type": "checkbox",
+      "id": "show_wash",
+      "label": "Colour wash behind the image",
+      "default": true,
+      "info": "A soft shape behind the photo that takes the selected feature's colour, so both columns react together."
+    },
+    {
+      "type": "range",
+      "id": "wash_spread",
+      "label": "Wash spread",
+      "unit": "px",
+      "min": 0,
+      "max": 80,
+      "step": 2,
+      "default": 22,
+      "info": "How far the wash reaches past the edge of the photo."
+    },
+    {
+      "type": "range",
+      "id": "wash_blur",
+      "label": "Wash softness",
+      "unit": "px",
+      "min": 0,
+      "max": 90,
+      "step": 2,
+      "default": 40,
+      "info": "0 gives a hard edge. Higher makes the colour bleed out like a glow."
+    },
+    {
+      "type": "checkbox",
+      "id": "show_numbers",
+      "label": "Number the features",
+      "default": true
+    },
+    {
       "type": "range",
       "id": "image_radius",
       "label": "Image corner radius",
@@ -650,6 +764,38 @@
       "step": 4,
       "default": 56,
       "info": "0 hides the thumbnails."
+    },
+    { "type": "header", "content": "Text size" },
+    {
+      "type": "range",
+      "id": "title_size",
+      "label": "Card title size",
+      "unit": "px",
+      "min": 14,
+      "max": 34,
+      "step": 1,
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "body_size",
+      "label": "Card body size",
+      "unit": "px",
+      "min": 12,
+      "max": 24,
+      "step": 1,
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "body_line_height",
+      "label": "Card body line spacing",
+      "unit": "%",
+      "min": 110,
+      "max": 190,
+      "step": 5,
+      "default": 140,
+      "info": "Percent of the font size. Lower is tighter."
     },
     { "type": "header", "content": "Colors" },
     { "type": "color", "id": "background", "label": "Section background", "default": "#FCFBF6" },

@@ -33,30 +33,12 @@
     --hp-body-scale: var(--font-body-scale, 1);
     --hp-heading-scale: var(--font-heading-scale, 1);
     position: relative;
-    isolation: isolate;
-    background: var(--hp-bg);
+    /* background-color, not the shorthand: the pattern rule below sets
+       background-image and the shorthand would reset it. */
+    background-color: var(--hp-bg);
     padding-block: var(--hp-pt) var(--hp-pb);
   }
 
-  /* --- Optional background pattern ---------------------------------------
-     Opacity sits on the pattern itself rather than on a veil above it. Same
-     result against the section colour, but the slider runs the way you would
-     expect: higher means more pattern, not less. */
-  .hp-pals__bg {
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    opacity: var(--hp-bg-opacity);
-    background-position: center;
-    background-repeat: repeat;
-    background-size: var(--hp-tile-size) auto;
-  }
-
-  .hp-pals--cover .hp-pals__bg {
-    background-repeat: no-repeat;
-    background-size: cover;
-  }
 
   .hp-pals__inner {
     position: relative;
@@ -396,8 +378,21 @@
   .hp-pals--motion .hp-pals__copy > *:nth-child(5) { animation-delay: 360ms; }
 
   {%- if s.background_image != blank -%}
-    [data-hp-pals="{{ section.id }}"] .hp-pals__bg {
-      background-image: url("{{ s.background_image | image_url: width: 1600 }}");
+    {%- assign fade = 100 | minus: s.background_opacity | times: 0.01 -%}
+    {%- assign wash = s.background | color_modify: 'alpha', fade -%}
+    [data-hp-pals="{{ section.id }}"] {
+      background-image:
+        linear-gradient({{ wash }}, {{ wash }}),
+        url("{{ s.background_image | image_url: width: 1600 }}");
+      background-position: center, center;
+      background-repeat: repeat, repeat;
+      background-size: auto, {{ s.background_tile_size }}px auto;
+    }
+
+    [data-hp-pals="{{ section.id }}"].hp-pals--cover {
+      background-repeat: no-repeat, no-repeat;
+      background-size: cover, cover;
+      background-attachment: scroll, scroll;
     }
   {%- endif -%}
 
@@ -511,19 +506,13 @@
     --hp-photo-size: {{ s.photo_size }}px;
     --hp-shadow: {{ s.shadow_strength | divided_by: 200.0 }};
     --hp-drift: {{ s.drift_speed }}s;
-    --hp-bg-opacity: {{ s.background_opacity | divided_by: 100.0 }};
     --hp-gap: {{ s.column_gap }}px;
-    --hp-tile-size: {{ s.background_tile_size }}px;
     --hp-pt: {{ s.padding_top }}px;
     --hp-pb: {{ s.padding_bottom }}px;
     --hp-pt-mobile: {{ s.padding_top_mobile }}px;
     --hp-pb-mobile: {{ s.padding_bottom_mobile }}px;
   "
 >
-  {%- if s.background_image != blank -%}
-    <div class="hp-pals__bg" role="presentation"></div>
-  {%- endif -%}
-
   <div class="hp-pals__inner">
     {%- if s.eyebrow != blank -%}
       <p class="hp-pals__eyebrow">
@@ -828,7 +817,7 @@
       "max": 100,
       "step": 5,
       "default": 100,
-      "info": "Higher shows more of the pattern. Turn it down if a bold pattern makes the copy hard to read."
+      "info": "Higher shows more of the pattern. If nothing appears at 100%, turn Tile it off — the image then stretches across the whole section, which tells you whether it is loading at all."
     },
     { "type": "header", "content": "Motion" },
     {

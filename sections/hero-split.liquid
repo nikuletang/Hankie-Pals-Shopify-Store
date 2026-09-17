@@ -97,6 +97,49 @@
     width: 100%;
   }
 
+  /* Eyebrow. Centred within the heading's own width rather than the whole
+     panel, so it stays visually tied to the left-aligned heading.
+     --hp-hero__dot is already the decorative circle, hence eyebrow-dot. */
+  .hp-hero__eyebrow {
+    margin: 0 0 clamp(16px, 1.8vw, 26px);
+    max-width: var(--hp-heading-width);
+    text-align: var(--hp-eyebrow-align);
+  }
+
+  .hp-hero__eyebrow-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6em;
+    padding: 0.7em 1.4em;
+    border: 1px solid var(--hp-eyebrow-border);
+    border-radius: 999px;
+    background: var(--hp-eyebrow-bg);
+    box-shadow: 0 2px 8px rgba(47, 51, 38, 0.06);
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(clamp(12px, 0.95vw, 14px) * var(--hp-heading-scale));
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--hp-eyebrow-color);
+    line-height: 1;
+    animation: hp-hero-float var(--hp-float-speed) ease-in-out infinite;
+  }
+
+  .hp-hero__eyebrow-dot {
+    width: 0.55em;
+    height: 0.55em;
+    border-radius: 50%;
+    background: var(--hp-eyebrow-dot);
+    flex: none;
+  }
+
+  /* Distance 0 leaves the keyframes running against no movement, which is the
+     same as still — one setting, no separate switch to leave saved off. */
+  @keyframes hp-hero-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(calc(var(--hp-float-distance) * -1)); }
+  }
+
   .hp-hero__heading {
     margin: 0;
     max-width: var(--hp-heading-width);
@@ -233,6 +276,7 @@
   @media (prefers-reduced-motion: reduce) {
     .hp-hero__cta { transition: none; }
     .hp-hero__cta:hover { transform: none; }
+    .hp-hero__eyebrow-inner { animation: none; }
   }
 
   {%- if s.left_image != blank -%}
@@ -268,6 +312,13 @@
     --hp-align: {{ s.content_alignment | default: 'center' }};
     --hp-left-pad: {{ s.left_padding | default: 88 }}px;
     --hp-left-pad-mobile: {{ s.left_padding_mobile | default: 24 }}px;
+    --hp-eyebrow-align: {{ s.eyebrow_alignment | default: 'center' }};
+    --hp-eyebrow-color: {{ s.eyebrow_color | default: '#2F3326' }};
+    --hp-eyebrow-bg: {{ s.eyebrow_background | default: '#FCFBF6' }};
+    --hp-eyebrow-border: {{ s.eyebrow_border_color | default: '#ECA883' }};
+    --hp-eyebrow-dot: {{ s.eyebrow_dot_color | default: '#B5C99A' }};
+    --hp-float-distance: {{ s.float_distance | default: 8 }}px;
+    --hp-float-speed: {{ s.float_speed | default: 4 }}s;
     --hp-heading-color: {{ s.heading_color | default: '#2F3326' }};
     --hp-heading-width: {{ s.heading_max_width | default: 560 }}px;
     --hp-heading-size: {{ s.heading_size | default: 76 }}px;
@@ -294,6 +345,15 @@
     <span class="hp-hero__dot" aria-hidden="true"></span>
 
     <div class="hp-hero__content">
+      {%- if s.eyebrow != blank -%}
+        <p class="hp-hero__eyebrow">
+          <span class="hp-hero__eyebrow-inner">
+            <span class="hp-hero__eyebrow-dot" aria-hidden="true"></span>
+            {{ s.eyebrow | escape }}
+          </span>
+        </p>
+      {%- endif -%}
+
       {%- if s.heading != blank -%}
         <{{ heading_tag }} class="hp-hero__heading">
           {{- s.heading | escape | newline_to_br -}}
@@ -341,6 +401,49 @@
   "class": "hp-hero-section",
   "settings": [
     { "type": "header", "content": "Content" },
+    {
+      "type": "text",
+      "id": "eyebrow",
+      "label": "Eyebrow label",
+      "default": "Coming soon",
+      "info": "Shown in uppercase in a small pill above the heading. Leave empty to hide it."
+    },
+    {
+      "type": "select",
+      "id": "eyebrow_alignment",
+      "label": "Eyebrow position",
+      "options": [
+        { "value": "center", "label": "Centred over the heading" },
+        { "value": "left", "label": "Flush left with the heading" }
+      ],
+      "default": "center"
+    },
+    { "type": "color", "id": "eyebrow_color", "label": "Eyebrow text", "default": "#2F3326" },
+    { "type": "color", "id": "eyebrow_background", "label": "Eyebrow background", "default": "#FCFBF6" },
+    { "type": "color", "id": "eyebrow_border_color", "label": "Eyebrow outline", "default": "#ECA883" },
+    { "type": "color", "id": "eyebrow_dot_color", "label": "Eyebrow dot", "default": "#B5C99A" },
+    {
+      "type": "range",
+      "id": "float_distance",
+      "label": "Eyebrow float distance",
+      "unit": "px",
+      "min": 0,
+      "max": 20,
+      "step": 1,
+      "default": 8,
+      "info": "How far it drifts up and back. 0 keeps it still."
+    },
+    {
+      "type": "range",
+      "id": "float_speed",
+      "label": "Eyebrow float speed",
+      "unit": "s",
+      "min": 2,
+      "max": 12,
+      "step": 1,
+      "default": 4,
+      "info": "Seconds for one full up-and-down. Higher is slower."
+    },
     {
       "type": "textarea",
       "id": "heading",

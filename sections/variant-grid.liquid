@@ -60,7 +60,6 @@
     position: relative;
     display: block;
     width: 100%;
-    border: var(--hp-border-width) solid var(--hp-border-color);
     /* Fills the row. The ratio below still sets the height when nothing else
        does, but if a row is taller the photo covers it rather than leaving a
        band of card colour. */
@@ -200,7 +199,14 @@
     }
 
     .hp-vg__label,
-    .hp-vg__price { padding: 8px 14px; }
+    .hp-vg__price { padding: 8px 12px; }
+
+    /* Two cards across a phone leaves little width for a name plus a price. */
+    .hp-vg__caption { padding: 10px; gap: calc(var(--hp-caption-gap) * 0.6); }
+
+    .hp-vg__label { font-size: calc(var(--hp-label-size) * 0.8 * var(--hp-heading-scale)); }
+
+    .hp-vg__price { font-size: calc(var(--hp-price-size) * 0.85 * var(--hp-body-scale)); }
   }
 
   /* Touch: the swap never fires, so the primary image is what is shown. */
@@ -218,10 +224,9 @@
   style="
     --hp-bg: {{ s.background | default: '#FCFBF6' }};
     --hp-gap: {{ s.grid_gap | default: 0 }}px;
-    --hp-border-width: {{ s.card_border_width | default: 1 }}px;
     --hp-ratio: {{ s.image_ratio | default: '1 / 1' }};
     --hp-scrim: {{ s.overlay_strength | default: 0 | divided_by: 100.0 }};
-    --hp-mobile-cols: {{ s.mobile_columns | default: 1 }};
+    --hp-mobile-cols: {{ s.mobile_columns | default: 2 }};
     --hp-label-size: {{ s.label_size | default: 18 }}px;
     --hp-label-radius: {{ s.label_radius | default: 0 }}px;
     --hp-caption-gap: {{ s.caption_gap | default: 14 }}px;
@@ -323,7 +328,6 @@
           style="
             --hp-focal: {{ b.focal_position | default: 'center' }};
             --hp-card-bg: {{ b.background | default: s.card_background | default: '#EFEDE4' }};
-            --hp-border-color: {{ b.border_color | default: s.card_border_color | default: '#E4E1D3' }};
             --hp-label-bg: {{ b.label_background | default: '#CFE1B9' }};
             --hp-label-ink: {{ b.label_color | default: '#2F3326' }};
             --hp-price-bg: {{ b.price_background | default: '#FCFBF6' }};
@@ -446,17 +450,6 @@
       "info": "0 butts the cards together, as in the reference."
     },
     {
-      "type": "range",
-      "id": "card_border_width",
-      "label": "Card border",
-      "unit": "px",
-      "min": 0,
-      "max": 8,
-      "step": 1,
-      "default": 1,
-      "info": "Separates cards that sit flush against each other. With no gap, the line between two cards is twice this — 1 reads as a hairline."
-    },
-    {
       "type": "select",
       "id": "image_ratio",
       "label": "Image shape",
@@ -473,11 +466,11 @@
       "id": "mobile_columns",
       "label": "Columns on mobile",
       "options": [
-        { "value": "1", "label": "1" },
-        { "value": "2", "label": "2" }
+        { "value": "2", "label": "2" },
+        { "value": "1", "label": "1" }
       ],
-      "default": "1",
-      "info": "1 keeps the full product and variant name readable."
+      "default": "2",
+      "info": "2 shows more of the range at once. Switch to 1 if the labels get cramped — a long product name plus a variant name needs the width."
     },
     {
       "type": "range",
@@ -542,13 +535,6 @@
       "default": "#EFEDE4",
       "info": "Behind the photo, so it shows through a cut-out or transparent product shot. A card can override this for itself."
     },
-    {
-      "type": "color",
-      "id": "card_border_color",
-      "label": "Card border colour",
-      "default": "#E4E1D3",
-      "info": "A card can override this for itself."
-    },
     { "type": "color", "id": "focus_color", "label": "Keyboard focus ring", "default": "#2F3326" },
     { "type": "header", "content": "Spacing" },
     { "type": "range", "id": "padding_top", "label": "Top padding (desktop)", "unit": "px", "min": 0, "max": 160, "step": 4, "default": 0 },
@@ -607,12 +593,6 @@
           "id": "background",
           "label": "Card background",
           "info": "Optional. Overrides the section's card colour for this card only — give Bunny, Cow and Dog their own."
-        },
-        {
-          "type": "color",
-          "id": "border_color",
-          "label": "Card border colour",
-          "info": "Optional. Overrides the section's border colour for this card only."
         },
         { "type": "header", "content": "Label" },
         { "type": "color", "id": "label_background", "label": "Title background", "default": "#CFE1B9" },

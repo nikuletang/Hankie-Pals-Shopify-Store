@@ -1,0 +1,620 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — split hero
+  ---------------------------------------------------------------------------
+  Two panels side by side, each owning its own background. The left panel's
+  artwork is a background on the left panel element itself, so it is confined
+  there by construction rather than by a rule that has to be maintained — a
+  background cannot paint outside the box it belongs to.
+
+  No script. The CTA's offset is a margin, the overlay is a pseudo element, and
+  the stacking on small screens is the grid collapsing.
+
+  Sizes are px: Dawn's root font-size is 62.5%, so rem renders at 62.5% of its
+  intended value; theme type sliders arrive via --font-body-scale and
+  --font-heading-scale. Every setting carries a `| default:` so an instance that
+  predates a setting cannot emit a half-formed CSS token.
+
+  Every selector is prefixed .hp-hero and every per-instance value arrives as an
+  inline custom property, so nothing here can reach another section.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+  assign heading_tag = s.heading_tag | default: 'h1'
+-%}
+
+{% style %}
+  .hp-hero {
+    --hp-body-scale: var(--font-body-scale, 1);
+    --hp-heading-scale: var(--font-heading-scale, 1);
+    display: grid;
+    grid-template-columns: var(--hp-split) minmax(0, 1fr);
+    gap: var(--hp-gap);
+    min-height: var(--hp-min-height);
+    background-color: var(--hp-right-bg);
+  }
+
+  /* --- Left panel -------------------------------------------------------- */
+  .hp-hero__left {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: var(--hp-align);
+    background-color: var(--hp-left-bg);
+    background-repeat: var(--hp-bg-repeat);
+    background-size: var(--hp-bg-size);
+    padding: var(--hp-pt) var(--hp-left-pad) var(--hp-pb);
+    overflow: hidden;
+  }
+
+  /* Overlay for readability. No z-index: a pseudo element paints under the
+     positioned content wrapper below it without one. */
+  .hp-hero__left::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--hp-overlay);
+    opacity: var(--hp-overlay-opacity);
+    pointer-events: none;
+  }
+
+  .hp-hero__content {
+    position: relative;
+    width: 100%;
+  }
+
+  .hp-hero__heading {
+    margin: 0;
+    max-width: var(--hp-heading-width);
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(
+      clamp(calc(var(--hp-heading-size) * 0.46), 5.4vw, var(--hp-heading-size))
+      * var(--hp-heading-scale)
+    );
+    line-height: 1.04;
+    letter-spacing: -0.015em;
+    color: var(--hp-heading-color);
+    text-align: left;
+  }
+
+  .hp-hero__sub {
+    margin: clamp(16px, 1.8vw, 28px) 0 0;
+    max-width: var(--hp-sub-width);
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-weight: 500;
+    font-size: calc(
+      clamp(calc(var(--hp-sub-size) * 0.8), 1.7vw, var(--hp-sub-size))
+      * var(--hp-body-scale)
+    );
+    line-height: 1.45;
+    color: var(--hp-sub-color);
+    text-align: left;
+  }
+
+  /* --- CTA ---------------------------------------------------------------
+     The offset is a left margin on the button's own row, so the heading and
+     subheading stay flush left and only the button steps in. */
+  .hp-hero__cta-row {
+    margin-block-start: clamp(28px, 3.2vw, 48px);
+    margin-inline-start: var(--hp-cta-offset);
+  }
+
+  .hp-hero__cta {
+    display: inline-block;
+    padding: 18px 40px;
+    border: var(--hp-btn-border-width) solid var(--hp-btn-border);
+    border-radius: var(--hp-btn-radius);
+    background: var(--hp-btn-bg);
+    color: var(--hp-btn-ink);
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(clamp(14px, 1.05vw, 17px) * var(--hp-heading-scale));
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1;
+    text-decoration: none;
+    transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+  }
+
+  .hp-hero__cta:hover {
+    transform: translateY(-2px);
+    filter: brightness(0.96);
+    box-shadow: 0 12px 24px -14px rgba(47, 51, 38, 0.55);
+  }
+
+  /* Underline as well as movement, so the state does not rest on colour. */
+  .hp-hero__cta:focus-visible {
+    outline: 3px solid var(--hp-heading-color);
+    outline-offset: 4px;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  /* --- Right panel ------------------------------------------------------- */
+  .hp-hero__right {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--hp-right-bg);
+    padding: var(--hp-pt) clamp(16px, 2.5vw, 40px) var(--hp-pb);
+  }
+
+  .hp-hero__figure {
+    margin: 0;
+    width: var(--hp-img-width);
+    max-width: 100%;
+  }
+
+  .hp-hero__figure img,
+  .hp-hero__figure svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: var(--hp-img-ratio);
+    object-fit: cover;
+    object-position: var(--hp-img-position);
+    border-radius: var(--hp-img-radius);
+  }
+
+  .hp-hero__figure svg {
+    fill: rgba(47, 51, 38, 0.16);
+    background: rgba(252, 251, 246, 0.6);
+  }
+
+  /* --- Tablet: hold two columns, ease everything in ---------------------- */
+  @media screen and (max-width: 1199px) and (min-width: 900px) {
+    .hp-hero { gap: clamp(0px, 1vw, 24px); }
+    .hp-hero__cta-row { margin-inline-start: calc(var(--hp-cta-offset) * 0.45); }
+  }
+
+  /* --- Stacked ----------------------------------------------------------- */
+  @media screen and (max-width: 899px) {
+    .hp-hero {
+      grid-template-columns: minmax(0, 1fr);
+      min-height: 0;
+      gap: 0;
+    }
+
+    .hp-hero__left {
+      background-position: var(--hp-bg-position-mobile);
+      padding: var(--hp-pt-mobile) var(--hp-left-pad-mobile) var(--hp-pb-mobile);
+    }
+
+    /* Flush beneath the subheading, and never stretched edge to edge. */
+    .hp-hero__cta-row { margin-inline-start: 0; }
+
+    .hp-hero__cta { padding: 16px 32px; }
+
+    .hp-hero__right {
+      padding: var(--hp-pt-mobile) var(--hp-left-pad-mobile) var(--hp-pb-mobile);
+    }
+
+    .hp-hero__figure { width: min(100%, 460px); }
+
+    .hp-hero__figure img,
+    .hp-hero__figure svg { aspect-ratio: var(--hp-img-ratio-mobile); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hp-hero__cta { transition: none; }
+    .hp-hero__cta:hover { transform: none; }
+  }
+
+  {%- if s.left_image != blank -%}
+    [data-hp-hero="{{ section.id }}"] .hp-hero__left {
+      background-image: url("{{ s.left_image | image_url: width: 1400 }}");
+      background-position: {{ s.bg_position | default: 'center center' }};
+    }
+  {%- endif -%}
+{% endstyle %}
+
+<section
+  class="hp-hero"
+  data-hp-hero="{{ section.id }}"
+  style="
+    --hp-split: {{ s.column_split | default: 55 }}%;
+    --hp-gap: {{ s.column_gap | default: 0 }}px;
+    --hp-min-height: {{ s.min_height | default: 620 }}px;
+    --hp-left-bg: {{ s.left_bg_color | default: '#FCFBF6' }};
+    --hp-right-bg: {{ s.right_bg_color | default: '#CFE1B9' }};
+    --hp-bg-size: {{ s.bg_size | default: 'cover' }};
+    --hp-bg-repeat: {{ s.bg_repeat | default: 'no-repeat' }};
+    --hp-bg-position-mobile: {{ s.bg_position_mobile | default: 'center center' }};
+    --hp-overlay: {{ s.overlay_color | default: '#FCFBF6' }};
+    --hp-overlay-opacity: {{ s.overlay_opacity | default: 0 | divided_by: 100.0 }};
+    --hp-align: {{ s.content_alignment | default: 'center' }};
+    --hp-left-pad: {{ s.left_padding | default: 88 }}px;
+    --hp-left-pad-mobile: {{ s.left_padding_mobile | default: 24 }}px;
+    --hp-heading-color: {{ s.heading_color | default: '#2F3326' }};
+    --hp-heading-width: {{ s.heading_max_width | default: 560 }}px;
+    --hp-heading-size: {{ s.heading_size | default: 76 }}px;
+    --hp-sub-color: {{ s.subheading_color | default: '#5C6150' }};
+    --hp-sub-width: {{ s.subheading_max_width | default: 440 }}px;
+    --hp-sub-size: {{ s.subheading_size | default: 22 }}px;
+    --hp-cta-offset: {{ s.button_offset | default: 180 }}px;
+    --hp-btn-bg: {{ s.button_background | default: '#D88B6D' }};
+    --hp-btn-ink: {{ s.button_text_color | default: '#2F3326' }};
+    --hp-btn-border: {{ s.button_border_color | default: '#D88B6D' }};
+    --hp-btn-border-width: {{ s.button_border_width | default: 0 }}px;
+    --hp-btn-radius: {{ s.button_radius | default: 999 }}px;
+    --hp-img-width: {{ s.image_width | default: 74 }}%;
+    --hp-img-ratio: {{ s.image_ratio | default: '3 / 4' }};
+    --hp-img-ratio-mobile: {{ s.image_ratio_mobile | default: '4 / 5' }};
+    --hp-img-position: {{ s.image_position | default: 'center' }};
+    --hp-img-radius: {{ s.image_radius | default: 0 }}px;
+    --hp-pt: {{ s.padding_top | default: 96 }}px;
+    --hp-pb: {{ s.padding_bottom | default: 96 }}px;
+    --hp-pt-mobile: {{ s.padding_top_mobile | default: 56 }}px;
+    --hp-pb-mobile: {{ s.padding_bottom_mobile | default: 56 }}px;
+  "
+>
+  <div class="hp-hero__left">
+    <div class="hp-hero__content">
+      {%- if s.heading != blank -%}
+        <{{ heading_tag }} class="hp-hero__heading">
+          {{- s.heading | escape | newline_to_br -}}
+        </{{ heading_tag }}>
+      {%- endif -%}
+
+      {%- if s.subheading != blank -%}
+        <p class="hp-hero__sub">{{ s.subheading | escape | newline_to_br }}</p>
+      {%- endif -%}
+
+      {%- if s.button_label != blank -%}
+        <div class="hp-hero__cta-row">
+          <a class="hp-hero__cta" href="{{ s.button_link | default: '#' }}">
+            {{- s.button_label | escape -}}
+          </a>
+        </div>
+      {%- endif -%}
+    </div>
+  </div>
+
+  <div class="hp-hero__right">
+    <figure class="hp-hero__figure">
+      {%- if s.image != blank -%}
+        {{
+          s.image
+          | image_url: width: 1200
+          | image_tag:
+            loading: 'eager',
+            fetchpriority: 'high',
+            widths: '400, 560, 720, 900, 1200',
+            sizes: '(min-width: 900px) 42vw, 92vw',
+            alt: s.image_alt
+        }}
+      {%- else -%}
+        {{ 'image' | placeholder_svg_tag }}
+      {%- endif -%}
+    </figure>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "Split hero",
+  "tag": "div",
+  "class": "hp-hero-section",
+  "settings": [
+    { "type": "header", "content": "Content" },
+    {
+      "type": "textarea",
+      "id": "heading",
+      "label": "Heading",
+      "default": "A nose wipe your toddler will actually use."
+    },
+    {
+      "type": "select",
+      "id": "heading_tag",
+      "label": "Heading level",
+      "options": [
+        { "value": "h1", "label": "H1 — use on the home page" },
+        { "value": "h2", "label": "H2 — if another section already has the H1" }
+      ],
+      "default": "h1"
+    },
+    { "type": "color", "id": "heading_color", "label": "Heading colour", "default": "#2F3326" },
+    {
+      "type": "range",
+      "id": "heading_size",
+      "label": "Heading size",
+      "unit": "px",
+      "min": 32,
+      "max": 110,
+      "step": 2,
+      "default": 76,
+      "info": "Desktop size. Mobile scales down with it automatically."
+    },
+    {
+      "type": "range",
+      "id": "heading_max_width",
+      "label": "Heading width",
+      "unit": "px",
+      "min": 260,
+      "max": 900,
+      "step": 20,
+      "default": 560,
+      "info": "Narrower forces the heading onto more lines."
+    },
+    {
+      "type": "textarea",
+      "id": "subheading",
+      "label": "Subheading",
+      "default": "Soft, reusable, and clipped where they can reach it themselves."
+    },
+    { "type": "color", "id": "subheading_color", "label": "Subheading colour", "default": "#5C6150" },
+    {
+      "type": "range",
+      "id": "subheading_size",
+      "label": "Subheading size",
+      "unit": "px",
+      "min": 14,
+      "max": 32,
+      "step": 1,
+      "default": 22
+    },
+    {
+      "type": "range",
+      "id": "subheading_max_width",
+      "label": "Subheading width",
+      "unit": "px",
+      "min": 220,
+      "max": 720,
+      "step": 20,
+      "default": 440
+    },
+    { "type": "header", "content": "Button" },
+    { "type": "text", "id": "button_label", "label": "Label", "default": "Join the waitlist" },
+    { "type": "url", "id": "button_link", "label": "Link" },
+    {
+      "type": "range",
+      "id": "button_offset",
+      "label": "Button offset from the left",
+      "unit": "px",
+      "min": 0,
+      "max": 420,
+      "step": 10,
+      "default": 180,
+      "info": "The deliberate step to the right. Eased off on tablet and removed once the panels stack."
+    },
+    { "type": "color", "id": "button_background", "label": "Background", "default": "#D88B6D" },
+    { "type": "color", "id": "button_text_color", "label": "Text", "default": "#2F3326" },
+    { "type": "color", "id": "button_border_color", "label": "Border", "default": "#D88B6D" },
+    {
+      "type": "range",
+      "id": "button_border_width",
+      "label": "Border width",
+      "unit": "px",
+      "min": 0,
+      "max": 6,
+      "step": 1,
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "button_radius",
+      "label": "Corner radius",
+      "unit": "px",
+      "min": 0,
+      "max": 999,
+      "step": 1,
+      "default": 999,
+      "info": "999 gives a pill."
+    },
+    { "type": "header", "content": "Left panel" },
+    {
+      "type": "image_picker",
+      "id": "left_image",
+      "label": "Background artwork",
+      "info": "Decorative, and stays inside the left panel. Leave empty to use the colour below."
+    },
+    { "type": "color", "id": "left_bg_color", "label": "Background colour", "default": "#FCFBF6" },
+    {
+      "type": "select",
+      "id": "bg_position",
+      "label": "Artwork position (desktop)",
+      "options": [
+        { "value": "center center", "label": "Centre" },
+        { "value": "left center", "label": "Left" },
+        { "value": "right center", "label": "Right" },
+        { "value": "center top", "label": "Top" },
+        { "value": "center bottom", "label": "Bottom" },
+        { "value": "left top", "label": "Top left" },
+        { "value": "left bottom", "label": "Bottom left" }
+      ],
+      "default": "left center"
+    },
+    {
+      "type": "select",
+      "id": "bg_position_mobile",
+      "label": "Artwork position (mobile)",
+      "options": [
+        { "value": "center center", "label": "Centre" },
+        { "value": "left center", "label": "Left" },
+        { "value": "right center", "label": "Right" },
+        { "value": "center top", "label": "Top" },
+        { "value": "center bottom", "label": "Bottom" }
+      ],
+      "default": "center center"
+    },
+    {
+      "type": "select",
+      "id": "bg_size",
+      "label": "Artwork size",
+      "options": [
+        { "value": "cover", "label": "Cover — fills the panel, may crop" },
+        { "value": "contain", "label": "Contain — whole artwork visible" }
+      ],
+      "default": "cover"
+    },
+    {
+      "type": "select",
+      "id": "bg_repeat",
+      "label": "Artwork repeat",
+      "options": [
+        { "value": "no-repeat", "label": "No repeat" },
+        { "value": "repeat", "label": "Tile" },
+        { "value": "repeat-x", "label": "Tile across" },
+        { "value": "repeat-y", "label": "Tile down" }
+      ],
+      "default": "no-repeat"
+    },
+    {
+      "type": "color",
+      "id": "overlay_color",
+      "label": "Overlay colour",
+      "default": "#FCFBF6",
+      "info": "Laid over the artwork. Use it if the copy is hard to read."
+    },
+    {
+      "type": "range",
+      "id": "overlay_opacity",
+      "label": "Overlay strength",
+      "unit": "%",
+      "min": 0,
+      "max": 90,
+      "step": 5,
+      "default": 0
+    },
+    {
+      "type": "select",
+      "id": "content_alignment",
+      "label": "Content position",
+      "options": [
+        { "value": "center", "label": "Middle" },
+        { "value": "flex-start", "label": "Top" },
+        { "value": "flex-end", "label": "Bottom" }
+      ],
+      "default": "center"
+    },
+    {
+      "type": "range",
+      "id": "left_padding",
+      "label": "Side padding (desktop)",
+      "unit": "px",
+      "min": 24,
+      "max": 200,
+      "step": 4,
+      "default": 88
+    },
+    {
+      "type": "range",
+      "id": "left_padding_mobile",
+      "label": "Side padding (mobile)",
+      "unit": "px",
+      "min": 12,
+      "max": 80,
+      "step": 2,
+      "default": 24
+    },
+    { "type": "header", "content": "Right panel" },
+    { "type": "color", "id": "right_bg_color", "label": "Background colour", "default": "#CFE1B9" },
+    { "type": "image_picker", "id": "image", "label": "Portrait image" },
+    {
+      "type": "text",
+      "id": "image_alt",
+      "label": "Image alt text",
+      "info": "Describe what is happening in the photo. This one is not decorative."
+    },
+    {
+      "type": "select",
+      "id": "image_position",
+      "label": "Image focus",
+      "info": "Which part of the photo to keep when it is cropped to the shape below.",
+      "options": [
+        { "value": "center", "label": "Centre" },
+        { "value": "top", "label": "Top" },
+        { "value": "bottom", "label": "Bottom" },
+        { "value": "left", "label": "Left" },
+        { "value": "right", "label": "Right" }
+      ],
+      "default": "center"
+    },
+    {
+      "type": "select",
+      "id": "image_ratio",
+      "label": "Image shape (desktop)",
+      "options": [
+        { "value": "3 / 4", "label": "Portrait (3:4)" },
+        { "value": "4 / 5", "label": "Portrait (4:5)" },
+        { "value": "2 / 3", "label": "Tall (2:3)" },
+        { "value": "1 / 1", "label": "Square" }
+      ],
+      "default": "3 / 4"
+    },
+    {
+      "type": "select",
+      "id": "image_ratio_mobile",
+      "label": "Image shape (mobile)",
+      "options": [
+        { "value": "4 / 5", "label": "Portrait (4:5)" },
+        { "value": "1 / 1", "label": "Square" },
+        { "value": "3 / 4", "label": "Portrait (3:4)" },
+        { "value": "3 / 2", "label": "Landscape (3:2)" }
+      ],
+      "default": "4 / 5"
+    },
+    {
+      "type": "range",
+      "id": "image_width",
+      "label": "Image width",
+      "unit": "%",
+      "min": 50,
+      "max": 100,
+      "step": 2,
+      "default": 74,
+      "info": "Share of the right panel."
+    },
+    {
+      "type": "range",
+      "id": "image_radius",
+      "label": "Image corner radius",
+      "unit": "px",
+      "min": 0,
+      "max": 64,
+      "step": 2,
+      "default": 0
+    },
+    { "type": "header", "content": "Layout" },
+    {
+      "type": "range",
+      "id": "column_split",
+      "label": "Left panel width",
+      "unit": "%",
+      "min": 45,
+      "max": 65,
+      "step": 1,
+      "default": 55
+    },
+    {
+      "type": "range",
+      "id": "column_gap",
+      "label": "Gap between panels",
+      "unit": "px",
+      "min": 0,
+      "max": 80,
+      "step": 4,
+      "default": 0,
+      "info": "0 butts the two backgrounds together, as in the reference."
+    },
+    {
+      "type": "range",
+      "id": "min_height",
+      "label": "Minimum height",
+      "unit": "px",
+      "min": 380,
+      "max": 900,
+      "step": 10,
+      "default": 620
+    },
+    { "type": "range", "id": "padding_top", "label": "Top padding (desktop)", "unit": "px", "min": 0, "max": 200, "step": 4, "default": 96 },
+    { "type": "range", "id": "padding_bottom", "label": "Bottom padding (desktop)", "unit": "px", "min": 0, "max": 200, "step": 4, "default": 96 },
+    { "type": "range", "id": "padding_top_mobile", "label": "Top padding (mobile)", "unit": "px", "min": 0, "max": 140, "step": 4, "default": 56 },
+    { "type": "range", "id": "padding_bottom_mobile", "label": "Bottom padding (mobile)", "unit": "px", "min": 0, "max": 140, "step": 4, "default": 56 }
+  ],
+  "presets": [{ "name": "Split hero" }]
+}
+{% endschema %}

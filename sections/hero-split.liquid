@@ -107,6 +107,11 @@
   }
 
   .hp-hero__eyebrow-inner {
+    /* The nudge is `left` on a relatively positioned box, not a transform:
+       the float animation already owns transform, and `left` moves it by
+       exactly the number set whatever the alignment above is doing. */
+    position: relative;
+    inset-inline-start: var(--hp-eyebrow-nudge);
     display: inline-flex;
     align-items: center;
     gap: 0.6em;
@@ -313,6 +318,7 @@
     --hp-left-pad: {{ s.left_padding | default: 88 }}px;
     --hp-left-pad-mobile: {{ s.left_padding_mobile | default: 24 }}px;
     --hp-eyebrow-align: {{ s.eyebrow_alignment | default: 'center' }};
+    --hp-eyebrow-nudge: {{ s.eyebrow_nudge | default: 0 }}px;
     --hp-eyebrow-color: {{ s.eyebrow_color | default: '#2F3326' }};
     --hp-eyebrow-bg: {{ s.eyebrow_background | default: '#FCFBF6' }};
     --hp-eyebrow-border: {{ s.eyebrow_border_color | default: '#ECA883' }};
@@ -417,6 +423,17 @@
         { "value": "left", "label": "Flush left with the heading" }
       ],
       "default": "center"
+    },
+    {
+      "type": "range",
+      "id": "eyebrow_nudge",
+      "label": "Eyebrow nudge",
+      "unit": "px",
+      "min": -200,
+      "max": 200,
+      "step": 5,
+      "default": 0,
+      "info": "Fine-tunes the position set above. Negative moves it left, positive right."
     },
     { "type": "color", "id": "eyebrow_color", "label": "Eyebrow text", "default": "#2F3326" },
     { "type": "color", "id": "eyebrow_background", "label": "Eyebrow background", "default": "#FCFBF6" },

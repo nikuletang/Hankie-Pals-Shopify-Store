@@ -87,6 +87,22 @@ leaving the page. If the theme has no `cart-drawer`, or JavaScript is off, the
 form submits normally and lands on the cart page. Nothing is conditional on the
 script running.
 
+## Check a schema before pasting it in
+
+    python3 scripts/check-schemas.py
+
+Shopify validates a section's schema on save, reports only the first failure, and
+only once the file is in the theme — so a bad schema costs a round trip to find
+and another to fix. The checker catches what can be caught locally:
+
+- range settings over Shopify's 101-step limit, or whose max is unreachable from
+  the min in whole steps, or whose default falls outside the range
+- select defaults that are not one of the options
+- duplicate setting ids
+- settings read in the body that no setting declares
+- settings interpolated into CSS without a `| default:` fallback, per the note
+  below
+
 ## Adding a setting to a section that is already on a page
 
 A section instance stores only the settings it was saved with. Add a new setting

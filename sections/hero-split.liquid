@@ -134,26 +134,26 @@
   }
 
   /* --- Right panel ------------------------------------------------------- */
+  /* The photo is the panel. No padding, no inset frame — the image fills the
+     column edge to edge and the colour below is only ever seen if no image is
+     set. The panel is a grid item, so its height is the row's. */
   .hp-hero__right {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: block;
     background-color: var(--hp-right-bg);
-    padding: var(--hp-pt) clamp(16px, 2.5vw, 40px) var(--hp-pb);
+    overflow: hidden;
   }
 
   .hp-hero__figure {
     margin: 0;
-    width: var(--hp-img-width);
-    max-width: 100%;
+    width: 100%;
+    height: 100%;
   }
 
   .hp-hero__figure img,
   .hp-hero__figure svg {
     display: block;
     width: 100%;
-    height: auto;
-    aspect-ratio: var(--hp-img-ratio);
+    height: 100%;
     object-fit: cover;
     object-position: var(--hp-img-position);
     border-radius: var(--hp-img-radius);
@@ -188,14 +188,14 @@
 
     .hp-hero__cta { padding: 16px 32px; }
 
-    .hp-hero__right {
-      padding: var(--hp-pt-mobile) var(--hp-left-pad-mobile) var(--hp-pb-mobile);
-    }
-
-    .hp-hero__figure { width: min(100%, 460px); }
+    /* Stacked, the image has no row height to fill, so its shape gives it one. */
+    .hp-hero__figure { height: auto; }
 
     .hp-hero__figure img,
-    .hp-hero__figure svg { aspect-ratio: var(--hp-img-ratio-mobile); }
+    .hp-hero__figure svg {
+      height: auto;
+      aspect-ratio: var(--hp-img-ratio-mobile);
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -240,8 +240,6 @@
     --hp-btn-border: {{ s.button_border_color | default: '#D88B6D' }};
     --hp-btn-border-width: {{ s.button_border_width | default: 0 }}px;
     --hp-btn-radius: {{ s.button_radius | default: 999 }}px;
-    --hp-img-width: {{ s.image_width | default: 74 }}%;
-    --hp-img-ratio: {{ s.image_ratio | default: '3 / 4' }};
     --hp-img-ratio-mobile: {{ s.image_ratio_mobile | default: '4 / 5' }};
     --hp-img-position: {{ s.image_position | default: 'center' }};
     --hp-img-radius: {{ s.image_radius | default: 0 }}px;
@@ -283,7 +281,7 @@
             loading: 'eager',
             fetchpriority: 'high',
             widths: '400, 560, 720, 900, 1200',
-            sizes: '(min-width: 900px) 42vw, 92vw',
+            sizes: '(min-width: 900px) 48vw, 100vw',
             alt: s.image_alt
         }}
       {%- else -%}
@@ -511,7 +509,13 @@
       "default": 24
     },
     { "type": "header", "content": "Right panel" },
-    { "type": "color", "id": "right_bg_color", "label": "Background colour", "default": "#CFE1B9" },
+    {
+      "type": "color",
+      "id": "right_bg_color",
+      "label": "Fallback colour",
+      "default": "#CFE1B9",
+      "info": "Only visible if no image is set — the image fills the whole panel."
+    },
     { "type": "image_picker", "id": "image", "label": "Portrait image" },
     {
       "type": "text",
@@ -535,20 +539,9 @@
     },
     {
       "type": "select",
-      "id": "image_ratio",
-      "label": "Image shape (desktop)",
-      "options": [
-        { "value": "3 / 4", "label": "Portrait (3:4)" },
-        { "value": "4 / 5", "label": "Portrait (4:5)" },
-        { "value": "2 / 3", "label": "Tall (2:3)" },
-        { "value": "1 / 1", "label": "Square" }
-      ],
-      "default": "3 / 4"
-    },
-    {
-      "type": "select",
       "id": "image_ratio_mobile",
       "label": "Image shape (mobile)",
+      "info": "Only used once the panels stack. On desktop the image fills the column's full height.",
       "options": [
         { "value": "4 / 5", "label": "Portrait (4:5)" },
         { "value": "1 / 1", "label": "Square" },
@@ -556,17 +549,6 @@
         { "value": "3 / 2", "label": "Landscape (3:2)" }
       ],
       "default": "4 / 5"
-    },
-    {
-      "type": "range",
-      "id": "image_width",
-      "label": "Image width",
-      "unit": "%",
-      "min": 50,
-      "max": 100,
-      "step": 2,
-      "default": 74,
-      "info": "Share of the right panel."
     },
     {
       "type": "range",

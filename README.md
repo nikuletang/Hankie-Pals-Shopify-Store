@@ -16,6 +16,7 @@ anything moving.
 | [`sections/pals-picker.liquid`](sections/pals-picker.liquid) | **Meet the Pals** | Character picker: choosing a Pal swaps the photo, tint, copy and buy button |
 | [`sections/solution-tabs.liquid`](sections/solution-tabs.liquid) | **Solution tabs** | Three feature cards; picking one crossfades the large image beside them |
 | [`sections/hero-split.liquid`](sections/hero-split.liquid) | **Split hero** | Two panels with independent backgrounds: copy and an offset CTA left, a portrait right |
+| [`sections/variant-grid.liquid`](sections/variant-grid.liquid) | **Variant grid** | Full-width cards, one per variant of a single product, with a hover image swap |
 
 Click a filename above, then use the **copy icon** in the toolbar over the code
 to take the whole file.
@@ -86,6 +87,26 @@ The buy button posts to the cart and opens the theme's cart drawer without
 leaving the page. If the theme has no `cart-drawer`, or JavaScript is off, the
 form submits normally and lands on the cart page. Nothing is conditional on the
 script running.
+
+## Testing Liquid without a store
+
+    pip install python-liquid
+    python3 scripts/test-variant-resolution.py
+
+The variant grid resolves each card's variant in Liquid, and that logic cannot be
+checked by rendering HTML. The test lifts the `{%- liquid -%}` block straight out
+of the section — not a Python restatement of it — and runs it against mock
+products: exact names, wrong case, padded names, a first option against a
+combined title, positional fallback, unknown names, and cards beyond the variant
+count.
+
+It earned its keep immediately, catching
+
+    assign a11y_name = card_title | append: ', ' | append: variant.price | money
+
+where `money` receives the whole concatenated sentence rather than the price,
+because Liquid filters chain left to right. Nothing about the rendered page would
+have looked wrong; only the screen-reader label was broken.
 
 ## Check a schema before pasting it in
 

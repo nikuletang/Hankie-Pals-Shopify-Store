@@ -1,0 +1,595 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — featured variant grid
+  ---------------------------------------------------------------------------
+  One product, one card per variant, full width, image first.
+
+  Shopify's schema has no variant picker, so each card names its variant in a
+  text field and the Liquid below resolves it — against the variant's full
+  title, its first option, or its combined title, all case and space
+  insensitive. A card left blank falls back to its position in the product's
+  own variant order, so three cards on a three-variant product need no setup at
+  all. A named variant that does not exist is reported in the theme editor only,
+  and that card renders without a link rather than pointing somewhere wrong.
+
+  The hover swap is CSS: two images stacked in one fixed-ratio box, the second
+  fading in on hover or keyboard focus, and never on a touch device.
+
+  Sizes are px: Dawn's root font-size is 62.5%, so rem renders at 62.5% of its
+  intended value. Every setting carries a `| default:`.
+
+  Every selector is prefixed .hp-vg and every per-instance value arrives as an
+  inline custom property, so nothing here can reach another section.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+  assign product = s.product
+  assign count = section.blocks.size
+-%}
+
+{% style %}
+  .hp-vg {
+    --hp-body-scale: var(--font-body-scale, 1);
+    --hp-heading-scale: var(--font-heading-scale, 1);
+    background-color: var(--hp-bg);
+    padding-block: var(--hp-pt) var(--hp-pb);
+  }
+
+  /* Deliberately not inside the theme's page width: these run the full width. */
+  .hp-vg__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--hp-gap);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .hp-vg--1 .hp-vg__grid { grid-template-columns: minmax(0, 1fr); }
+  .hp-vg--2 .hp-vg__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hp-vg--4 .hp-vg__grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .hp-vg--5 .hp-vg__grid,
+  .hp-vg--6 .hp-vg__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+  .hp-vg__item { display: flex; }
+
+  /* The whole card is the link — one anchor, nothing nested inside it. */
+  .hp-vg__card {
+    position: relative;
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    background: var(--hp-card-bg);
+  }
+
+  .hp-vg__card:focus-visible {
+    outline: 4px solid var(--hp-focus);
+    outline-offset: -4px;
+  }
+
+  .hp-vg__media {
+    position: relative;
+    aspect-ratio: var(--hp-ratio);
+    background: var(--hp-card-bg);
+    overflow: hidden;
+  }
+
+  .hp-vg__media img,
+  .hp-vg__media svg {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: var(--hp-focal);
+  }
+
+  .hp-vg__img--hover {
+    opacity: 0;
+    transition: opacity 420ms ease;
+  }
+
+  .hp-vg__card:hover .hp-vg__img--hover,
+  .hp-vg__card:focus-visible .hp-vg__img--hover {
+    opacity: 1;
+  }
+
+  /* A soft floor under the caption, so a label never sits on a busy crop. */
+  .hp-vg__scrim {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 45%;
+    background: linear-gradient(to top, rgba(47, 51, 38, var(--hp-scrim)), rgba(47, 51, 38, 0));
+    pointer-events: none;
+  }
+
+  .hp-vg__caption {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: var(--hp-label-align);
+    padding: clamp(14px, 1.6vw, 24px);
+  }
+
+  .hp-vg__label,
+  .hp-vg__price {
+    max-width: 100%;
+    padding: 10px 18px;
+    border-radius: 999px;
+    line-height: 1.2;
+    text-align: center;
+  }
+
+  .hp-vg__label {
+    background: var(--hp-label-bg);
+    color: var(--hp-label-ink);
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(var(--hp-label-size) * var(--hp-heading-scale));
+  }
+
+  .hp-vg__price {
+    background: var(--hp-price-bg);
+    color: var(--hp-price-ink);
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-weight: 600;
+    font-size: calc(var(--hp-price-size) * var(--hp-body-scale));
+  }
+
+  .hp-vg__item--wide .hp-vg__label,
+  .hp-vg__item--wide .hp-vg__price { align-self: stretch; }
+
+  .hp-vg__compare {
+    margin-inline-start: 0.5em;
+    opacity: 0.7;
+    text-decoration: line-through;
+  }
+
+  .hp-vg__soldout { margin-inline-start: 0.5em; opacity: 0.8; }
+
+  /* Editor only: says which card cannot find its variant, and why. */
+  .hp-vg__notice {
+    position: absolute;
+    inset-inline: 12px;
+    top: 12px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: #7A2E1B;
+    color: #FFFFFF;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  @media screen and (max-width: 1199px) {
+    .hp-vg--4 .hp-vg__grid,
+    .hp-vg--5 .hp-vg__grid,
+    .hp-vg--6 .hp-vg__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  @media screen and (max-width: 989px) {
+    .hp-vg--3 .hp-vg__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  @media screen and (max-width: 749px) {
+    .hp-vg { padding-block: var(--hp-pt-mobile) var(--hp-pb-mobile); }
+
+    .hp-vg__grid,
+    .hp-vg--1 .hp-vg__grid,
+    .hp-vg--2 .hp-vg__grid,
+    .hp-vg--3 .hp-vg__grid,
+    .hp-vg--4 .hp-vg__grid,
+    .hp-vg--5 .hp-vg__grid,
+    .hp-vg--6 .hp-vg__grid {
+      grid-template-columns: repeat(var(--hp-mobile-cols), minmax(0, 1fr));
+    }
+
+    .hp-vg__label,
+    .hp-vg__price { padding: 8px 14px; }
+  }
+
+  /* Touch: the swap never fires, so the primary image is what is shown. */
+  @media (hover: none) {
+    .hp-vg__card:hover .hp-vg__img--hover { opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hp-vg__img--hover { transition: none; }
+  }
+{% endstyle %}
+
+<section
+  class="hp-vg hp-vg--{{ count }}"
+  style="
+    --hp-bg: {{ s.background | default: '#FCFBF6' }};
+    --hp-card-bg: {{ s.card_background | default: '#EFEDE4' }};
+    --hp-gap: {{ s.grid_gap | default: 0 }}px;
+    --hp-ratio: {{ s.image_ratio | default: '1 / 1' }};
+    --hp-scrim: {{ s.overlay_strength | default: 0 | divided_by: 100.0 }};
+    --hp-mobile-cols: {{ s.mobile_columns | default: 1 }};
+    --hp-label-size: {{ s.label_size | default: 18 }}px;
+    --hp-price-size: {{ s.price_size | default: 16 }}px;
+    --hp-focus: {{ s.focus_color | default: '#2F3326' }};
+    --hp-pt: {{ s.padding_top | default: 0 }}px;
+    --hp-pb: {{ s.padding_bottom | default: 0 }}px;
+    --hp-pt-mobile: {{ s.padding_top_mobile | default: 0 }}px;
+    --hp-pb-mobile: {{ s.padding_bottom_mobile | default: 0 }}px;
+  "
+>
+  {%- if section.blocks.size > 0 -%}
+    <ul class="hp-vg__grid" role="list">
+      {%- for block in section.blocks -%}
+        {%- liquid
+          assign b = block.settings
+
+          # ---- resolve the variant -------------------------------------
+          # A named variant matches its full title, its first option, or its
+          # combined title, ignoring case and surrounding space. A blank name
+          # falls back to this card's position in the product's variant order.
+          assign variant = false
+          assign unresolved = false
+          assign wanted = b.variant_title | downcase | strip
+
+          if product != blank
+            if wanted != blank
+              for v in product.variants
+                assign v_title = v.title | downcase | strip
+                assign v_option = v.option1 | downcase | strip
+                if v_title == wanted or v_option == wanted
+                  assign variant = v
+                  break
+                endif
+              endfor
+              unless variant
+                assign unresolved = true
+              endunless
+            else
+              assign variant = product.variants[forloop.index0]
+            endif
+          endif
+
+          # ---- the name to show ----------------------------------------
+          # Shopify calls the lone variant of a single-variant product
+          # "Default Title"; that is plumbing, never a label.
+          assign variant_name = ''
+          if variant and variant.title != 'Default Title'
+            assign variant_name = variant.title
+          endif
+
+          assign auto_title = product.title
+          if variant_name != blank
+            assign auto_title = product.title | append: ' — ' | append: variant_name
+          endif
+          assign card_title = b.display_title | default: auto_title
+
+          # ---- images ---------------------------------------------------
+          # Block art wins, then the variant's own image, then the product's.
+          assign from_product = false
+          assign primary = b.image
+          if primary == blank
+            assign primary = variant.featured_image | default: product.featured_image
+            assign from_product = true
+          endif
+
+          # The hover image is the next gallery image that is not the primary,
+          # and only when the primary came from the product in the first place.
+          assign hover = b.hover_image
+          if hover == blank and from_product and product != blank
+            for media_image in product.images
+              unless media_image.id == primary.id
+                assign hover = media_image
+                break
+              endunless
+            endfor
+          endif
+
+          assign alt_primary = b.image_alt | default: card_title
+          assign card_url = ''
+          if variant
+            assign card_url = product.url | append: '?variant=' | append: variant.id
+          endif
+
+          assign a11y_name = card_title
+          if variant
+            # money has to run on the price alone: filters chain left to right,
+            # so appending first would hand money the whole sentence.
+            assign price_text = variant.price | money
+            assign a11y_name = card_title | append: ', ' | append: price_text
+            unless variant.available
+              assign a11y_name = a11y_name | append: ', sold out'
+            endunless
+          endif
+        -%}
+
+        <li
+          class="hp-vg__item{% if b.label_width == 'wide' %} hp-vg__item--wide{% endif %}"
+          style="
+            --hp-focal: {{ b.focal_position | default: 'center' }};
+            --hp-label-bg: {{ b.label_background | default: '#CFE1B9' }};
+            --hp-label-ink: {{ b.label_color | default: '#2F3326' }};
+            --hp-price-bg: {{ b.price_background | default: '#FCFBF6' }};
+            --hp-price-ink: {{ b.price_color | default: '#2F3326' }};
+            --hp-label-align: {{ b.label_alignment | default: 'center' }};
+          "
+          {{ block.shopify_attributes }}
+        >
+          {%- if card_url != blank -%}
+            <a class="hp-vg__card" href="{{ card_url }}" aria-label="{{ a11y_name | escape }}">
+          {%- else -%}
+            <div class="hp-vg__card">
+          {%- endif -%}
+
+            <div class="hp-vg__media">
+              {%- if primary != blank -%}
+                {{
+                  primary
+                  | image_url: width: 1200
+                  | image_tag:
+                    loading: 'lazy',
+                    widths: '300, 420, 560, 760, 1000, 1200',
+                    sizes: '(min-width: 990px) 34vw, (min-width: 750px) 50vw, 100vw',
+                    alt: alt_primary,
+                    class: 'hp-vg__img hp-vg__img--primary'
+                }}
+              {%- else -%}
+                {{ 'product-1' | placeholder_svg_tag: 'hp-vg__img hp-vg__img--primary' }}
+              {%- endif -%}
+
+              {%- if hover != blank -%}
+                {{
+                  hover
+                  | image_url: width: 1200
+                  | image_tag:
+                    loading: 'lazy',
+                    widths: '300, 420, 560, 760, 1000, 1200',
+                    sizes: '(min-width: 990px) 34vw, (min-width: 750px) 50vw, 100vw',
+                    alt: b.hover_image_alt,
+                    class: 'hp-vg__img hp-vg__img--hover'
+                }}
+              {%- endif -%}
+
+              {%- if s.overlay_strength > 0 -%}
+                <span class="hp-vg__scrim" aria-hidden="true"></span>
+              {%- endif -%}
+
+              <div class="hp-vg__caption">
+                <span class="hp-vg__label">{{ card_title | escape }}</span>
+
+                {%- if variant -%}
+                  <span class="hp-vg__price">
+                    {%- if variant.available -%}
+                      {{ variant.price | money }}
+                      {%- if variant.compare_at_price > variant.price -%}
+                        <span class="hp-vg__compare">{{ variant.compare_at_price | money }}</span>
+                      {%- endif -%}
+                    {%- else -%}
+                      {{ variant.price | money }}
+                      <span class="hp-vg__soldout">{{ s.sold_out_label | default: 'Sold out' }}</span>
+                    {%- endif -%}
+                  </span>
+                {%- endif -%}
+              </div>
+
+              {%- if request.design_mode -%}
+                {%- if product == blank -%}
+                  <p class="hp-vg__notice">
+                    Pick the Hankie Pals product in this section's settings. Only you can see this.
+                  </p>
+                {%- elsif unresolved -%}
+                  <p class="hp-vg__notice">
+                    No variant called “{{ b.variant_title | escape }}” on {{ product.title | escape }}.
+                    Match the variant's name in Shopify exactly, or clear the field to use variant
+                    {{ forloop.index }}. This card is not linked until it resolves. Only you can see this.
+                  </p>
+                {%- elsif variant == blank -%}
+                  <p class="hp-vg__notice">
+                    {{ product.title | escape }} has fewer than {{ forloop.index }} variants, so this
+                    card has nothing to show. Only you can see this.
+                  </p>
+                {%- endif -%}
+              {%- endif -%}
+            </div>
+
+          {%- if card_url != blank -%}
+            </a>
+          {%- else -%}
+            </div>
+          {%- endif -%}
+        </li>
+      {%- endfor -%}
+    </ul>
+  {%- endif -%}
+</section>
+
+{% schema %}
+{
+  "name": "Variant grid",
+  "tag": "div",
+  "class": "hp-vg-section",
+  "max_blocks": 6,
+  "settings": [
+    {
+      "type": "product",
+      "id": "product",
+      "label": "Product",
+      "info": "The one Hankie Pals product. Each card below names one of its variants."
+    },
+    { "type": "header", "content": "Layout" },
+    {
+      "type": "range",
+      "id": "grid_gap",
+      "label": "Gap between cards",
+      "unit": "px",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "default": 0,
+      "info": "0 butts the cards together, as in the reference."
+    },
+    {
+      "type": "select",
+      "id": "image_ratio",
+      "label": "Image shape",
+      "options": [
+        { "value": "1 / 1", "label": "Square" },
+        { "value": "4 / 5", "label": "Portrait (4:5)" },
+        { "value": "3 / 4", "label": "Portrait (3:4)" },
+        { "value": "5 / 4", "label": "Landscape (5:4)" }
+      ],
+      "default": "1 / 1"
+    },
+    {
+      "type": "select",
+      "id": "mobile_columns",
+      "label": "Columns on mobile",
+      "options": [
+        { "value": "1", "label": "1" },
+        { "value": "2", "label": "2" }
+      ],
+      "default": "1",
+      "info": "1 keeps the full product and variant name readable."
+    },
+    {
+      "type": "range",
+      "id": "overlay_strength",
+      "label": "Shade behind the labels",
+      "unit": "%",
+      "min": 0,
+      "max": 70,
+      "step": 5,
+      "default": 0,
+      "info": "A soft dark gradient at the bottom of each image. Raise it if a busy photo makes the labels hard to read."
+    },
+    { "type": "header", "content": "Type" },
+    {
+      "type": "range",
+      "id": "label_size",
+      "label": "Title size",
+      "unit": "px",
+      "min": 12,
+      "max": 30,
+      "step": 1,
+      "default": 18
+    },
+    {
+      "type": "range",
+      "id": "price_size",
+      "label": "Price size",
+      "unit": "px",
+      "min": 11,
+      "max": 26,
+      "step": 1,
+      "default": 16
+    },
+    { "type": "text", "id": "sold_out_label", "label": "Sold out label", "default": "Sold out" },
+    { "type": "header", "content": "Colors" },
+    { "type": "color", "id": "background", "label": "Section background", "default": "#FCFBF6" },
+    {
+      "type": "color",
+      "id": "card_background",
+      "label": "Card background",
+      "default": "#EFEDE4",
+      "info": "Seen behind an image while it loads, and if a card has no image."
+    },
+    { "type": "color", "id": "focus_color", "label": "Keyboard focus ring", "default": "#2F3326" },
+    { "type": "header", "content": "Spacing" },
+    { "type": "range", "id": "padding_top", "label": "Top padding (desktop)", "unit": "px", "min": 0, "max": 160, "step": 4, "default": 0 },
+    { "type": "range", "id": "padding_bottom", "label": "Bottom padding (desktop)", "unit": "px", "min": 0, "max": 160, "step": 4, "default": 0 },
+    { "type": "range", "id": "padding_top_mobile", "label": "Top padding (mobile)", "unit": "px", "min": 0, "max": 120, "step": 4, "default": 0 },
+    { "type": "range", "id": "padding_bottom_mobile", "label": "Bottom padding (mobile)", "unit": "px", "min": 0, "max": 120, "step": 4, "default": 0 }
+  ],
+  "blocks": [
+    {
+      "type": "variant",
+      "name": "Variant card",
+      "settings": [
+        {
+          "type": "text",
+          "id": "variant_title",
+          "label": "Variant name",
+          "info": "Type it exactly as it appears in Shopify — Bunny, Cow, Dog. Capitals and extra spaces do not matter. With more than one option, the combined name works too, such as Bunny / Small. Leave it empty to use this card's position in the product's variant order."
+        },
+        {
+          "type": "text",
+          "id": "display_title",
+          "label": "Label text",
+          "info": "Optional. Overrides the automatic \"Product — Variant\"."
+        },
+        { "type": "header", "content": "Artwork" },
+        {
+          "type": "image_picker",
+          "id": "image",
+          "label": "Card image",
+          "info": "Optional homepage artwork. Does not change the product's own images. Leave empty to use the variant's image."
+        },
+        { "type": "text", "id": "image_alt", "label": "Card image alt text" },
+        {
+          "type": "image_picker",
+          "id": "hover_image",
+          "label": "Hover image",
+          "info": "Optional. Leave empty to use the next image in the product's gallery, or nothing if there isn't one."
+        },
+        { "type": "text", "id": "hover_image_alt", "label": "Hover image alt text" },
+        {
+          "type": "select",
+          "id": "focal_position",
+          "label": "Image focus",
+          "options": [
+            { "value": "center", "label": "Centre" },
+            { "value": "top", "label": "Top" },
+            { "value": "bottom", "label": "Bottom" },
+            { "value": "left", "label": "Left" },
+            { "value": "right", "label": "Right" }
+          ],
+          "default": "center"
+        },
+        { "type": "header", "content": "Label" },
+        { "type": "color", "id": "label_background", "label": "Title background", "default": "#CFE1B9" },
+        { "type": "color", "id": "label_color", "label": "Title text", "default": "#2F3326" },
+        { "type": "color", "id": "price_background", "label": "Price background", "default": "#FCFBF6" },
+        { "type": "color", "id": "price_color", "label": "Price text", "default": "#2F3326" },
+        {
+          "type": "select",
+          "id": "label_alignment",
+          "label": "Label alignment",
+          "options": [
+            { "value": "center", "label": "Centre" },
+            { "value": "flex-start", "label": "Left" },
+            { "value": "flex-end", "label": "Right" }
+          ],
+          "default": "center"
+        },
+        {
+          "type": "select",
+          "id": "label_width",
+          "label": "Label width",
+          "options": [
+            { "value": "fit", "label": "Fit the text" },
+            { "value": "wide", "label": "Full width of the card" }
+          ],
+          "default": "fit"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Variant grid",
+      "blocks": [
+        { "type": "variant", "settings": { "label_background": "#CFE1B9" } },
+        { "type": "variant", "settings": { "label_background": "#ECA883" } },
+        { "type": "variant", "settings": { "label_background": "#F7DDCD" } }
+      ]
+    }
+  ]
+}
+{% endschema %}

@@ -120,14 +120,20 @@
     border-radius: 999px;
     background: var(--hp-eyebrow-bg);
     box-shadow: 0 2px 8px rgba(47, 51, 38, 0.06);
+    /* Family comes from a class rather than an inline property: the font
+       stacks contain quotes, which cannot go inside a style attribute. */
     font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
-    font-weight: var(--font-heading-weight, 700);
-    font-size: calc(clamp(12px, 0.95vw, 14px) * var(--hp-heading-scale));
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    font-weight: var(--hp-eyebrow-weight);
+    font-size: calc(var(--hp-eyebrow-size) * var(--hp-heading-scale));
+    letter-spacing: var(--hp-eyebrow-tracking);
+    text-transform: var(--hp-eyebrow-case);
     color: var(--hp-eyebrow-color);
     line-height: 1;
     animation: hp-hero-float var(--hp-float-speed) ease-in-out infinite;
+  }
+
+  .hp-hero--eyebrow-body .hp-hero__eyebrow-inner {
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
   }
 
   .hp-hero__eyebrow-dot {
@@ -293,7 +299,7 @@
 {% endstyle %}
 
 <section
-  class="hp-hero"
+  class="hp-hero{% if s.eyebrow_font == 'body' %} hp-hero--eyebrow-body{% endif %}"
   data-hp-hero="{{ section.id }}"
   style="
     --hp-split: {{ s.column_split | default: 55 }}%;
@@ -318,6 +324,10 @@
     --hp-left-pad: {{ s.left_padding | default: 88 }}px;
     --hp-left-pad-mobile: {{ s.left_padding_mobile | default: 24 }}px;
     --hp-eyebrow-align: {{ s.eyebrow_alignment | default: 'center' }};
+    --hp-eyebrow-size: {{ s.eyebrow_size | default: 13 }}px;
+    --hp-eyebrow-weight: {% if s.eyebrow_weight == blank or s.eyebrow_weight == 'theme' %}var(--font-heading-weight, 700){% else %}{{ s.eyebrow_weight | default: 700 }}{% endif %};
+    --hp-eyebrow-tracking: {{ s.eyebrow_tracking | default: 12 | divided_by: 100.0 }}em;
+    --hp-eyebrow-case: {{ s.eyebrow_case | default: 'uppercase' }};
     --hp-eyebrow-nudge: {{ s.eyebrow_nudge | default: 0 }}px;
     --hp-eyebrow-color: {{ s.eyebrow_color | default: '#2F3326' }};
     --hp-eyebrow-bg: {{ s.eyebrow_background | default: '#FCFBF6' }};
@@ -423,6 +433,62 @@
         { "value": "left", "label": "Flush left with the heading" }
       ],
       "default": "center"
+    },
+    {
+      "type": "select",
+      "id": "eyebrow_font",
+      "label": "Eyebrow font",
+      "options": [
+        { "value": "heading", "label": "Heading font" },
+        { "value": "body", "label": "Body font" }
+      ],
+      "default": "heading",
+      "info": "Both come from the theme's own type settings, so a custom font set there applies here too."
+    },
+    {
+      "type": "range",
+      "id": "eyebrow_size",
+      "label": "Eyebrow size",
+      "unit": "px",
+      "min": 9,
+      "max": 28,
+      "step": 1,
+      "default": 13
+    },
+    {
+      "type": "select",
+      "id": "eyebrow_weight",
+      "label": "Eyebrow weight",
+      "options": [
+        { "value": "theme", "label": "Theme default" },
+        { "value": "400", "label": "Regular" },
+        { "value": "500", "label": "Medium" },
+        { "value": "600", "label": "Semibold" },
+        { "value": "700", "label": "Bold" }
+      ],
+      "default": "theme",
+      "info": "A weight the font does not actually have gets faked by the browser, which looks smeared. Stick to weights you uploaded."
+    },
+    {
+      "type": "range",
+      "id": "eyebrow_tracking",
+      "label": "Eyebrow letter spacing",
+      "unit": "%",
+      "min": 0,
+      "max": 30,
+      "step": 1,
+      "default": 12,
+      "info": "Percent of the font size. Wide tracking suits uppercase; drop it near 0 for sentence case."
+    },
+    {
+      "type": "select",
+      "id": "eyebrow_case",
+      "label": "Eyebrow case",
+      "options": [
+        { "value": "uppercase", "label": "UPPERCASE" },
+        { "value": "none", "label": "As typed" }
+      ],
+      "default": "uppercase"
     },
     {
       "type": "range",

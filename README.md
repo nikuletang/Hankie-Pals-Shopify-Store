@@ -143,6 +143,22 @@ So every `{{ s.something }}` that lands in CSS carries a `| default:` matching
 its schema default. A CSS-level `var(--x, fallback)` does not help here: the
 property *is* set, just to a broken token.
 
+The mirror image of this bites just as often: changing a `default` in the schema
+does nothing to a section that is already on a page. The saved value wins, so a
+setting the merchant never touched keeps whatever it was first saved with, and a
+new default only reaches new instances. Re-pasting the file does not clear it
+either — the value lives on the page, not in the code.
+
+When a default has to change for an instance that already exists, give the
+setting a new `id`. There is no saved value under the new key, so the default
+applies on the next render with nothing to change in the editor. The variant
+grid's `mobile_columns` became `mobile_grid` for exactly this reason.
+
+Where the same setting drives layout, prefer emitting a class over a CSS
+variable: `hp-vg--m2` on the section element says which rule is in force and can
+be read straight off the DOM, whereas `repeat(var(--hp-mobile-cols), ...)` looks
+the same whatever value it got.
+
 ## Brand tokens
 
 From the Totterful brand sheet.

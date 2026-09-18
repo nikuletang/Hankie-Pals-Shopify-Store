@@ -188,15 +188,12 @@
   @media screen and (max-width: 749px) {
     .hp-vg { padding-block: var(--hp-pt-mobile) var(--hp-pb-mobile); }
 
-    .hp-vg__grid,
-    .hp-vg--1 .hp-vg__grid,
-    .hp-vg--2 .hp-vg__grid,
-    .hp-vg--3 .hp-vg__grid,
-    .hp-vg--4 .hp-vg__grid,
-    .hp-vg--5 .hp-vg__grid,
-    .hp-vg--6 .hp-vg__grid {
-      grid-template-columns: repeat(var(--hp-mobile-cols), minmax(0, 1fr));
-    }
+    /* Literal counts on a class, not a variable inside repeat(), so the
+       emitted class says which layout is in force and can be read straight off
+       the element. Listed after the wider rules above, so these win. */
+    .hp-vg--m1 .hp-vg__grid { grid-template-columns: minmax(0, 1fr); }
+
+    .hp-vg--m2 .hp-vg__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
     .hp-vg__label,
     .hp-vg__price { padding: 8px 12px; }
@@ -220,13 +217,12 @@
 {% endstyle %}
 
 <section
-  class="hp-vg hp-vg--{{ count }}"
+  class="hp-vg hp-vg--{{ count }} hp-vg--m{{ s.mobile_grid | default: '2' }}"
   style="
     --hp-bg: {{ s.background | default: '#FCFBF6' }};
     --hp-gap: {{ s.grid_gap | default: 0 }}px;
     --hp-ratio: {{ s.image_ratio | default: '1 / 1' }};
     --hp-scrim: {{ s.overlay_strength | default: 0 | divided_by: 100.0 }};
-    --hp-mobile-cols: {{ s.mobile_columns | default: 2 }};
     --hp-label-size: {{ s.label_size | default: 18 }}px;
     --hp-label-radius: {{ s.label_radius | default: 0 }}px;
     --hp-caption-gap: {{ s.caption_gap | default: 14 }}px;
@@ -463,11 +459,11 @@
     },
     {
       "type": "select",
-      "id": "mobile_columns",
+      "id": "mobile_grid",
       "label": "Columns on mobile",
       "options": [
-        { "value": "2", "label": "2" },
-        { "value": "1", "label": "1" }
+        { "value": "2", "label": "2 across" },
+        { "value": "1", "label": "1 full width" }
       ],
       "default": "2",
       "info": "2 shows more of the range at once. Switch to 1 if the labels get cramped — a long product name plus a variant name needs the width."

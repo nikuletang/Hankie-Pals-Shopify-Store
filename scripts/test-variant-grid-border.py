@@ -18,6 +18,8 @@ PROBE = """<script>
   });
   document.title = 'RESULT' + JSON.stringify({
     w: cs.borderTopWidth, style: cs.borderTopStyle, color: cs.borderTopColor,
+    sides: [cs.borderTopWidth, cs.borderRightWidth,
+            cs.borderBottomWidth, cs.borderLeftWidth].join(' '),
     cols: getComputedStyle(grid).gridTemplateColumns,
     cardW: Math.round(document.querySelector('.hp-vg__card').getBoundingClientRect().width),
     itemW: Math.round(items[0].getBoundingClientRect().width),
@@ -68,5 +70,39 @@ check('a card can override the colour for itself', d['color'] == 'rgb(0, 255, 0)
 d = run({'settings': {'border_width': 8}}, 'max', width=390)
 check('8px on a phone: still no overflow', d['scrollW'] <= d['vw'],
       f"scrollWidth {d['scrollW']} vs {d['vw']}, cols {d['cols']}")
+
+# --- Per-side toggles ------------------------------------------------------
+# Order throughout is top right bottom left, as the CSS shorthand reads.
+cases = [
+    ('all four on (default)',        {}, '3px 3px 3px 3px'),
+    ('right only',                   {'border_top': False, 'border_bottom': False,
+                                      'border_left': False}, '0px 3px 0px 0px'),
+    ('top and bottom only',          {'border_left': False, 'border_right': False},
+                                     '3px 0px 3px 0px'),
+    ('left and right only',          {'border_top': False, 'border_bottom': False},
+                                     '0px 3px 0px 3px'),
+    ('bottom only',                  {'border_top': False, 'border_right': False,
+                                      'border_left': False}, '0px 0px 3px 0px'),
+    ('all four off',                 {'border_top': False, 'border_right': False,
+                                      'border_bottom': False, 'border_left': False},
+                                     '0px 0px 0px 0px'),
+]
+for label, flags, want in cases:
+    d = run({'settings': dict({'border_width': 3}, **flags)},
+            'side-' + label.split()[0] + str(len(flags)))
+    check(f'sides — {label}', d['sides'] == want, f"got {d['sides']}, wanted {want}")
+
+# A side switched off must not change the card's footprint.
+d = run({'settings': {'border_width': 6, 'border_left': False, 'border_top': False}}, 'sidefit')
+check('a dropped side does not change the card footprint',
+      d['wider'] == 0 and d['cardW'] <= d['itemW'] and d['scrollW'] <= d['vw'],
+      f"card {d['cardW']}px in {d['itemW']}px, scrollWidth {d['scrollW']} vs {d['vw']}")
+
+# Right-only is the reason to have this at all: one hairline between cards
+# rather than two borders meeting.
+d = run({'settings': {'border_width': 1, 'border_top': False, 'border_bottom': False,
+                      'border_left': False}}, 'hairline')
+check('right-only leaves a single 1px edge between cards',
+      d['sides'] == '0px 1px 0px 0px', d['sides'])
 
 print(f"\n{sum(res)} passed, {len(res)-sum(res)} failed")

@@ -27,6 +27,28 @@
   assign s = section.settings
   assign product = s.product
   assign count = section.blocks.size
+
+  # Each side is on unless it has been switched off. The test is against false
+  # rather than truthiness on purpose: a section saved before these settings
+  # existed reads nil for them, and nil is not false, so those sides keep the
+  # schema's default of on instead of silently going missing.
+  assign edge = s.border_width | default: 0 | append: 'px'
+  assign edge_t = edge
+  assign edge_r = edge
+  assign edge_b = edge
+  assign edge_l = edge
+  if s.border_top == false
+    assign edge_t = '0'
+  endif
+  if s.border_right == false
+    assign edge_r = '0'
+  endif
+  if s.border_bottom == false
+    assign edge_b = '0'
+  endif
+  if s.border_left == false
+    assign edge_l = '0'
+  endif
 -%}
 
 {% style %}
@@ -63,7 +85,11 @@
     /* Stated rather than inherited from the theme's reset, so a border can
        never add to the card's width and push the row wider than its track. */
     box-sizing: border-box;
-    border: var(--hp-border-w) solid var(--hp-border-c);
+    /* Width per side rather than one shorthand, so any edge can be dropped
+       without touching the colour or style. */
+    border-style: solid;
+    border-color: var(--hp-border-c);
+    border-width: var(--hp-bw-t) var(--hp-bw-r) var(--hp-bw-b) var(--hp-bw-l);
     /* Fills the row. The ratio below still sets the height when nothing else
        does, but if a row is taller the photo covers it rather than leaving a
        band of card colour. */
@@ -225,7 +251,10 @@
   style="
     --hp-bg: {{ s.background | default: '#FCFBF6' }};
     --hp-gap: {{ s.grid_gap | default: 0 }}px;
-    --hp-border-w: {{ s.border_width | default: 0 }}px;
+    --hp-bw-t: {{ edge_t }};
+    --hp-bw-r: {{ edge_r }};
+    --hp-bw-b: {{ edge_b }};
+    --hp-bw-l: {{ edge_l }};
     --hp-ratio: {{ s.image_ratio | default: '1 / 1' }};
     --hp-scrim: {{ s.overlay_strength | default: 0 | divided_by: 100.0 }};
     --hp-label-size: {{ s.label_size | default: 18 }}px;
@@ -460,7 +489,32 @@
       "max": 8,
       "step": 1,
       "default": 0,
-      "info": "0 is off. With no gap between cards, the line where two meet is twice this, so 1 already reads as a hairline."
+      "info": "0 is off. With no gap between cards, the line where two meet is twice this, so 1 already reads as a hairline — or switch one of the facing sides off below."
+    },
+    {
+      "type": "checkbox",
+      "id": "border_top",
+      "label": "Border: top",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "border_right",
+      "label": "Border: right",
+      "default": true,
+      "info": "Right on and left off gives a single hairline between cards instead of a doubled one. The last card in a row still carries its right edge."
+    },
+    {
+      "type": "checkbox",
+      "id": "border_bottom",
+      "label": "Border: bottom",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "border_left",
+      "label": "Border: left",
+      "default": true
     },
     {
       "type": "select",

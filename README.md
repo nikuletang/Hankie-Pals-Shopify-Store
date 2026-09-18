@@ -18,6 +18,7 @@ anything moving.
 | [`sections/hero-split.liquid`](sections/hero-split.liquid) | **Split hero** | Two panels with independent backgrounds: copy and an offset CTA left, a portrait right. Stays side by side on a phone unless set to stack |
 | [`sections/variant-grid.liquid`](sections/variant-grid.liquid) | **Variant grid** | Full-width cards, one per variant of a single product, with a hover image swap |
 | [`sections/why-choose.liquid`](sections/why-choose.liquid) | **Why choose us** | A heading over a row of value props, each with an icon drawn in SVG rather than uploaded |
+| [`sections/section-divider.liquid`](sections/section-divider.liquid) | **Section divider** | A shaped edge — torn, zigzag, wave, scallop, slant, arch — to sit between two sections |
 
 Click a filename above, then use the **copy icon** in the toolbar over the code
 to take the whole file.
@@ -131,6 +132,21 @@ One difference from the real store worth knowing: Shopify counts nil as blank,
 and python-liquid does not, so the script passes an unset setting as an empty
 string. Both are blank, so every `!= blank` branch takes the side it takes on
 the store.
+
+## Test a section that draws a shape
+
+`scripts/test-divider.py` screenshots each divider shape and reads the pixels
+back with Pillow: a divider that paints nothing still renders a perfectly
+plausible coloured band, so nothing short of looking at the pixels proves the
+shape is there.
+
+    pip install Pillow
+    python3 scripts/test-divider.py
+
+Fifteen cases: every shape painted and ending in the lower colour, the peak
+count matching the setting in both repeat modes, the count holding when the
+viewport halves, the band measuring the height asked for, the colours swapping
+when it points up, and the torn tile having no visible seam.
 
 ## Test a section's behaviour
 

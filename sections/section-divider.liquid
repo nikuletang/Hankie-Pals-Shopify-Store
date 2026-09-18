@@ -1,0 +1,262 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — section divider
+  ---------------------------------------------------------------------------
+  A shaped edge to drop between two sections, the way a shape-divider app does
+  it on Webflow. Set the top colour to match the section above and the bottom
+  colour to match the one below, and the band reads as one continuous edge
+  rather than a strip of its own.
+
+  Drawn as one inline SVG, so the colours are plain attributes. As a CSS
+  background it would have to be a data: URI, and every "#" in a colour would
+  need escaping to %23 — a trap that fails silently, painting nothing.
+
+  The repeating shapes are an SVG <pattern> whose height is 100%, so the teeth
+  always fill the band however tall it is, including at the shorter mobile
+  height. Their width is either a share of the screen (same number of peaks at
+  any width) or a fixed pixel tile (more peaks on a wider screen).
+
+  Every repeating path starts and ends at the same y, so the tile is seamless.
+
+  No script. Sizes are px: Dawn's root font-size is 62.5%, so rem renders at
+  62.5% of its intended value. Every setting carries a `| default:`.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+  assign shape = s.shape | default: 'torn'
+
+  # Slant and arch are single shapes stretched across the width; everything
+  # else is a tile repeated along it.
+  assign tiled = true
+  if shape == 'slant' or shape == 'arch'
+    assign tiled = false
+  endif
+
+  case shape
+    when 'torn'
+      assign d = 'M0 0 H100 V34 L95 24 L89 88 L83 36 L77 70 L71 16 L65 82 L59 26 L53 62 L47 18 L41 90 L35.5 30 L29 68 L23 12 L17 74 L11 22 L5.5 86 L0 34 Z'
+    when 'zigzag'
+      assign d = 'M0 0 H100 L50 100 Z'
+    when 'spikes'
+      assign d = 'M0 0 H100 L87.5 100 L75 0 L62.5 100 L50 0 L37.5 100 L25 0 L12.5 100 Z'
+    when 'wave'
+      assign d = 'M0 0 H100 V50 C85 100 65 100 50 50 C35 0 15 0 0 50 Z'
+    when 'scallop'
+      assign d = 'M0 0 C0 66 11 100 25 100 C39 100 50 66 50 0 C50 66 61 100 75 100 C89 100 100 66 100 0 Z'
+    when 'slant'
+      assign d = 'M0 0 H100 V100 Z'
+    when 'arch'
+      assign d = 'M0 0 H100 V18 C76 100 24 100 0 18 Z'
+  endcase
+
+  # Pointing up means the shape pokes into the section above instead of the one
+  # below: the band takes the upper colour, the shape takes the lower one, and
+  # the flip turns the filled side over.
+  assign direction = s.direction | default: 'down'
+  if direction == 'up'
+    assign band_color = s.top_color | default: '#FCFBF6'
+    assign shape_color = s.bottom_color | default: '#FFFFFF'
+  else
+    assign band_color = s.bottom_color | default: '#FFFFFF'
+    assign shape_color = s.top_color | default: '#FCFBF6'
+  endif
+
+  # A share of the width keeps the peak count the same on every screen; a pixel
+  # tile keeps each peak the same size and fits more of them in as it widens.
+  if s.repeat_mode == 'fixed'
+    assign tile_w = s.tile_width | default: 320 | append: ''
+  else
+    assign repeats = s.repeats | default: 5
+    assign tile_w = 100.0 | divided_by: repeats | append: '%'
+  endif
+-%}
+
+{% style %}
+  .hp-div {
+    display: block;
+    width: 100%;
+    height: var(--hp-div-h);
+    background: var(--hp-div-band);
+    /* The band is its own strip between two sections, so nothing should add
+       space around it. */
+    margin: 0;
+    padding: 0;
+    line-height: 0;
+    overflow: hidden;
+  }
+
+  .hp-div__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .hp-div--flip .hp-div__svg { transform: scaleX(-1); }
+
+  .hp-div--up .hp-div__svg { transform: scaleY(-1); }
+
+  .hp-div--up.hp-div--flip .hp-div__svg { transform: scale(-1, -1); }
+
+  @media screen and (max-width: 749px) {
+    .hp-div { height: var(--hp-div-h-mobile); }
+  }
+{% endstyle %}
+
+<div
+  class="hp-div hp-div--{{ shape }} hp-div--{{ direction }}{% if s.flip %} hp-div--flip{% endif %}"
+  style="
+    --hp-div-h: {{ s.height | default: 80 }}px;
+    --hp-div-h-mobile: {{ s.height_mobile | default: 48 }}px;
+    --hp-div-band: {{ band_color }};
+  "
+  role="presentation"
+  {{ section.shopify_attributes }}
+>
+  {%- if tiled -%}
+    <svg class="hp-div__svg" aria-hidden="true" focusable="false" preserveAspectRatio="none">
+      <defs>
+        {%- comment -%}
+          The id carries the section id: two dividers on one page would
+          otherwise share a pattern, and the first one defined would win.
+        {%- endcomment -%}
+        <pattern
+          id="hp-div-{{ section.id }}"
+          patternUnits="userSpaceOnUse"
+          width="{{ tile_w }}"
+          height="100%"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+        >
+          <path d="{{ d }}" fill="{{ shape_color }}"></path>
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#hp-div-{{ section.id }})"></rect>
+    </svg>
+  {%- else -%}
+    <svg
+      class="hp-div__svg"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="{{ d }}" fill="{{ shape_color }}"></path>
+    </svg>
+  {%- endif -%}
+</div>
+
+{% schema %}
+{
+  "name": "Section divider",
+  "tag": "div",
+  "class": "hp-div-section",
+  "settings": [
+    {
+      "type": "select",
+      "id": "shape",
+      "label": "Shape",
+      "options": [
+        { "value": "torn", "label": "Torn paper — uneven peaks" },
+        { "value": "zigzag", "label": "Zigzag — one big tooth per repeat" },
+        { "value": "spikes", "label": "Spikes — fine even teeth" },
+        { "value": "wave", "label": "Wave" },
+        { "value": "scallop", "label": "Scallop — round bumps" },
+        { "value": "slant", "label": "Slant — one diagonal" },
+        { "value": "arch", "label": "Arch — one curve" }
+      ],
+      "default": "torn",
+      "info": "Slant and arch stretch across the full width. The rest repeat."
+    },
+    { "type": "header", "content": "Colours" },
+    {
+      "type": "color",
+      "id": "top_color",
+      "label": "Colour above",
+      "default": "#FCFBF6",
+      "info": "Match this to the background of the section above, or the join will show as a line."
+    },
+    {
+      "type": "color",
+      "id": "bottom_color",
+      "label": "Colour below",
+      "default": "#FFFFFF",
+      "info": "Match this to the background of the section below."
+    },
+    { "type": "header", "content": "Shape" },
+    {
+      "type": "select",
+      "id": "direction",
+      "label": "Which way it points",
+      "options": [
+        { "value": "down", "label": "Down into the section below" },
+        { "value": "up", "label": "Up into the section above" }
+      ],
+      "default": "down"
+    },
+    {
+      "type": "checkbox",
+      "id": "flip",
+      "label": "Mirror left to right",
+      "default": false,
+      "info": "Useful when two dividers on one page would otherwise look identical."
+    },
+    {
+      "type": "select",
+      "id": "repeat_mode",
+      "label": "How it repeats",
+      "options": [
+        { "value": "stretch", "label": "Same number of peaks at any width" },
+        { "value": "fixed", "label": "Fixed peak width — more peaks on wide screens" }
+      ],
+      "default": "stretch",
+      "info": "Ignored by slant and arch, which are single shapes."
+    },
+    {
+      "type": "range",
+      "id": "repeats",
+      "label": "Number of repeats",
+      "min": 1,
+      "max": 20,
+      "step": 1,
+      "default": 1,
+      "info": "Repeats of the whole shape, not peaks. Torn paper already holds eight peaks in one repeat, so leave it at 1 and nothing repeats at all. Zigzag, wave and slant are one peak each, so those want 3 to 8."
+    },
+    {
+      "type": "range",
+      "id": "tile_width",
+      "label": "Peak width",
+      "unit": "px",
+      "min": 40,
+      "max": 800,
+      "step": 20,
+      "default": 320,
+      "info": "Used when the setting above is set to a fixed peak width."
+    },
+    { "type": "header", "content": "Height" },
+    {
+      "type": "range",
+      "id": "height",
+      "label": "Height (desktop)",
+      "unit": "px",
+      "min": 8,
+      "max": 240,
+      "step": 4,
+      "default": 80,
+      "info": "How deep the shape cuts. The peaks always fill the full height."
+    },
+    {
+      "type": "range",
+      "id": "height_mobile",
+      "label": "Height (mobile)",
+      "unit": "px",
+      "min": 6,
+      "max": 160,
+      "step": 2,
+      "default": 48
+    }
+  ],
+  "presets": [{ "name": "Section divider" }]
+}
+{% endschema %}

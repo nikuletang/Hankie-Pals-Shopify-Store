@@ -17,6 +17,7 @@ anything moving.
 | [`sections/solution-tabs.liquid`](sections/solution-tabs.liquid) | **Solution tabs** | Three feature cards; picking one crossfades the large image beside them |
 | [`sections/hero-split.liquid`](sections/hero-split.liquid) | **Split hero** | Two panels with independent backgrounds: copy and an offset CTA left, a portrait right. Stays side by side on a phone unless set to stack |
 | [`sections/variant-grid.liquid`](sections/variant-grid.liquid) | **Variant grid** | Full-width cards, one per variant of a single product, with a hover image swap |
+| [`sections/why-choose.liquid`](sections/why-choose.liquid) | **Why choose us** | A heading over a row of value props, each with an icon drawn in SVG rather than uploaded |
 
 Click a filename above, then use the **copy icon** in the toolbar over the code
 to take the whole file.
@@ -107,6 +108,29 @@ It earned its keep immediately, catching
 where `money` receives the whole concatenated sentence rather than the price,
 because Liquid filters chain left to right. Nothing about the rendered page would
 have looked wrong; only the screen-reader label was broken.
+
+## Render a section without a store
+
+`scripts/render-section.py` turns any section here into a standalone HTML page,
+using the schema's own defaults for settings and the first preset for blocks —
+which is what Shopify builds when the section is added from the theme editor.
+
+    python3 scripts/render-section.py sections/why-choose.liquid '{}' /tmp/out.html
+
+The third argument is optional JSON that overrides settings and blocks, so a
+layout can be checked under a setting nobody has saved yet:
+
+    python3 scripts/render-section.py sections/why-choose.liquid \
+      '{"settings": {"icon_backdrop": "blob", "columns": "3"}}' /tmp/out.html
+
+Open it in a headless browser and measure it rather than judging by eye. This
+is what caught the icons rendering at 290px instead of 56px: two classes on one
+element, same specificity, and the one that happened to be written later won.
+
+One difference from the real store worth knowing: Shopify counts nil as blank,
+and python-liquid does not, so the script passes an unset setting as an empty
+string. Both are blank, so every `!= blank` branch takes the side it takes on
+the store.
 
 ## Check a schema before pasting it in
 

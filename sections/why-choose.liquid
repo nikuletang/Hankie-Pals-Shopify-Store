@@ -1,0 +1,988 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — why choose us
+  ---------------------------------------------------------------------------
+  A heading over a row of value props: icon, title, a line or two of copy.
+
+  The icons are drawn here in SVG rather than uploaded, so they inherit their
+  colour from the block's settings, stay crisp at any size, cost no requests
+  and cannot arrive as a stray PNG with a white box behind it. Eighteen of
+  them, in one rounded style. A block can still take an uploaded image if none
+  of them fits.
+
+  Each icon is built from four classes — f fills in the main colour, a fills in
+  the accent, s and sa stroke in those same two — so a two-tone icon is two
+  colour settings and nothing else. They are scoped under .hp-why__ico, so
+  those one-letter names cannot reach anything else on the page.
+
+  No script. The hover lift is a transition and the drift is a keyframe, both
+  dropped under prefers-reduced-motion.
+
+  Sizes are px: Dawn's root font-size is 62.5%, so rem renders at 62.5% of its
+  intended value; theme type sliders arrive via --font-body-scale and
+  --font-heading-scale. Every setting carries a `| default:` so an instance
+  that predates a setting cannot emit a half-formed CSS token.
+
+  Column counts are literal in classes rather than a variable inside repeat(),
+  so the emitted class says which layout is in force.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+  assign col_count = s.columns | default: '4'
+  assign mobile_count = s.columns_mobile | default: '2'
+-%}
+
+{% style %}
+  .hp-why {
+    --hp-body-scale: var(--font-body-scale, 1);
+    --hp-heading-scale: var(--font-heading-scale, 1);
+    background-color: var(--hp-bg);
+    padding-block: var(--hp-pt) var(--hp-pb);
+  }
+
+  .hp-why__inner {
+    max-width: var(--hp-max-width);
+    margin-inline: auto;
+    padding-inline: var(--hp-pad-x);
+  }
+
+  /* --- Section header ----------------------------------------------------- */
+  .hp-why__header {
+    max-width: var(--hp-header-width);
+    margin-inline: var(--hp-header-mi);
+    margin-block-end: var(--hp-header-gap);
+    text-align: var(--hp-header-align);
+  }
+
+  .hp-why__eyebrow {
+    margin: 0 0 12px;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-weight: 600;
+    font-size: calc(var(--hp-eyebrow-size) * var(--hp-body-scale));
+    letter-spacing: var(--hp-eyebrow-tracking);
+    text-transform: uppercase;
+    color: var(--hp-eyebrow-color);
+  }
+
+  .hp-why__heading {
+    margin: 0;
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(
+      clamp(calc(var(--hp-heading-size) * 0.62), 3.6vw, var(--hp-heading-size))
+      * var(--hp-heading-scale)
+    );
+    /* Tracking this wide is the look in the reference; it needs the line
+       height opened up to match or the lines crowd. */
+    letter-spacing: var(--hp-heading-tracking);
+    line-height: 1.22;
+    text-transform: var(--hp-heading-case);
+    color: var(--hp-heading-color);
+  }
+
+  .hp-why__intro {
+    margin: 16px 0 0;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-weight: 500;
+    font-size: calc(var(--hp-intro-size) * var(--hp-body-scale));
+    line-height: 1.5;
+    color: var(--hp-intro-color);
+  }
+
+  /* --- Grid --------------------------------------------------------------- */
+  .hp-why__grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--hp-row-gap) var(--hp-col-gap);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .hp-why--c2 .hp-why__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hp-why--c3 .hp-why__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .hp-why--c4 .hp-why__grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+  .hp-why__item {
+    display: flex;
+    flex-direction: column;
+    align-items: var(--hp-item-align);
+    text-align: var(--hp-item-text);
+    padding: var(--hp-item-pad);
+    border-radius: var(--hp-item-radius);
+    background: var(--hp-item-bg);
+    transition: transform 220ms ease, box-shadow 220ms ease;
+  }
+
+  .hp-why--lift .hp-why__item:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 30px -20px rgba(47, 51, 38, 0.5);
+  }
+
+  /* --- Icon --------------------------------------------------------------- */
+  /* No backdrop by default: the box shrinks to the icon and paints nothing,
+     so "None" means none rather than a square in the backdrop colour. */
+  .hp-why__figure {
+    display: grid;
+    place-items: center;
+    margin: 0 0 var(--hp-icon-gap);
+    /* Staggered so a row of icons breathes rather than bobbing in unison. */
+    animation: hp-why-drift var(--hp-drift-speed) ease-in-out infinite;
+    animation-delay: calc(var(--i) * var(--hp-drift-stagger));
+  }
+
+  .hp-why--pad-blob .hp-why__figure,
+  .hp-why--pad-circle .hp-why__figure {
+    width: var(--hp-pad-size);
+    height: var(--hp-pad-size);
+    background: var(--hp-pad-bg);
+  }
+
+  .hp-why--pad-blob .hp-why__figure {
+    /* The pebble from the brand sheet: each edge's radius pair sums to 100%. */
+    border-radius: 45% 55% 50% 50% / 55% 45% 55% 45%;
+  }
+
+  .hp-why--pad-circle .hp-why__figure { border-radius: 50%; }
+
+  .hp-why__icon {
+    display: block;
+    width: var(--hp-icon-size);
+    height: var(--hp-icon-size);
+    object-fit: contain;
+  }
+
+  @keyframes hp-why-drift {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(calc(var(--hp-drift-distance) * -1)); }
+  }
+
+  /* The four ways an icon can be painted. Scoped under the svg, so these
+     one-letter names cannot apply to anything else on the page. */
+  .hp-why__ico { display: block; }
+  .hp-why__ico .f { fill: var(--hp-ico); }
+  .hp-why__ico .a { fill: var(--hp-ico-accent); }
+  .hp-why__ico .s,
+  .hp-why__ico .sa {
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .hp-why__ico .s { stroke: var(--hp-ico); }
+  .hp-why__ico .sa { stroke: var(--hp-ico-accent); }
+
+  /* --- Copy --------------------------------------------------------------- */
+  .hp-why__title {
+    margin: 0;
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(var(--hp-title-size) * var(--hp-heading-scale));
+    letter-spacing: var(--hp-title-tracking);
+    line-height: 1.3;
+    text-transform: var(--hp-title-case);
+    color: var(--hp-title-color);
+  }
+
+  .hp-why__text {
+    margin: var(--hp-text-gap) 0 0;
+    max-width: var(--hp-text-width);
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-weight: 500;
+    font-size: calc(var(--hp-text-size) * var(--hp-body-scale));
+    line-height: 1.55;
+    color: var(--hp-text-color);
+  }
+
+  .hp-why__link {
+    margin-block-start: 14px;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-weight: 700;
+    font-size: calc(var(--hp-link-size) * var(--hp-body-scale));
+    color: var(--hp-link-color);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    text-decoration-thickness: 2px;
+  }
+
+  .hp-why__link:focus-visible,
+  .hp-why__item a:focus-visible {
+    outline: 3px solid var(--hp-title-color);
+    outline-offset: 3px;
+  }
+
+  /* --- Tablet ------------------------------------------------------------- */
+  @media screen and (max-width: 989px) {
+    .hp-why--c3 .hp-why__grid,
+    .hp-why--c4 .hp-why__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  /* --- Phone -------------------------------------------------------------- */
+  @media screen and (max-width: 749px) {
+    .hp-why { padding-block: var(--hp-pt-mobile) var(--hp-pb-mobile); }
+
+    .hp-why--m1 .hp-why__grid { grid-template-columns: minmax(0, 1fr); }
+
+    .hp-why--m2 .hp-why__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+    .hp-why__grid { gap: var(--hp-row-gap-mobile) var(--hp-col-gap-mobile); }
+
+    /* Two across a phone leaves little room, so the fixed sizes above are
+       restated as ceilings that narrow screens scale below. */
+    .hp-why--m2.hp-why--pad-blob .hp-why__figure,
+    .hp-why--m2.hp-why--pad-circle .hp-why__figure {
+      width: min(var(--hp-pad-size), 22vw);
+      height: min(var(--hp-pad-size), 22vw);
+    }
+
+    .hp-why--m2 .hp-why__icon {
+      width: min(var(--hp-icon-size), 13vw);
+      height: min(var(--hp-icon-size), 13vw);
+    }
+
+    .hp-why--m2 .hp-why__title {
+      font-size: calc(clamp(11px, 3.4vw, var(--hp-title-size)) * var(--hp-heading-scale));
+      letter-spacing: min(var(--hp-title-tracking), 0.08em);
+      /* A long unbroken word would otherwise push the column past its track. */
+      overflow-wrap: break-word;
+    }
+
+    .hp-why--m2 .hp-why__text {
+      font-size: calc(clamp(11px, 3.2vw, var(--hp-text-size)) * var(--hp-body-scale));
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hp-why__figure { animation: none; }
+    .hp-why__item { transition: none; }
+    .hp-why--lift .hp-why__item:hover { transform: none; }
+  }
+{% endstyle %}
+
+<section
+  class="hp-why hp-why--c{{ col_count }} hp-why--m{{ mobile_count }} hp-why--pad-{{ s.icon_backdrop | default: 'none' }}{% if s.hover_lift %} hp-why--lift{% endif %}"
+  style="
+    --hp-bg: {{ s.background | default: '#FCFBF6' }};
+    --hp-max-width: {{ s.max_width | default: 1280 }}px;
+    --hp-pad-x: {{ s.padding_inline | default: 24 }}px;
+    --hp-header-width: {{ s.header_width | default: 900 }}px;
+    --hp-header-mi: {% if s.header_alignment == 'left' %}0 auto 0 0{% else %}auto{% endif %};
+    --hp-header-align: {{ s.header_alignment | default: 'center' }};
+    --hp-header-gap: {{ s.header_gap | default: 56 }}px;
+    --hp-eyebrow-size: {{ s.eyebrow_size | default: 13 }}px;
+    --hp-eyebrow-tracking: {{ s.eyebrow_tracking | default: 14 | divided_by: 100.0 }}em;
+    --hp-eyebrow-color: {{ s.eyebrow_color | default: '#6B7056' }};
+    --hp-heading-size: {{ s.heading_size | default: 40 }}px;
+    --hp-heading-tracking: {{ s.heading_tracking | default: 10 | divided_by: 100.0 }}em;
+    --hp-heading-case: {{ s.heading_case | default: 'uppercase' }};
+    --hp-heading-color: {{ s.heading_color | default: '#2F3326' }};
+    --hp-intro-size: {{ s.intro_size | default: 18 }}px;
+    --hp-intro-color: {{ s.intro_color | default: '#5C6150' }};
+    --hp-col-gap: {{ s.column_gap | default: 40 }}px;
+    --hp-row-gap: {{ s.row_gap | default: 56 }}px;
+    --hp-col-gap-mobile: {{ s.column_gap_mobile | default: 20 }}px;
+    --hp-row-gap-mobile: {{ s.row_gap_mobile | default: 36 }}px;
+    --hp-item-align: {% if s.item_alignment == 'left' %}flex-start{% else %}center{% endif %};
+    --hp-item-text: {{ s.item_alignment | default: 'center' }};
+    --hp-item-pad: {{ s.item_padding | default: 0 }}px;
+    --hp-item-radius: {{ s.item_radius | default: 0 }}px;
+    --hp-icon-size: {{ s.icon_size | default: 56 }}px;
+    --hp-pad-size: {{ s.backdrop_size | default: 88 }}px;
+    --hp-icon-gap: {{ s.icon_gap | default: 22 }}px;
+    --hp-drift-distance: {{ s.drift_distance | default: 0 }}px;
+    --hp-drift-speed: {{ s.drift_speed | default: 5 }}s;
+    --hp-drift-stagger: {{ s.drift_stagger | default: 400 }}ms;
+    --hp-title-size: {{ s.title_size | default: 15 }}px;
+    --hp-title-tracking: {{ s.title_tracking | default: 14 | divided_by: 100.0 }}em;
+    --hp-title-case: {{ s.title_case | default: 'uppercase' }};
+    --hp-text-size: {{ s.text_size | default: 16 }}px;
+    --hp-text-gap: {{ s.text_gap | default: 14 }}px;
+    --hp-text-width: {{ s.text_width | default: 280 }}px;
+    --hp-link-size: {{ s.link_size | default: 14 }}px;
+    --hp-pt: {{ s.padding_top | default: 96 }}px;
+    --hp-pb: {{ s.padding_bottom | default: 96 }}px;
+    --hp-pt-mobile: {{ s.padding_top_mobile | default: 64 }}px;
+    --hp-pb-mobile: {{ s.padding_bottom_mobile | default: 64 }}px;
+  "
+  {{ section.shopify_attributes }}
+>
+  <div class="hp-why__inner">
+    {%- if s.eyebrow != blank or s.heading != blank or s.intro != blank -%}
+      <div class="hp-why__header">
+        {%- if s.eyebrow != blank -%}
+          <p class="hp-why__eyebrow">{{ s.eyebrow | escape }}</p>
+        {%- endif -%}
+
+        {%- if s.heading != blank -%}
+          <{{ s.heading_tag | default: 'h2' }} class="hp-why__heading">
+            {{- s.heading | escape -}}
+          </{{ s.heading_tag | default: 'h2' }}>
+        {%- endif -%}
+
+        {%- if s.intro != blank -%}
+          <p class="hp-why__intro">{{ s.intro | escape | newline_to_br }}</p>
+        {%- endif -%}
+      </div>
+    {%- endif -%}
+
+    {%- if section.blocks.size > 0 -%}
+      <ul class="hp-why__grid" role="list">
+        {%- for block in section.blocks -%}
+          {%- assign b = block.settings -%}
+          <li
+            class="hp-why__item"
+            style="
+              --i: {{ forloop.index0 }};
+              --hp-ico: {{ b.icon_color | default: '#D88B6D' }};
+              --hp-ico-accent: {{ b.icon_accent | default: '#FCFBF6' }};
+              --hp-pad-bg: {{ b.backdrop_color | default: '#F7DDCD' }};
+              --hp-item-bg: {{ b.card_color | default: 'transparent' }};
+              --hp-title-color: {{ b.title_color | default: '#2F3326' }};
+              --hp-text-color: {{ b.text_color | default: '#5C6150' }};
+              --hp-link-color: {{ b.link_color | default: '#6B7056' }};
+            "
+            {{ block.shopify_attributes }}
+          >
+            {%- if b.image != blank -%}
+              <span class="hp-why__figure">
+                {{
+                  b.image
+                  | image_url: width: 240
+                  | image_tag: loading: 'lazy', widths: '60, 88, 120, 176, 240', alt: '',
+                    class: 'hp-why__icon'
+                }}
+              </span>
+            {%- elsif b.icon != 'none' -%}
+              <span class="hp-why__figure">
+                <svg
+                  class="hp-why__ico hp-why__icon"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  {%- case b.icon -%}
+                    {%- when 'heart' -%}
+                      <path class="f" d="M12 21c-.42 0-.83-.15-1.14-.43C6.15 16.33 3 13.48 3 9.9 3 7.08 5.13 4.95 7.88 4.95c1.6 0 3.16.78 4.12 2.05.96-1.27 2.52-2.05 4.12-2.05C18.87 4.95 21 7.08 21 9.9c0 3.58-3.15 6.43-7.86 10.67-.31.28-.72.43-1.14.43z"/>
+                    {%- when 'star' -%}
+                      <path class="f" d="M12 3.2c.4 0 .77.23.95.6l2.02 4.1 4.52.66c.4.06.73.34.86.72.12.38.02.8-.27 1.08l-3.27 3.19.77 4.5c.07.4-.1.81-.43 1.05-.33.24-.77.27-1.13.08L12 16.96l-4.02 2.12c-.36.19-.8.16-1.13-.08a1.05 1.05 0 0 1-.43-1.05l.77-4.5-3.27-3.19a1.05 1.05 0 0 1-.27-1.08c.13-.38.46-.66.86-.72l4.52-.66 2.02-4.1c.18-.37.55-.6.95-.6z"/>
+                    {%- when 'sparkle' -%}
+                      <path class="f" d="M10.6 2.8c.36 0 .68.23.8.57l1.1 3.05c.27.74.85 1.32 1.6 1.59l3.05 1.1a.85.85 0 0 1 0 1.6l-3.05 1.1c-.75.27-1.33.85-1.6 1.6l-1.1 3.04a.85.85 0 0 1-1.6 0l-1.1-3.05a2.55 2.55 0 0 0-1.6-1.59l-3.04-1.1a.85.85 0 0 1 0-1.6l3.05-1.1c.74-.27 1.32-.85 1.59-1.6l1.1-3.04c.12-.34.44-.57.8-.57z"/>
+                      <path class="f" d="M18.1 14.6c.2 0 .38.13.45.32l.46 1.27c.1.29.33.52.62.62l1.27.46a.48.48 0 0 1 0 .9l-1.27.46c-.29.1-.52.33-.62.62l-.46 1.27a.48.48 0 0 1-.9 0l-.46-1.27a1.08 1.08 0 0 0-.62-.62l-1.27-.46a.48.48 0 0 1 0-.9l1.27-.46c.29-.1.52-.33.62-.62l.46-1.27c.07-.19.25-.32.45-.32z"/>
+                    {%- when 'cloud' -%}
+                      <path class="f" d="M7.6 19.6a4.6 4.6 0 0 1-.72-9.14 5.7 5.7 0 0 1 10.76-.44 4.35 4.35 0 0 1-.44 9.58H7.6z"/>
+                    {%- when 'leaf' -%}
+                      <path class="f" d="M6 18c0-7.83 5.72-13.55 13.55-13.55 0 7.83-5.72 13.55-13.55 13.55z"/>
+                      <path class="s" d="m4.2 19.8 1.8-1.8"/>
+                      <path class="sa" stroke-width="1.6" d="M6.6 17.4 16.8 7.2"/>
+                    {%- when 'droplet' -%}
+                      <path class="f" d="M12 2.8c3.4 3.7 6.3 7 6.3 10.4a6.3 6.3 0 1 1-12.6 0c0-3.4 2.9-6.7 6.3-10.4z"/>
+                    {%- when 'flower' -%}
+                      <circle class="f" cx="12" cy="5.3" r="2.95"/>
+                      <circle class="f" cx="18.4" cy="9.95" r="2.95"/>
+                      <circle class="f" cx="15.95" cy="17.5" r="2.95"/>
+                      <circle class="f" cx="8.05" cy="17.5" r="2.95"/>
+                      <circle class="f" cx="5.6" cy="9.95" r="2.95"/>
+                      <circle class="a" cx="12" cy="12" r="2.6"/>
+                    {%- when 'sun' -%}
+                      <circle class="f" cx="12" cy="12" r="4.8"/>
+                      <path class="s" d="M12 2.6v1.8M12 19.6v1.8M4.35 12H2.55M21.45 12h-1.8M6.6 6.6 5.3 5.3M18.7 18.7l-1.3-1.3M6.6 17.4l-1.3 1.3M18.7 5.3l-1.3 1.3"/>
+                    {%- when 'moon' -%}
+                      <path class="f" d="M20.6 14.3A8.7 8.7 0 0 1 9.7 3.4a8.7 8.7 0 1 0 10.9 10.9z"/>
+                      <path class="a" d="M17.6 3c.2 0 .37.13.43.32l.3.92c.06.18.2.32.38.38l.92.3a.45.45 0 0 1 0 .86l-.92.3a.68.68 0 0 0-.38.38l-.3.92a.45.45 0 0 1-.86 0l-.3-.92a.68.68 0 0 0-.38-.38l-.92-.3a.45.45 0 0 1 0-.86l.92-.3a.68.68 0 0 0 .38-.38l.3-.92A.45.45 0 0 1 17.6 3z"/>
+                    {%- when 'smile' -%}
+                      <circle class="f" cx="12" cy="12" r="9.2"/>
+                      <circle class="a" cx="9.1" cy="10.4" r="1.2"/>
+                      <circle class="a" cx="14.9" cy="10.4" r="1.2"/>
+                      <path class="sa" d="M8.6 14.4a4.3 4.3 0 0 0 6.8 0"/>
+                    {%- when 'bunny' -%}
+                      <ellipse class="f" cx="9.3" cy="6.9" rx="1.75" ry="4" transform="rotate(-13 9.3 6.9)"/>
+                      <ellipse class="f" cx="14.7" cy="6.9" rx="1.75" ry="4" transform="rotate(13 14.7 6.9)"/>
+                      <circle class="f" cx="12" cy="15.4" r="5.9"/>
+                      <circle class="a" cx="9.9" cy="14.4" r=".95"/>
+                      <circle class="a" cx="14.1" cy="14.4" r=".95"/>
+                      <path class="sa" d="M10.7 17.2a2.2 2.2 0 0 0 2.6 0"/>
+                    {%- when 'paw' -%}
+                      <ellipse class="f" cx="7.1" cy="9.2" rx="2.1" ry="2.7" transform="rotate(-18 7.1 9.2)"/>
+                      <ellipse class="f" cx="11" cy="6.9" rx="2.1" ry="2.8"/>
+                      <ellipse class="f" cx="15.4" cy="7.6" rx="2.1" ry="2.8" transform="rotate(16 15.4 7.6)"/>
+                      <ellipse class="f" cx="18.7" cy="11" rx="2" ry="2.5" transform="rotate(30 18.7 11)"/>
+                      <path class="f" d="M12.4 11.6c2.6 0 5.5 2.3 5.5 5a3.7 3.7 0 0 1-3.7 3.7c-1 0-1.4-.3-1.8-.3s-.8.3-1.8.3a3.7 3.7 0 0 1-3.7-3.7c0-2.7 2.9-5 5.5-5z"/>
+                    {%- when 'clip' -%}
+                      <path class="s" d="M16 9.6v6.1a4 4 0 0 1-8 0V7.7a2.5 2.5 0 0 1 5 0v7.8a1.1 1.1 0 0 1-2.2 0V9.6"/>
+                    {%- when 'refresh' -%}
+                      <path class="s" d="M19.6 12.6a7.7 7.7 0 0 1-13 5.1M4.4 11.4a7.7 7.7 0 0 1 13-5.1"/>
+                      <path class="f" d="M17.9 2.8c.3 0 .55.25.55.55V7c0 .3-.25.55-.55.55h-3.65a.55.55 0 0 1-.39-.94l3.65-3.65a.55.55 0 0 1 .39-.16zM6.1 21.2a.55.55 0 0 1-.55-.55V17c0-.3.25-.55.55-.55h3.65a.55.55 0 0 1 .39.94l-3.65 3.65a.55.55 0 0 1-.39.16z"/>
+                    {%- when 'shield' -%}
+                      <path class="f" d="M12 2.4c.12 0 .24.02.35.06l6.6 2.47c.35.13.58.46.58.84v5.1c0 4.75-3.03 8.4-7.16 10.64a.9.9 0 0 1-.86 0C7.38 19.27 4.35 15.62 4.35 10.87v-5.1c0-.38.23-.71.58-.84l6.6-2.47c.11-.04.23-.06.35-.06z"/>
+                      <path class="sa" d="m9 11.6 2.2 2.2 4-4.2"/>
+                    {%- when 'scissors' -%}
+                      <circle class="s" cx="7" cy="17.8" r="2.5"/>
+                      <circle class="s" cx="17" cy="17.8" r="2.5"/>
+                      <path class="s" d="M8.6 15.9 18.8 3.6M15.4 15.9 5.2 3.6"/>
+                    {%- when 'gift' -%}
+                      <path class="f" d="M4.4 11.6h15.2v7.9c0 .77-.63 1.4-1.4 1.4H5.8c-.77 0-1.4-.63-1.4-1.4z"/>
+                      <path class="f" d="M3.6 7.3h16.8c.66 0 1.2.54 1.2 1.2v2.3H2.4V8.5c0-.66.54-1.2 1.2-1.2z"/>
+                      <path class="a" d="M10.7 7.3h2.6v13.6h-2.6z"/>
+                      <path class="s" d="M12 7.2c-1.3-3-2.6-4-3.8-3.4-1.1.6-.9 2.4 3.8 3.4zM12 7.2c1.3-3 2.6-4 3.8-3.4 1.1.6.9 2.4-3.8 3.4z"/>
+                    {%- when 'pocket' -%}
+                      <path class="f" d="M4.9 8.4h14.2l-1.25 10.8a2.1 2.1 0 0 1-2.09 1.86H8.24a2.1 2.1 0 0 1-2.09-1.86z"/>
+                      <path class="s" d="M8.7 8.4V6.6a3.3 3.3 0 0 1 6.6 0v1.8"/>
+                    {%- endcase -%}
+                </svg>
+              </span>
+            {%- endif -%}
+
+            {%- if b.title != blank -%}
+              <h3 class="hp-why__title">{{ b.title | escape }}</h3>
+            {%- endif -%}
+
+            {%- if b.text != blank -%}
+              <p class="hp-why__text">{{ b.text | escape | newline_to_br }}</p>
+            {%- endif -%}
+
+            {%- if b.link_label != blank and b.link_url != blank -%}
+              <a class="hp-why__link" href="{{ b.link_url }}">{{ b.link_label | escape }}</a>
+            {%- endif -%}
+          </li>
+        {%- endfor -%}
+      </ul>
+    {%- endif -%}
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "Why choose us",
+  "tag": "div",
+  "class": "hp-why-section",
+  "max_blocks": 8,
+  "settings": [
+    { "type": "header", "content": "Heading" },
+    {
+      "type": "text",
+      "id": "eyebrow",
+      "label": "Eyebrow",
+      "info": "Optional small line above the heading. Leave empty to hide it."
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Why choose Hankie Pals?"
+    },
+    {
+      "type": "select",
+      "id": "heading_tag",
+      "label": "Heading level",
+      "options": [
+        { "value": "h2", "label": "H2 — the usual choice" },
+        { "value": "h3", "label": "H3" }
+      ],
+      "default": "h2",
+      "info": "The hero holds the H1, so this sits below it."
+    },
+    {
+      "type": "textarea",
+      "id": "intro",
+      "label": "Intro",
+      "info": "Optional sentence under the heading."
+    },
+    {
+      "type": "select",
+      "id": "header_alignment",
+      "label": "Heading alignment",
+      "options": [
+        { "value": "center", "label": "Centre" },
+        { "value": "left", "label": "Left" }
+      ],
+      "default": "center"
+    },
+    {
+      "type": "range",
+      "id": "heading_size",
+      "label": "Heading size",
+      "unit": "px",
+      "min": 20,
+      "max": 72,
+      "step": 1,
+      "default": 40,
+      "info": "A ceiling rather than a fixed size — narrow screens scale below it."
+    },
+    {
+      "type": "range",
+      "id": "heading_tracking",
+      "label": "Heading letter spacing",
+      "unit": "%",
+      "min": 0,
+      "max": 24,
+      "step": 1,
+      "default": 10,
+      "info": "Percent of the font size. The wide-tracked uppercase look needs 8–14."
+    },
+    {
+      "type": "select",
+      "id": "heading_case",
+      "label": "Heading case",
+      "options": [
+        { "value": "uppercase", "label": "UPPERCASE" },
+        { "value": "none", "label": "As typed" }
+      ],
+      "default": "uppercase"
+    },
+    { "type": "color", "id": "heading_color", "label": "Heading colour", "default": "#2F3326" },
+    {
+      "type": "range",
+      "id": "eyebrow_size",
+      "label": "Eyebrow size",
+      "unit": "px",
+      "min": 9,
+      "max": 22,
+      "step": 1,
+      "default": 13
+    },
+    {
+      "type": "range",
+      "id": "eyebrow_tracking",
+      "label": "Eyebrow letter spacing",
+      "unit": "%",
+      "min": 0,
+      "max": 30,
+      "step": 1,
+      "default": 14
+    },
+    { "type": "color", "id": "eyebrow_color", "label": "Eyebrow colour", "default": "#6B7056", "info": "Sage-600. The lighter sage-500 (#808567) measures 3.7:1 on cream, under the 4.5:1 that text this size needs." },
+    {
+      "type": "range",
+      "id": "intro_size",
+      "label": "Intro size",
+      "unit": "px",
+      "min": 13,
+      "max": 26,
+      "step": 1,
+      "default": 18
+    },
+    { "type": "color", "id": "intro_color", "label": "Intro colour", "default": "#5C6150" },
+    {
+      "type": "range",
+      "id": "header_width",
+      "label": "Heading width",
+      "unit": "px",
+      "min": 320,
+      "max": 1000,
+      "step": 20,
+      "default": 900,
+      "info": "Narrower forces the heading onto more lines."
+    },
+    {
+      "type": "range",
+      "id": "header_gap",
+      "label": "Space below the heading",
+      "unit": "px",
+      "min": 16,
+      "max": 120,
+      "step": 4,
+      "default": 56
+    },
+    { "type": "header", "content": "Columns" },
+    {
+      "type": "select",
+      "id": "columns",
+      "label": "Columns on desktop",
+      "options": [
+        { "value": "4", "label": "4" },
+        { "value": "3", "label": "3" },
+        { "value": "2", "label": "2" }
+      ],
+      "default": "4",
+      "info": "Drops to 2 on a tablet on its own."
+    },
+    {
+      "type": "select",
+      "id": "columns_mobile",
+      "label": "Columns on mobile",
+      "options": [
+        { "value": "2", "label": "2 across" },
+        { "value": "1", "label": "1 full width" }
+      ],
+      "default": "2"
+    },
+    {
+      "type": "select",
+      "id": "item_alignment",
+      "label": "Content alignment",
+      "options": [
+        { "value": "center", "label": "Centre" },
+        { "value": "left", "label": "Left" }
+      ],
+      "default": "center"
+    },
+    {
+      "type": "range",
+      "id": "column_gap",
+      "label": "Gap between columns",
+      "unit": "px",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "default": 40
+    },
+    {
+      "type": "range",
+      "id": "row_gap",
+      "label": "Gap between rows",
+      "unit": "px",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "default": 56
+    },
+    {
+      "type": "range",
+      "id": "column_gap_mobile",
+      "label": "Gap between columns (mobile)",
+      "unit": "px",
+      "min": 0,
+      "max": 60,
+      "step": 2,
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "row_gap_mobile",
+      "label": "Gap between rows (mobile)",
+      "unit": "px",
+      "min": 0,
+      "max": 80,
+      "step": 2,
+      "default": 36
+    },
+    { "type": "header", "content": "Icons" },
+    {
+      "type": "select",
+      "id": "icon_backdrop",
+      "label": "Icon backdrop",
+      "options": [
+        { "value": "none", "label": "None — icon on its own" },
+        { "value": "blob", "label": "Soft blob" },
+        { "value": "circle", "label": "Circle" }
+      ],
+      "default": "none",
+      "info": "The blob is the same lopsided pebble the other sections use. Set each block's backdrop colour below."
+    },
+    {
+      "type": "range",
+      "id": "icon_size",
+      "label": "Icon size",
+      "unit": "px",
+      "min": 20,
+      "max": 96,
+      "step": 2,
+      "default": 56
+    },
+    {
+      "type": "range",
+      "id": "backdrop_size",
+      "label": "Backdrop size",
+      "unit": "px",
+      "min": 40,
+      "max": 160,
+      "step": 4,
+      "default": 88,
+      "info": "Only visible with a backdrop set. Keep it comfortably larger than the icon."
+    },
+    {
+      "type": "range",
+      "id": "icon_gap",
+      "label": "Space below the icon",
+      "unit": "px",
+      "min": 0,
+      "max": 60,
+      "step": 2,
+      "default": 22
+    },
+    {
+      "type": "range",
+      "id": "drift_distance",
+      "label": "Icon drift",
+      "unit": "px",
+      "min": 0,
+      "max": 14,
+      "step": 1,
+      "default": 0,
+      "info": "How far each icon floats up and back. 0 keeps them still."
+    },
+    {
+      "type": "range",
+      "id": "drift_speed",
+      "label": "Icon drift speed",
+      "unit": "s",
+      "min": 2,
+      "max": 12,
+      "step": 1,
+      "default": 5,
+      "info": "Seconds for one full up-and-down. Higher is slower."
+    },
+    {
+      "type": "range",
+      "id": "drift_stagger",
+      "label": "Icon drift stagger",
+      "unit": "ms",
+      "min": 0,
+      "max": 1000,
+      "step": 50,
+      "default": 400,
+      "info": "Delay added per column, so the icons breathe instead of bobbing in unison. 0 moves them together."
+    },
+    { "type": "header", "content": "Text" },
+    {
+      "type": "range",
+      "id": "title_size",
+      "label": "Title size",
+      "unit": "px",
+      "min": 11,
+      "max": 28,
+      "step": 1,
+      "default": 15
+    },
+    {
+      "type": "range",
+      "id": "title_tracking",
+      "label": "Title letter spacing",
+      "unit": "%",
+      "min": 0,
+      "max": 30,
+      "step": 1,
+      "default": 14
+    },
+    {
+      "type": "select",
+      "id": "title_case",
+      "label": "Title case",
+      "options": [
+        { "value": "uppercase", "label": "UPPERCASE" },
+        { "value": "none", "label": "As typed" }
+      ],
+      "default": "uppercase"
+    },
+    {
+      "type": "range",
+      "id": "text_size",
+      "label": "Body size",
+      "unit": "px",
+      "min": 12,
+      "max": 24,
+      "step": 1,
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "text_gap",
+      "label": "Space between title and body",
+      "unit": "px",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "default": 14
+    },
+    {
+      "type": "range",
+      "id": "text_width",
+      "label": "Body width",
+      "unit": "px",
+      "min": 160,
+      "max": 460,
+      "step": 10,
+      "default": 280,
+      "info": "Narrower keeps the short measure in the reference. Never wider than its column."
+    },
+    {
+      "type": "range",
+      "id": "link_size",
+      "label": "Link size",
+      "unit": "px",
+      "min": 11,
+      "max": 20,
+      "step": 1,
+      "default": 14
+    },
+    { "type": "header", "content": "Section" },
+    { "type": "color", "id": "background", "label": "Background", "default": "#FCFBF6" },
+    {
+      "type": "checkbox",
+      "id": "hover_lift",
+      "label": "Lift a column on hover",
+      "default": false,
+      "info": "Only worth turning on if the columns have a card colour or a link."
+    },
+    {
+      "type": "range",
+      "id": "item_padding",
+      "label": "Padding inside each column",
+      "unit": "px",
+      "min": 0,
+      "max": 48,
+      "step": 2,
+      "default": 0,
+      "info": "Give this some room if you set a card colour on the blocks."
+    },
+    {
+      "type": "range",
+      "id": "item_radius",
+      "label": "Column corner radius",
+      "unit": "px",
+      "min": 0,
+      "max": 48,
+      "step": 2,
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "max_width",
+      "label": "Content width",
+      "unit": "px",
+      "min": 800,
+      "max": 1600,
+      "step": 20,
+      "default": 1280
+    },
+    {
+      "type": "range",
+      "id": "padding_inline",
+      "label": "Side padding",
+      "unit": "px",
+      "min": 12,
+      "max": 96,
+      "step": 4,
+      "default": 24
+    },
+    { "type": "range", "id": "padding_top", "label": "Top padding (desktop)", "unit": "px", "min": 0, "max": 200, "step": 4, "default": 96 },
+    { "type": "range", "id": "padding_bottom", "label": "Bottom padding (desktop)", "unit": "px", "min": 0, "max": 200, "step": 4, "default": 96 },
+    { "type": "range", "id": "padding_top_mobile", "label": "Top padding (mobile)", "unit": "px", "min": 0, "max": 140, "step": 4, "default": 64 },
+    { "type": "range", "id": "padding_bottom_mobile", "label": "Bottom padding (mobile)", "unit": "px", "min": 0, "max": 140, "step": 4, "default": 64 }
+  ],
+  "blocks": [
+    {
+      "type": "reason",
+      "name": "Reason",
+      "settings": [
+        { "type": "text", "id": "title", "label": "Title", "default": "Made by hand" },
+        {
+          "type": "textarea",
+          "id": "text",
+          "label": "Body",
+          "default": "Cut and sewn in small batches, so every one gets looked at properly."
+        },
+        { "type": "header", "content": "Icon" },
+        {
+          "type": "select",
+          "id": "icon",
+          "label": "Icon",
+          "options": [
+            { "value": "heart", "label": "Heart" },
+            { "value": "star", "label": "Star" },
+            { "value": "sparkle", "label": "Sparkle" },
+            { "value": "cloud", "label": "Cloud" },
+            { "value": "leaf", "label": "Leaf" },
+            { "value": "droplet", "label": "Droplet" },
+            { "value": "flower", "label": "Flower" },
+            { "value": "sun", "label": "Sun" },
+            { "value": "moon", "label": "Moon" },
+            { "value": "smile", "label": "Smiley face" },
+            { "value": "bunny", "label": "Bunny" },
+            { "value": "paw", "label": "Paw" },
+            { "value": "clip", "label": "Clip" },
+            { "value": "refresh", "label": "Reuse arrows" },
+            { "value": "shield", "label": "Shield" },
+            { "value": "scissors", "label": "Scissors" },
+            { "value": "gift", "label": "Gift" },
+            { "value": "pocket", "label": "Pouch" },
+            { "value": "none", "label": "No icon" }
+          ],
+          "default": "heart"
+        },
+        {
+          "type": "image_picker",
+          "id": "image",
+          "label": "Custom icon",
+          "info": "Optional, and takes the place of the icon above. Use a PNG or SVG with a transparent background — anything else shows its own square."
+        },
+        { "type": "color", "id": "icon_color", "label": "Icon colour", "default": "#D88B6D" },
+        {
+          "type": "color",
+          "id": "icon_accent",
+          "label": "Icon detail colour",
+          "default": "#FCFBF6",
+          "info": "The second colour inside an icon — a face's eyes, the leaf's vein, the gift's ribbon. Match it to the backdrop, or the section background if there is none."
+        },
+        {
+          "type": "color",
+          "id": "backdrop_color",
+          "label": "Backdrop colour",
+          "default": "#F7DDCD",
+          "info": "Only shows if Icon backdrop is set to a blob or circle."
+        },
+        { "type": "header", "content": "Column" },
+        {
+          "type": "color",
+          "id": "card_color",
+          "label": "Card colour",
+          "info": "Optional. Leave empty for no card at all, as in the reference."
+        },
+        { "type": "color", "id": "title_color", "label": "Title colour", "default": "#2F3326" },
+        { "type": "color", "id": "text_color", "label": "Body colour", "default": "#5C6150" },
+        { "type": "header", "content": "Link" },
+        { "type": "text", "id": "link_label", "label": "Link label", "info": "Optional. Needs a link below to show." },
+        { "type": "url", "id": "link_url", "label": "Link" },
+        { "type": "color", "id": "link_color", "label": "Link colour", "default": "#6B7056", "info": "Terracotta (#D88B6D) reads as the brand accent but measures 2.6:1 on cream, well under AA for text." }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Why choose us",
+      "blocks": [
+        {
+          "type": "reason",
+          "settings": {
+            "icon": "heart",
+            "title": "Made by hand",
+            "text": "Cut and sewn in small batches, so every one gets looked at properly.",
+            "backdrop_color": "#F7DDCD"
+          }
+        },
+        {
+          "type": "reason",
+          "settings": {
+            "icon": "refresh",
+            "title": "Washable, reusable",
+            "text": "Straight in with the towels. No packet to run out of at the worst moment.",
+            "icon_color": "#808567",
+            "backdrop_color": "#E9F5DB"
+          }
+        },
+        {
+          "type": "reason",
+          "settings": {
+            "icon": "clip",
+            "title": "Clipped where they can reach",
+            "text": "On the bag, the buggy or a coat — somewhere small hands can get to it themselves.",
+            "backdrop_color": "#F7DDCD"
+          }
+        },
+        {
+          "type": "reason",
+          "settings": {
+            "icon": "bunny",
+            "title": "A pal, not a wipe",
+            "text": "A face they know makes the whole business far less of a fight.",
+            "icon_color": "#808567",
+            "backdrop_color": "#E9F5DB"
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

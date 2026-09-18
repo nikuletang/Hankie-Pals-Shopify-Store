@@ -23,6 +23,16 @@
 {%- liquid
   assign s = section.settings
   assign heading_tag = s.heading_tag | default: 'h1'
+
+  # Mobile layout drives both a class and the image's sizes hint: kept split,
+  # the photo is about half a phone wide, so asking for 100vw would fetch
+  # roughly twice the pixels it can show.
+  assign mobile_layout = s.mobile_layout | default: 'split'
+  if mobile_layout == 'split'
+    assign img_sizes = '(min-width: 900px) 48vw, 45vw'
+  else
+    assign img_sizes = '(min-width: 900px) 48vw, 100vw'
+  endif
 -%}
 
 {% style %}
@@ -256,14 +266,10 @@
     .hp-hero__cta-row { margin-inline-start: calc(var(--hp-cta-offset) * 0.45); }
   }
 
-  /* --- Stacked ----------------------------------------------------------- */
+  /* --- Small screens: shared ---------------------------------------------
+     True whichever way the panels go. Everything below this splits on the
+     layout class, which the section element carries. */
   @media screen and (max-width: 899px) {
-    .hp-hero {
-      grid-template-columns: minmax(0, 1fr);
-      min-height: 0;
-      gap: 0;
-    }
-
     .hp-hero__left {
       background-position: var(--hp-bg-position-mobile);
       padding: var(--hp-pt-mobile) var(--hp-left-pad-mobile) var(--hp-pb-mobile);
@@ -271,16 +277,84 @@
 
     /* Flush beneath the subheading, and never stretched edge to edge. */
     .hp-hero__cta-row { margin-inline-start: 0; }
+  }
 
-    .hp-hero__cta { padding: 16px 32px; }
+  /* --- Stacked ----------------------------------------------------------- */
+  @media screen and (max-width: 899px) {
+    .hp-hero--mstack {
+      grid-template-columns: minmax(0, 1fr);
+      min-height: 0;
+      gap: 0;
+    }
+
+    .hp-hero--mstack .hp-hero__cta { padding: 16px 32px; }
 
     /* Stacked, the image has no row height to fill, so its shape gives it one. */
-    .hp-hero__figure { height: auto; }
+    .hp-hero--mstack .hp-hero__figure { height: auto; }
 
-    .hp-hero__figure img,
-    .hp-hero__figure svg {
+    .hp-hero--mstack .hp-hero__figure img,
+    .hp-hero--mstack .hp-hero__figure svg {
       height: auto;
       aspect-ratio: var(--hp-img-ratio-mobile);
+    }
+  }
+
+  /* --- Split, held side by side ------------------------------------------
+     The copy now lives in a fraction of a phone, so the panel keeps its own
+     minimum height and the padding is capped against the viewport: the
+     desktop-sized setting would otherwise eat more width than the words. */
+  @media screen and (max-width: 899px) {
+    .hp-hero--msplit {
+      grid-template-columns: var(--hp-split-mobile) minmax(0, 1fr);
+      min-height: var(--hp-min-height-mobile);
+      gap: 0;
+    }
+
+    .hp-hero--msplit .hp-hero__left {
+      padding-inline: min(var(--hp-left-pad-mobile), 6vw);
+    }
+  }
+
+  /* Phones. The desktop type clamps are tied to the viewport, which says
+     nothing about how wide this column is, so each one is restated against a
+     mobile ceiling of its own. Sized so the heading still breaks into words
+     rather than fragments at 360px. */
+  @media screen and (max-width: 749px) {
+    .hp-hero--msplit .hp-hero__heading {
+      font-size: calc(clamp(18px, 7.4vw, var(--hp-heading-size-mobile)) * var(--hp-heading-scale));
+      line-height: 1.08;
+      /* A long unbroken word — a name, a URL — would otherwise push the
+         column wider than its track and squeeze the photo. */
+      overflow-wrap: break-word;
+    }
+
+    .hp-hero--msplit .hp-hero__sub {
+      margin-block-start: 12px;
+      font-size: calc(clamp(11px, 3.4vw, var(--hp-sub-size-mobile)) * var(--hp-body-scale));
+      line-height: 1.4;
+    }
+
+    .hp-hero--msplit .hp-hero__eyebrow { margin-block-end: 12px; }
+
+    .hp-hero--msplit .hp-hero__eyebrow-inner {
+      max-width: 100%;
+      gap: 0.4em;
+      padding: 0.55em 0.9em;
+      font-size: calc(clamp(9px, 2.9vw, var(--hp-eyebrow-size)) * var(--hp-heading-scale));
+      /* Tracking that reads as airy across a desktop panel is just lost
+         width here. */
+      letter-spacing: min(var(--hp-eyebrow-tracking), 0.06em);
+      line-height: 1.25;
+    }
+
+    .hp-hero--msplit .hp-hero__cta-row { margin-block-start: 18px; }
+
+    .hp-hero--msplit .hp-hero__cta {
+      max-width: 100%;
+      padding: 13px 18px;
+      font-size: calc(clamp(11px, 3vw, 14px) * var(--hp-heading-scale));
+      letter-spacing: 0.04em;
+      text-align: center;
     }
   }
 
@@ -299,12 +373,14 @@
 {% endstyle %}
 
 <section
-  class="hp-hero{% if s.eyebrow_font == 'body' %} hp-hero--eyebrow-body{% endif %}"
+  class="hp-hero hp-hero--m{{ mobile_layout }}{% if s.eyebrow_font == 'body' %} hp-hero--eyebrow-body{% endif %}"
   data-hp-hero="{{ section.id }}"
   style="
     --hp-split: {{ s.column_split | default: 55 }}%;
     --hp-gap: {{ s.column_gap | default: 0 }}px;
     --hp-min-height: {{ s.min_height | default: 620 }}px;
+    --hp-split-mobile: {{ s.column_split_mobile | default: 55 }}%;
+    --hp-min-height-mobile: {{ s.min_height_mobile | default: 460 }}px;
     --hp-left-bg: {{ s.left_bg_color | default: '#FCFBF6' }};
     --hp-right-bg: {{ s.right_bg_color | default: '#CFE1B9' }};
     --hp-bg-size: {{ s.bg_size | default: 'cover' }};
@@ -338,9 +414,11 @@
     --hp-heading-color: {{ s.heading_color | default: '#2F3326' }};
     --hp-heading-width: {{ s.heading_max_width | default: 560 }}px;
     --hp-heading-size: {{ s.heading_size | default: 76 }}px;
+    --hp-heading-size-mobile: {{ s.heading_size_mobile | default: 30 }}px;
     --hp-sub-color: {{ s.subheading_color | default: '#5C6150' }};
     --hp-sub-width: {{ s.subheading_max_width | default: 440 }}px;
     --hp-sub-size: {{ s.subheading_size | default: 22 }}px;
+    --hp-sub-size-mobile: {{ s.subheading_size_mobile | default: 14 }}px;
     --hp-cta-offset: {{ s.button_offset | default: 180 }}px;
     --hp-btn-bg: {{ s.button_background | default: '#D88B6D' }};
     --hp-btn-ink: {{ s.button_text_color | default: '#2F3326' }};
@@ -400,7 +478,7 @@
             loading: 'eager',
             fetchpriority: 'high',
             widths: '400, 560, 720, 900, 1200',
-            sizes: '(min-width: 900px) 48vw, 100vw',
+            sizes: img_sizes,
             alt: s.image_alt
         }}
       {%- else -%}
@@ -839,7 +917,7 @@
       "type": "select",
       "id": "image_ratio_mobile",
       "label": "Image shape (mobile)",
-      "info": "Only used once the panels stack. On desktop the image fills the column's full height.",
+      "info": "Only used when Mobile layout is set to Stacked. Side by side, on any screen, the image fills the column's full height.",
       "options": [
         { "value": "4 / 5", "label": "Portrait (4:5)" },
         { "value": "1 / 1", "label": "Square" },
@@ -889,6 +967,62 @@
       "max": 900,
       "step": 10,
       "default": 620
+    },
+    { "type": "header", "content": "Mobile" },
+    {
+      "type": "select",
+      "id": "mobile_layout",
+      "label": "Mobile layout",
+      "options": [
+        { "value": "split", "label": "Side by side" },
+        { "value": "stack", "label": "Stacked" }
+      ],
+      "default": "split",
+      "info": "Side by side keeps the two panels next to each other on a phone. Stacked drops the image below the copy, which gives the words full width — switch to it if your heading is long."
+    },
+    {
+      "type": "range",
+      "id": "column_split_mobile",
+      "label": "Left panel width (mobile)",
+      "unit": "%",
+      "min": 35,
+      "max": 70,
+      "step": 5,
+      "default": 55,
+      "info": "Side by side only. The share of the screen the copy gets; the image takes the rest."
+    },
+    {
+      "type": "range",
+      "id": "min_height_mobile",
+      "label": "Minimum height (mobile)",
+      "unit": "px",
+      "min": 240,
+      "max": 720,
+      "step": 10,
+      "default": 460,
+      "info": "Side by side only. Sets the row's height, so it is also how tall the photo is."
+    },
+    {
+      "type": "range",
+      "id": "heading_size_mobile",
+      "label": "Heading size (mobile)",
+      "unit": "px",
+      "min": 16,
+      "max": 48,
+      "step": 1,
+      "default": 30,
+      "info": "Side by side only, and a ceiling rather than a fixed size — narrow phones scale below it."
+    },
+    {
+      "type": "range",
+      "id": "subheading_size_mobile",
+      "label": "Subheading size (mobile)",
+      "unit": "px",
+      "min": 10,
+      "max": 24,
+      "step": 1,
+      "default": 14,
+      "info": "Side by side only."
     },
     { "type": "range", "id": "padding_top", "label": "Top padding (desktop)", "unit": "px", "min": 0, "max": 200, "step": 4, "default": 96 },
     { "type": "range", "id": "padding_bottom", "label": "Bottom padding (desktop)", "unit": "px", "min": 0, "max": 200, "step": 4, "default": 96 },

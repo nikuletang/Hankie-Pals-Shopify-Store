@@ -60,6 +60,10 @@
     position: relative;
     display: block;
     width: 100%;
+    /* Stated rather than inherited from the theme's reset, so a border can
+       never add to the card's width and push the row wider than its track. */
+    box-sizing: border-box;
+    border: var(--hp-border-w) solid var(--hp-border-c);
     /* Fills the row. The ratio below still sets the height when nothing else
        does, but if a row is taller the photo covers it rather than leaving a
        band of card colour. */
@@ -221,6 +225,7 @@
   style="
     --hp-bg: {{ s.background | default: '#FCFBF6' }};
     --hp-gap: {{ s.grid_gap | default: 0 }}px;
+    --hp-border-w: {{ s.border_width | default: 0 }}px;
     --hp-ratio: {{ s.image_ratio | default: '1 / 1' }};
     --hp-scrim: {{ s.overlay_strength | default: 0 | divided_by: 100.0 }};
     --hp-label-size: {{ s.label_size | default: 18 }}px;
@@ -324,6 +329,7 @@
           style="
             --hp-focal: {{ b.focal_position | default: 'center' }};
             --hp-card-bg: {{ b.background | default: s.card_background | default: '#EFEDE4' }};
+            --hp-border-c: {{ b.card_border_color | default: s.border_tint | default: '#E4E1D3' }};
             --hp-label-bg: {{ b.label_background | default: '#CFE1B9' }};
             --hp-label-ink: {{ b.label_color | default: '#2F3326' }};
             --hp-price-bg: {{ b.price_background | default: '#FCFBF6' }};
@@ -446,6 +452,17 @@
       "info": "0 butts the cards together, as in the reference."
     },
     {
+      "type": "range",
+      "id": "border_width",
+      "label": "Card border",
+      "unit": "px",
+      "min": 0,
+      "max": 8,
+      "step": 1,
+      "default": 0,
+      "info": "0 is off. With no gap between cards, the line where two meet is twice this, so 1 already reads as a hairline."
+    },
+    {
       "type": "select",
       "id": "image_ratio",
       "label": "Image shape",
@@ -531,6 +548,13 @@
       "default": "#EFEDE4",
       "info": "Behind the photo, so it shows through a cut-out or transparent product shot. A card can override this for itself."
     },
+    {
+      "type": "color",
+      "id": "border_tint",
+      "label": "Card border colour",
+      "default": "#E4E1D3",
+      "info": "Only shows once Card border is above 0. A card can override this for itself."
+    },
     { "type": "color", "id": "focus_color", "label": "Keyboard focus ring", "default": "#2F3326" },
     { "type": "header", "content": "Spacing" },
     { "type": "range", "id": "padding_top", "label": "Top padding (desktop)", "unit": "px", "min": 0, "max": 160, "step": 4, "default": 0 },
@@ -589,6 +613,12 @@
           "id": "background",
           "label": "Card background",
           "info": "Optional. Overrides the section's card colour for this card only — give Bunny, Cow and Dog their own."
+        },
+        {
+          "type": "color",
+          "id": "card_border_color",
+          "label": "Card border colour",
+          "info": "Optional. Overrides the section's border colour for this card only."
         },
         { "type": "header", "content": "Label" },
         { "type": "color", "id": "label_background", "label": "Title background", "default": "#CFE1B9" },

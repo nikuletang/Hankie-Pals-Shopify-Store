@@ -32,6 +32,7 @@
   assign s = section.settings
   assign col_count = s.columns | default: '4'
   assign mobile_count = s.columns_mobile | default: '2'
+  assign motion = s.motion | default: 'rise'
 -%}
 
 {% style %}
@@ -116,11 +117,6 @@
     transition: transform 220ms ease, box-shadow 220ms ease;
   }
 
-  .hp-why--lift .hp-why__item:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 14px 30px -20px rgba(47, 51, 38, 0.5);
-  }
-
   /* --- Icon --------------------------------------------------------------- */
   /* No backdrop by default: the box shrinks to the icon and paints nothing,
      so "None" means none rather than a square in the backdrop colour. */
@@ -152,6 +148,7 @@
     width: var(--hp-icon-size);
     height: var(--hp-icon-size);
     object-fit: contain;
+    transition: transform 260ms cubic-bezier(0.22, 0.7, 0.3, 1);
   }
 
   @keyframes hp-why-drift {
@@ -213,6 +210,51 @@
     outline-offset: 3px;
   }
 
+  /* --- Reveal on scroll ---------------------------------------------------
+     The hidden start state exists only while the section carries
+     hp-why--reveal, and the script drops that class the moment it cannot
+     animate — no IntersectionObserver, reduced motion, or anything thrown. So
+     the failure mode is the copy simply being there, never invisible.
+
+     The stagger is not in here: the script sets it inline per column and clears
+     it once the entrance is done, because a delay left in place would also hold
+     up the hover transition on the last column by a third of a second. */
+  .hp-why--reveal [data-reveal] {
+    opacity: 0;
+    transition:
+      opacity var(--hp-reveal-dur) ease,
+      transform var(--hp-reveal-dur) cubic-bezier(0.22, 0.7, 0.3, 1);
+  }
+
+  .hp-why--reveal.hp-why--rise [data-reveal] {
+    transform: translateY(var(--hp-reveal-dist));
+  }
+
+  .hp-why--reveal.hp-why--pop [data-reveal] {
+    transform: translateY(calc(var(--hp-reveal-dist) * 0.4)) scale(0.92);
+  }
+
+  .hp-why--reveal [data-reveal].is-in {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* --- Hover ---------------------------------------------------------------
+     Written after the reveal so that, at equal specificity, hovering a settled
+     column still lifts it. Both are skipped on touch, where hover never ends. */
+  @media (hover: hover) {
+    .hp-why--lift .hp-why__item:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 14px 30px -20px rgba(47, 51, 38, 0.5);
+    }
+
+    /* On the icon itself, not the box around it: the drift keyframes own that
+       box's transform and would win against a hover rule. */
+    .hp-why--icon-hover .hp-why__item:hover .hp-why__icon {
+      transform: scale(1.09) rotate(-3deg);
+    }
+  }
+
   /* --- Tablet ------------------------------------------------------------- */
   @media screen and (max-width: 989px) {
     .hp-why--c3 .hp-why__grid,
@@ -258,11 +300,21 @@
     .hp-why__figure { animation: none; }
     .hp-why__item { transition: none; }
     .hp-why--lift .hp-why__item:hover { transform: none; }
+    .hp-why__icon { transition: none; }
+    .hp-why--icon-hover .hp-why__item:hover .hp-why__icon { transform: none; }
+
+    /* The script also bails out here; this is the belt to that braces, and it
+       is what holds if the stylesheet loads and the script does not. */
+    .hp-why--reveal [data-reveal] {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
   }
 {% endstyle %}
 
 <section
-  class="hp-why hp-why--c{{ col_count }} hp-why--m{{ mobile_count }} hp-why--pad-{{ s.icon_backdrop | default: 'none' }}{% if s.hover_lift %} hp-why--lift{% endif %}"
+  class="hp-why hp-why--c{{ col_count }} hp-why--m{{ mobile_count }} hp-why--pad-{{ s.icon_backdrop | default: 'none' }}{% if motion != 'none' %} hp-why--reveal hp-why--{{ motion }}{% endif %}{% if s.hover_lift %} hp-why--lift{% endif %}{% if s.icon_hover %} hp-why--icon-hover{% endif %}"
   style="
     --hp-bg: {{ s.background | default: '#FCFBF6' }};
     --hp-max-width: {{ s.max_width | default: 1280 }}px;
@@ -291,9 +343,11 @@
     --hp-icon-size: {{ s.icon_size | default: 56 }}px;
     --hp-pad-size: {{ s.backdrop_size | default: 88 }}px;
     --hp-icon-gap: {{ s.icon_gap | default: 22 }}px;
-    --hp-drift-distance: {{ s.drift_distance | default: 0 }}px;
+    --hp-drift-distance: {{ s.drift_distance | default: 6 }}px;
     --hp-drift-speed: {{ s.drift_speed | default: 5 }}s;
     --hp-drift-stagger: {{ s.drift_stagger | default: 400 }}ms;
+    --hp-reveal-dur: {{ s.reveal_duration | default: 600 }}ms;
+    --hp-reveal-dist: {{ s.reveal_distance | default: 24 }}px;
     --hp-title-size: {{ s.title_size | default: 15 }}px;
     --hp-title-tracking: {{ s.title_tracking | default: 14 | divided_by: 100.0 }}em;
     --hp-title-case: {{ s.title_case | default: 'uppercase' }};
@@ -308,9 +362,14 @@
   "
   {{ section.shopify_attributes }}
 >
-  <div class="hp-why__inner">
+  <hp-why-reveal
+    class="hp-why__inner"
+    data-stagger="{{ s.reveal_stagger | default: 110 }}"
+    data-duration="{{ s.reveal_duration | default: 600 }}"
+    data-replay="{% if s.reveal_replay %}true{% else %}false{% endif %}"
+  >
     {%- if s.eyebrow != blank or s.heading != blank or s.intro != blank -%}
-      <div class="hp-why__header">
+      <div class="hp-why__header" data-reveal>
         {%- if s.eyebrow != blank -%}
           <p class="hp-why__eyebrow">{{ s.eyebrow | escape }}</p>
         {%- endif -%}
@@ -333,6 +392,7 @@
           {%- assign b = block.settings -%}
           <li
             class="hp-why__item"
+            data-reveal
             style="
               --i: {{ forloop.index0 }};
               --hp-ico: {{ b.icon_color | default: '#D88B6D' }};
@@ -449,8 +509,113 @@
         {%- endfor -%}
       </ul>
     {%- endif -%}
-  </div>
+  </hp-why-reveal>
 </section>
+
+{%- comment -%}
+  Scripting off is the one case the script itself cannot answer for, so the
+  start state is undone here instead.
+{%- endcomment -%}
+<noscript>
+  <style>
+    .hp-why--reveal [data-reveal] { opacity: 1; transform: none; }
+  </style>
+</noscript>
+
+<script>
+  (function () {
+    if (customElements.get('hp-why-reveal')) return;
+
+    customElements.define('hp-why-reveal', class extends HTMLElement {
+      connectedCallback() {
+        // Anything unexpected in here ends with the copy on screen, never with
+        // a section stuck at opacity 0.
+        try {
+          this.root = this.closest('.hp-why');
+          this.items = this.querySelectorAll('[data-reveal]');
+
+          if (!this.root || !this.root.classList.contains('hp-why--reveal')) return;
+          if (!this.items.length) return this.revealAll();
+
+          if (!('IntersectionObserver' in window)) return this.revealAll();
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            return this.revealAll();
+          }
+
+          this.stagger = parseInt(this.dataset.stagger, 10) || 0;
+          this.duration = parseInt(this.dataset.duration, 10) || 0;
+          this.replay = this.dataset.replay === 'true';
+          this.timers = [];
+
+          this.observer = new IntersectionObserver(this.onIntersect.bind(this), {
+            // Fires once the top of the block is a little way into the
+            // viewport, rather than the instant its first pixel appears.
+            rootMargin: '0px 0px -12% 0px',
+            threshold: 0
+          });
+          this.observer.observe(this);
+        } catch (e) {
+          this.revealAll();
+        }
+      }
+
+      // The theme editor tears a section down and rebuilds it on every change,
+      // so the observer has to go with it.
+      disconnectedCallback() {
+        if (this.observer) this.observer.disconnect();
+        this.clearTimers();
+      }
+
+      onIntersect(entries) {
+        var self = this;
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            self.play();
+            if (!self.replay && self.observer) self.observer.unobserve(self);
+          } else if (self.replay) {
+            self.reset();
+          }
+        });
+      }
+
+      play() {
+        var self = this;
+        this.clearTimers();
+
+        Array.prototype.forEach.call(this.items, function (el, i) {
+          var delay = i * self.stagger;
+          el.style.transitionDelay = delay + 'ms';
+          el.classList.add('is-in');
+
+          // Once this column has arrived its delay has done its job. Left set,
+          // it would also postpone the hover transition by the same amount.
+          self.timers.push(window.setTimeout(function () {
+            if (el.classList.contains('is-in')) el.style.transitionDelay = '';
+          }, delay + self.duration + 60));
+        });
+      }
+
+      reset() {
+        this.clearTimers();
+        Array.prototype.forEach.call(this.items, function (el) {
+          el.style.transitionDelay = '';
+          el.classList.remove('is-in');
+        });
+      }
+
+      // Drops the start state for good: with the class gone there is nothing
+      // left to hide anything, whatever happens after.
+      revealAll() {
+        if (this.root) this.root.classList.remove('hp-why--reveal');
+      }
+
+      clearTimers() {
+        (this.timers || []).forEach(window.clearTimeout);
+        this.timers = [];
+      }
+    });
+  })();
+</script>
 
 {% schema %}
 {
@@ -710,8 +875,8 @@
       "min": 0,
       "max": 14,
       "step": 1,
-      "default": 0,
-      "info": "How far each icon floats up and back. 0 keeps them still."
+      "default": 6,
+      "info": "A slow, continuous float, separate from the arrival above. 0 keeps them still."
     },
     {
       "type": "range",
@@ -734,6 +899,67 @@
       "step": 50,
       "default": 400,
       "info": "Delay added per column, so the icons breathe instead of bobbing in unison. 0 moves them together."
+    },
+    { "type": "header", "content": "Animation" },
+    {
+      "type": "select",
+      "id": "motion",
+      "label": "How the columns arrive",
+      "options": [
+        { "value": "rise", "label": "Rise and fade in" },
+        { "value": "fade", "label": "Fade in only" },
+        { "value": "pop", "label": "Pop in" },
+        { "value": "none", "label": "No animation" }
+      ],
+      "default": "rise",
+      "info": "Plays when the section scrolls into view, one column after the next. Skipped for anyone whose device asks for reduced motion."
+    },
+    {
+      "type": "range",
+      "id": "reveal_distance",
+      "label": "Distance travelled",
+      "unit": "px",
+      "min": 0,
+      "max": 60,
+      "step": 2,
+      "default": 24,
+      "info": "How far each column rises. Ignored by Fade in only."
+    },
+    {
+      "type": "range",
+      "id": "reveal_duration",
+      "label": "Duration",
+      "unit": "ms",
+      "min": 200,
+      "max": 1400,
+      "step": 50,
+      "default": 600,
+      "info": "How long one column takes to arrive."
+    },
+    {
+      "type": "range",
+      "id": "reveal_stagger",
+      "label": "Gap between columns",
+      "unit": "ms",
+      "min": 0,
+      "max": 400,
+      "step": 10,
+      "default": 110,
+      "info": "The wait before each next column starts. 0 brings them in together."
+    },
+    {
+      "type": "checkbox",
+      "id": "reveal_replay",
+      "label": "Replay on every scroll past",
+      "default": false,
+      "info": "Off plays it once, which is the usual choice. On replays it each time the section comes back into view."
+    },
+    {
+      "type": "checkbox",
+      "id": "icon_hover",
+      "label": "Icon tilts on hover",
+      "default": true,
+      "info": "Desktop only — a touch screen has no hover to leave."
     },
     { "type": "header", "content": "Text" },
     {

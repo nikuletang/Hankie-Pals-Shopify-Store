@@ -132,6 +132,26 @@ and python-liquid does not, so the script passes an unset setting as an empty
 string. Both are blank, so every `!= blank` branch takes the side it takes on
 the store.
 
+## Test a section's behaviour
+
+`scripts/test-reveal.py` drives the why-choose reveal in headless Chromium and
+checks every path it has to survive: in view on load, still hidden below the
+fold, the observer reporting an entry, replay on and off, reduced motion, no
+IntersectionObserver, the theme editor tearing the section out and putting it
+back, and each motion style's start state.
+
+    python3 scripts/test-reveal.py
+
+Two traps it is built around, both of which produced false results first:
+
+- Chromium under `--virtual-time-budget` renders about **two animation frames**,
+  so a computed value read mid-transition still reports the *start* of it. Every
+  assertion here cuts the transitions first, so the cascade resolves straight to
+  its target.
+- For the same reason no rendering lifecycle runs after a programmatic scroll,
+  so the browser never recomputes intersection. Scroll-triggered timing is the
+  browser's job; what the suite checks is this element's handling of an entry.
+
 ## Check a schema before pasting it in
 
     python3 scripts/check-schemas.py

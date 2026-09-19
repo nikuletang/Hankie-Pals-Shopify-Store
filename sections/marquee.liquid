@@ -74,19 +74,26 @@
     to { transform: translateX(var(--hp-mq-end, -50%)); }
   }
 
+  /* Spacing belongs to the run, not to the items: a gap between them and a
+     trailing pad after the last. Put on the items as a margin it can be
+     cancelled by any rule that sets margin on an item — .hp-mq__text's own
+     `margin: 0` did exactly that, at equal specificity two lines later, so the
+     words ran together while the images kept their spacing.
+
+     Padding is inside the border box, so a run still measures with its own
+     spacing included and the track stays an exact multiple of one run.
+
+     Each var() carries a fallback: a missing custom property would otherwise
+     make the whole declaration invalid and take the spacing with it. */
   .hp-mq__group {
     display: flex;
     align-items: center;
     flex: none;
+    gap: var(--hp-mq-gap, 48px);
+    padding-inline-end: var(--hp-mq-gap, 48px);
   }
 
-  /* The spacing is a trailing margin on each item rather than a gap, so a run
-     measures with its own spacing included and the track is an exact multiple
-     of one run. */
-  .hp-mq__group > * {
-    flex: none;
-    margin-inline-end: var(--hp-mq-gap);
-  }
+  .hp-mq__group > * { flex: none; }
 
   .hp-mq__text {
     flex: none;
@@ -117,6 +124,23 @@
     }
   }
 
+  /* Editor only. Sized off the band's own image height so the run measures
+     roughly as it will once a picture is in. */
+  .hp-mq__placeholder {
+    display: grid;
+    place-items: center;
+    height: var(--hp-mq-img-h, 56px);
+    padding-inline: 16px;
+    border: 2px dashed rgba(47, 51, 38, 0.45);
+    border-radius: 10px;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-size: 13px;
+    line-height: 1.2;
+    white-space: nowrap;
+    color: #2F3326;
+    background: rgba(252, 251, 246, 0.75);
+  }
+
   .hp-mq__img {
     flex: none;
     display: block;
@@ -128,7 +152,10 @@
   @media screen and (max-width: 749px) {
     .hp-mq { padding-block: var(--hp-mq-pad-mobile); }
 
-    .hp-mq__group > * { margin-inline-end: var(--hp-mq-gap-mobile); }
+    .hp-mq__group {
+      gap: var(--hp-mq-gap-mobile, 28px);
+      padding-inline-end: var(--hp-mq-gap-mobile, 28px);
+    }
 
     .hp-mq__text {
       font-size: calc(var(--hp-mq-size-mobile) * var(--hp-mq-heading-scale));
@@ -192,7 +219,12 @@
               >{{ b.text | escape }}</span>
 
             {%- when 'image' -%}
-              {%- if b.image != blank -%}
+              {%- if b.image == blank and request.design_mode -%}
+                <span
+                  class="hp-mq__placeholder"
+                  {% if pass == 1 %}{{ block.shopify_attributes }}{% endif %}
+                >Pick an image for this block. Only you can see this.</span>
+              {%- elsif b.image != blank -%}
                 <span {% if pass == 1 %}{{ block.shopify_attributes }}{% endif %}>
                   {{
                     b.image

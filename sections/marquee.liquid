@@ -154,7 +154,7 @@
   data-speed="{{ speed }}"
   style="
     --hp-mq-bg: {{ s.background | default: '#B5C99A' }};
-    --hp-mq-ink: {{ s.text_color | default: '#FCFBF6' }};
+    --hp-mq-ink: {{ s.text_color | default: '#2F3326' }};
     --hp-mq-size: {{ s.text_size | default: 44 }}px;
     --hp-mq-size-mobile: {{ s.text_size_mobile | default: 26 }}px;
     --hp-mq-tracking: {{ s.tracking | default: 0 | divided_by: 100.0 }}em;
@@ -387,8 +387,8 @@
       "type": "color",
       "id": "text_color",
       "label": "Text",
-      "default": "#FCFBF6",
-      "info": "A block can override this for itself."
+      "default": "#2F3326",
+      "info": "Ink on sage-300 measures 7.3:1. Cream on that same sage is 1.7:1, under the 3:1 even large text needs — cream wants a darker band such as sage-600 or ink-green."
     },
     {
       "type": "range",
@@ -489,7 +489,7 @@
             { "value": "outline", "label": "Outlined" }
           ],
           "default": "filled",
-          "info": "Alternating the two down the band is what gives the reference its rhythm."
+          "info": "Filled is the brand's own look. Outlined draws the letters as a hairline with the band showing through."
         },
         {
           "type": "color",
@@ -519,7 +519,7 @@
       "blocks": [
         { "type": "text", "settings": { "text": "Soft on little noses", "style": "filled" } },
         { "type": "image" },
-        { "type": "text", "settings": { "text": "Always within reach", "style": "outline" } },
+        { "type": "text", "settings": { "text": "Always within reach", "style": "filled" } },
         { "type": "image" },
         { "type": "text", "settings": { "text": "Made in small batches", "style": "filled" } },
         { "type": "image" }

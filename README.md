@@ -21,6 +21,7 @@ anything moving.
 | [`sections/section-divider.liquid`](sections/section-divider.liquid) | **Section divider** | A shaped edge — torn, zigzag, wave, scallop, slant, arch — to sit between two sections |
 | [`sections/marquee.liquid`](sections/marquee.liquid) | **Scrolling marquee** | A band of text and images sliding past, with filled or outlined lettering |
 | [`sections/pal-reveal.liquid`](sections/pal-reveal.liquid) | **Pal reveal** | A Pal that grows on scroll until its body becomes the next section |
+| [`sections/pal-panel.liquid`](sections/pal-panel.liquid) | **Pal panel** | A domed Pal-shaped panel that rises over the pinned section above and holds the copy |
 
 Click a filename above, then use the **copy icon** in the toolbar over the code
 to take the whole file.

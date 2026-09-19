@@ -1,0 +1,520 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — Pal panel
+  ---------------------------------------------------------------------------
+  A Pal-shaped panel that slides up over the section above it and holds this
+  section's words in its body.
+
+  Measured off the reference rather than guessed. Its shape is one full-width
+  panel with an elliptical top: the top edge fitted an ellipse the width of the
+  viewport, rising about 90% of a screen from its sides to its apex. That is
+  two border radii, not an image and not a clip path.
+
+  The Pal does not scale. Its top edge simply travels up as the page scrolls,
+  which reads as rising. In the reference the section above holds perfectly
+  still while it happens — its card sat at the same pixel for the whole entry —
+  so the section above is pinned. A section cannot normally reach its sibling,
+  but :has() can: the rule below pins whichever section this one follows.
+  Where :has() is missing the panel still slides up, just over a section that
+  scrolls away as usual.
+
+  The face sits a fifth of a screen below the apex, and the copy a little over
+  half the dome down, both as fractions of the dome's height — so one control
+  moves the whole composition and keeps it in proportion.
+
+  No script at all. Sizes are px or vh: Dawn's root font-size is 62.5%, so rem
+  renders at 62.5% of its intended value. Every setting carries a `| default:`.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+  assign heading_tag = s.heading_tag | default: 'h2'
+-%}
+
+{% style %}
+  {%- if s.pin_previous -%}
+    /* Pins whichever section this one follows, so the Pal rises over something
+       that stays put. Scoped to a section immediately before this one, so it
+       cannot affect anything else on the page. */
+    @supports selector(:has(*)) {
+      .shopify-section:has(+ .hp-pp-section) {
+        position: sticky;
+        top: var(--hp-pp-pin-top, 0px);
+        z-index: 0;
+      }
+    }
+  {%- endif -%}
+
+  /* Above the pinned section, so it covers it on the way up. */
+  .hp-pp-section {
+    position: relative;
+    z-index: 1;
+  }
+
+  .hp-pp {
+    --hp-pp-heading-scale: var(--font-heading-scale, 1);
+    --hp-pp-body-scale: var(--font-body-scale, 1);
+    position: relative;
+    overflow: hidden;
+    background: var(--hp-pp-color, #CFE1B9);
+    /* The dome. A horizontal radius of half the width makes the curve span the
+       whole panel; the vertical radius is how far it rises. */
+    border-start-start-radius: 50% var(--hp-pp-cap, 85vh);
+    border-start-end-radius: 50% var(--hp-pp-cap, 85vh);
+    padding-block: calc(var(--hp-pp-cap, 85vh) * var(--hp-pp-copy, 0.55))
+                   var(--hp-pp-pb, 96px);
+    padding-inline: 24px;
+  }
+
+  /* --- The face ----------------------------------------------------------
+     Placed as a fraction of the dome, so it keeps its place on the curve at
+     any dome height rather than drifting off it. */
+  .hp-pp__face {
+    position: absolute;
+    inset-inline: 0;
+    top: calc(var(--hp-pp-cap, 85vh) * var(--hp-pp-face, 0.22));
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: var(--hp-pp-spread, 24%);
+    pointer-events: none;
+  }
+
+  .hp-pp__eye {
+    width: var(--hp-pp-eye, 5%);
+    aspect-ratio: 1;
+    background: var(--hp-pp-ink, #2F3326);
+    border-radius: 50%;
+  }
+
+  .hp-pp__mouth {
+    position: absolute;
+    top: calc(var(--hp-pp-cap, 85vh) * var(--hp-pp-face, 0.22) + var(--hp-pp-eye, 5%) * 0.9);
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(var(--hp-pp-eye, 5%) * 1.7);
+    aspect-ratio: 2 / 1;
+    background: var(--hp-pp-ink, #2F3326);
+    border-radius: 0 0 100vw 100vw;
+    pointer-events: none;
+  }
+
+  /* --- Copy --------------------------------------------------------------- */
+  .hp-pp__inner {
+    position: relative;
+    z-index: 2;
+    max-width: var(--hp-pp-measure, 860px);
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .hp-pp__eyebrow {
+    margin: 0 0 16px;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-weight: 600;
+    font-size: calc(var(--hp-pp-eyebrow-size, 13px) * var(--hp-pp-body-scale));
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--hp-pp-eyebrow-ink, #6B7056);
+  }
+
+  .hp-pp__heading {
+    margin: 0;
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(
+      clamp(calc(var(--hp-pp-size, 64px) * 0.44), 5.6vw, var(--hp-pp-size, 64px))
+      * var(--hp-pp-heading-scale)
+    );
+    line-height: 1.06;
+    letter-spacing: -0.015em;
+    text-transform: var(--hp-pp-case, none);
+    color: var(--hp-pp-ink, #2F3326);
+  }
+
+  .hp-pp__text {
+    margin: 20px auto 0;
+    max-width: var(--hp-pp-text-measure, 560px);
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-weight: 500;
+    font-size: calc(var(--hp-pp-text-size, 19px) * var(--hp-pp-body-scale));
+    line-height: 1.5;
+    color: var(--hp-pp-text-ink, #3F4630);
+  }
+
+  .hp-pp__cta {
+    display: inline-block;
+    margin-block-start: 30px;
+    padding: 17px 38px;
+    border-radius: var(--hp-pp-btn-radius, 999px);
+    background: var(--hp-pp-btn-bg, #D88B6D);
+    color: var(--hp-pp-btn-ink, #2F3326);
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(15px * var(--hp-pp-heading-scale));
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1;
+    text-decoration: none;
+    transition: transform 180ms ease, filter 180ms ease;
+  }
+
+  .hp-pp__cta:hover { transform: translateY(-2px); filter: brightness(0.96); }
+
+  .hp-pp__cta:focus-visible {
+    outline: 3px solid var(--hp-pp-ink, #2F3326);
+    outline-offset: 4px;
+  }
+
+  /* --- Stickers ----------------------------------------------------------
+     Scattered around the copy, placed by percentage so they hold their spot
+     as the panel changes height. Decorative, and hidden where the panel is too
+     narrow for them to sit clear of the words. */
+  .hp-pp__sticker {
+    position: absolute;
+    z-index: 1;
+    width: var(--w);
+    left: var(--x);
+    top: var(--y);
+    transform: translate(-50%, -50%) rotate(var(--r));
+    pointer-events: none;
+  }
+
+  .hp-pp__sticker img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  @media screen and (max-width: 989px) {
+    .hp-pp {
+      border-start-start-radius: 50% var(--hp-pp-cap-mobile, 45vh);
+      border-start-end-radius: 50% var(--hp-pp-cap-mobile, 45vh);
+      padding-block: calc(var(--hp-pp-cap-mobile, 45vh) * var(--hp-pp-copy, 0.55))
+                     var(--hp-pp-pb-mobile, 64px);
+      padding-inline: 18px;
+    }
+
+    .hp-pp__face { top: calc(var(--hp-pp-cap-mobile, 45vh) * var(--hp-pp-face, 0.22)); }
+
+    .hp-pp__mouth {
+      top: calc(var(--hp-pp-cap-mobile, 45vh) * var(--hp-pp-face, 0.22)
+                + var(--hp-pp-eye, 5%) * 0.9);
+    }
+
+    .hp-pp__sticker { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hp-pp__cta { transition: none; }
+    .hp-pp__cta:hover { transform: none; }
+  }
+{% endstyle %}
+
+<div
+  class="hp-pp"
+  style="
+    --hp-pp-color: {{ s.pal_color | default: '#CFE1B9' }};
+    --hp-pp-ink: {{ s.heading_color | default: '#2F3326' }};
+    --hp-pp-text-ink: {{ s.text_color | default: '#3F4630' }};
+    --hp-pp-eyebrow-ink: {{ s.eyebrow_color | default: '#6B7056' }};
+    --hp-pp-cap: {{ s.dome_height | default: 85 }}vh;
+    --hp-pp-cap-mobile: {{ s.dome_height_mobile | default: 45 }}vh;
+    --hp-pp-face: {{ s.face_offset | default: 22 | divided_by: 100.0 }};
+    --hp-pp-copy: {{ s.copy_offset | default: 55 | divided_by: 100.0 }};
+    --hp-pp-eye: {{ s.eye_size | default: 5 }}%;
+    --hp-pp-spread: {{ s.eye_spread | default: 24 }}%;
+    --hp-pp-pin-top: {{ s.pin_offset | default: 0 }}px;
+    --hp-pp-measure: {{ s.measure | default: 860 }}px;
+    --hp-pp-text-measure: {{ s.text_measure | default: 560 }}px;
+    --hp-pp-eyebrow-size: {{ s.eyebrow_size | default: 13 }}px;
+    --hp-pp-size: {{ s.heading_size | default: 64 }}px;
+    --hp-pp-case: {{ s.heading_case | default: 'none' }};
+    --hp-pp-text-size: {{ s.text_size | default: 19 }}px;
+    --hp-pp-btn-bg: {{ s.button_background | default: '#D88B6D' }};
+    --hp-pp-btn-ink: {{ s.button_text_color | default: '#2F3326' }};
+    --hp-pp-btn-radius: {{ s.button_radius | default: 50 }}px;
+    --hp-pp-pb: {{ s.padding_bottom | default: 96 }}px;
+    --hp-pp-pb-mobile: {{ s.padding_bottom_mobile | default: 64 }}px;
+  "
+  {{ section.shopify_attributes }}
+>
+  {%- if s.show_face -%}
+    <div class="hp-pp__face" aria-hidden="true">
+      <span class="hp-pp__eye"></span>
+      <span class="hp-pp__eye"></span>
+    </div>
+    <span class="hp-pp__mouth" aria-hidden="true"></span>
+  {%- endif -%}
+
+  {%- for block in section.blocks -%}
+    {%- assign b = block.settings -%}
+    {%- if b.image != blank -%}
+      <span
+        class="hp-pp__sticker"
+        style="--x: {{ b.x | default: 12 }}%; --y: {{ b.y | default: 60 }}%; --w: {{ b.size | default: 110 }}px; --r: {{ b.rotate | default: 0 }}deg;"
+        aria-hidden="true"
+        {{ block.shopify_attributes }}
+      >
+        {{ b.image | image_url: width: 600 | image_tag: loading: 'lazy', widths: '110, 220, 330, 600', alt: '' }}
+      </span>
+    {%- elsif request.design_mode -%}
+      <span
+        class="hp-pp__sticker"
+        style="--x: {{ b.x | default: 12 }}%; --y: {{ b.y | default: 60 }}%; --w: {{ b.size | default: 110 }}px; --r: 0deg;"
+        {{ block.shopify_attributes }}
+      >
+        <span style="display:block;padding:10px 12px;border:2px dashed rgba(47,51,38,.45);border-radius:10px;background:rgba(252,251,246,.75);font:500 12px/1.2 system-ui,sans-serif;color:#2F3326;text-align:center">Pick an image</span>
+      </span>
+    {%- endif -%}
+  {%- endfor -%}
+
+  <div class="hp-pp__inner">
+    {%- if s.eyebrow != blank -%}
+      <p class="hp-pp__eyebrow">{{ s.eyebrow | escape }}</p>
+    {%- endif -%}
+
+    {%- if s.heading != blank -%}
+      <{{ heading_tag }} class="hp-pp__heading">
+        {{- s.heading | escape | newline_to_br -}}
+      </{{ heading_tag }}>
+    {%- endif -%}
+
+    {%- if s.text != blank -%}
+      <p class="hp-pp__text">{{ s.text | escape | newline_to_br }}</p>
+    {%- endif -%}
+
+    {%- if s.button_label != blank -%}
+      <a class="hp-pp__cta" href="{{ s.button_link | default: '#' }}">
+        {{- s.button_label | escape -}}
+      </a>
+    {%- endif -%}
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Pal panel",
+  "tag": "div",
+  "class": "hp-pp-section",
+  "max_blocks": 8,
+  "settings": [
+    {
+      "type": "header",
+      "content": "What it says",
+      "info": "The Pal's body holds this. Built to sit directly under the hero, rising over it as you scroll."
+    },
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow", "default": "Why we make them" },
+    {
+      "type": "textarea",
+      "id": "heading",
+      "label": "Heading",
+      "default": "We make things well so small hands can do it themselves."
+    },
+    {
+      "type": "select",
+      "id": "heading_tag",
+      "label": "Heading level",
+      "options": [
+        { "value": "h2", "label": "H2 — the usual choice" },
+        { "value": "h3", "label": "H3" }
+      ],
+      "default": "h2"
+    },
+    {
+      "type": "textarea",
+      "id": "text",
+      "label": "Text",
+      "default": "Every Totterful product is built for the moment a child reaches for it without being asked. Good materials, a shape that makes sense to them, and nothing in the way of everyday independence."
+    },
+    {
+      "type": "range",
+      "id": "heading_size",
+      "label": "Heading size",
+      "unit": "px",
+      "min": 24,
+      "max": 110,
+      "step": 2,
+      "default": 64
+    },
+    {
+      "type": "select",
+      "id": "heading_case",
+      "label": "Heading case",
+      "options": [
+        { "value": "none", "label": "As typed" },
+        { "value": "uppercase", "label": "UPPERCASE" }
+      ],
+      "default": "none"
+    },
+    {
+      "type": "range",
+      "id": "text_size",
+      "label": "Text size",
+      "unit": "px",
+      "min": 13,
+      "max": 30,
+      "step": 1,
+      "default": 19
+    },
+    {
+      "type": "range",
+      "id": "eyebrow_size",
+      "label": "Eyebrow size",
+      "unit": "px",
+      "min": 9,
+      "max": 22,
+      "step": 1,
+      "default": 13
+    },
+    {
+      "type": "range",
+      "id": "measure",
+      "label": "Heading width",
+      "unit": "px",
+      "min": 400,
+      "max": 1200,
+      "step": 20,
+      "default": 860
+    },
+    {
+      "type": "range",
+      "id": "text_measure",
+      "label": "Text width",
+      "unit": "px",
+      "min": 300,
+      "max": 900,
+      "step": 20,
+      "default": 560
+    },
+    { "type": "header", "content": "Button" },
+    { "type": "text", "id": "button_label", "label": "Label" },
+    { "type": "url", "id": "button_link", "label": "Link" },
+    { "type": "color", "id": "button_background", "label": "Background", "default": "#D88B6D" },
+    { "type": "color", "id": "button_text_color", "label": "Text", "default": "#2F3326" },
+    {
+      "type": "range",
+      "id": "button_radius",
+      "label": "Corner radius",
+      "unit": "px",
+      "min": 0,
+      "max": 60,
+      "step": 2,
+      "default": 50
+    },
+    { "type": "header", "content": "The Pal" },
+    { "type": "color", "id": "pal_color", "label": "Body", "default": "#CFE1B9" },
+    { "type": "color", "id": "heading_color", "label": "Heading and face", "default": "#2F3326" },
+    { "type": "color", "id": "text_color", "label": "Text", "default": "#3F4630" },
+    { "type": "color", "id": "eyebrow_color", "label": "Eyebrow", "default": "#6B7056" },
+    { "type": "checkbox", "id": "show_face", "label": "Show the face", "default": true },
+    {
+      "type": "range",
+      "id": "dome_height",
+      "label": "Dome height (desktop)",
+      "unit": "vh",
+      "min": 20,
+      "max": 100,
+      "step": 5,
+      "default": 85,
+      "info": "How far the curve rises, as a share of one screen. The reference measures about 90. Everything else on the dome is placed as a fraction of this, so raising it moves the whole face and the copy together."
+    },
+    {
+      "type": "range",
+      "id": "dome_height_mobile",
+      "label": "Dome height (mobile)",
+      "unit": "vh",
+      "min": 10,
+      "max": 80,
+      "step": 5,
+      "default": 45,
+      "info": "A desktop-sized dome on a phone is nearly a whole screen of empty curve before a word appears."
+    },
+    {
+      "type": "range",
+      "id": "face_offset",
+      "label": "Face position",
+      "unit": "%",
+      "min": 5,
+      "max": 50,
+      "step": 1,
+      "default": 22,
+      "info": "How far down the dome the eyes sit. 22 puts them where the reference has them."
+    },
+    {
+      "type": "range",
+      "id": "copy_offset",
+      "label": "Copy position",
+      "unit": "%",
+      "min": 20,
+      "max": 95,
+      "step": 1,
+      "default": 55,
+      "info": "How far down the dome the words start. Keep it well below the face."
+    },
+    {
+      "type": "range",
+      "id": "eye_size",
+      "label": "Eye size",
+      "unit": "%",
+      "min": 2,
+      "max": 12,
+      "step": 1,
+      "default": 5,
+      "info": "Share of the panel's width."
+    },
+    {
+      "type": "range",
+      "id": "eye_spread",
+      "label": "Space between the eyes",
+      "unit": "%",
+      "min": 6,
+      "max": 50,
+      "step": 2,
+      "default": 24
+    },
+    { "type": "header", "content": "The section above" },
+    {
+      "type": "checkbox",
+      "id": "pin_previous",
+      "label": "Hold the section above still",
+      "default": true,
+      "info": "Pins whatever sits directly above this one so the Pal rises over it, which is what makes the effect read. That section needs to be shorter than a screen or it will pin with its lower half cut off — the hero is the right size for it. Turn this off and the Pal still slides up, over a section that scrolls away as usual."
+    },
+    {
+      "type": "range",
+      "id": "pin_offset",
+      "label": "Pin below the header by",
+      "unit": "px",
+      "min": 0,
+      "max": 200,
+      "step": 4,
+      "default": 0,
+      "info": "Set this to your header's height if the header is sticky, so the pinned section does not hide underneath it."
+    },
+    { "type": "header", "content": "Spacing" },
+    { "type": "range", "id": "padding_bottom", "label": "Bottom padding (desktop)", "unit": "px", "min": 0, "max": 220, "step": 4, "default": 96 },
+    { "type": "range", "id": "padding_bottom_mobile", "label": "Bottom padding (mobile)", "unit": "px", "min": 0, "max": 160, "step": 4, "default": 64 }
+  ],
+  "blocks": [
+    {
+      "type": "sticker",
+      "name": "Sticker",
+      "settings": [
+        {
+          "type": "image_picker",
+          "id": "image",
+          "label": "Image",
+          "info": "Decorative, scattered around the copy. Use a cut-out with a transparent background."
+        },
+        { "type": "range", "id": "x", "label": "Across", "unit": "%", "min": 0, "max": 100, "step": 1, "default": 12 },
+        { "type": "range", "id": "y", "label": "Down", "unit": "%", "min": 0, "max": 100, "step": 1, "default": 60 },
+        { "type": "range", "id": "size", "label": "Size", "unit": "px", "min": 30, "max": 320, "step": 5, "default": 110 },
+        { "type": "range", "id": "rotate", "label": "Tilt", "unit": "deg", "min": -30, "max": 30, "step": 1, "default": 0 }
+      ]
+    }
+  ],
+  "presets": [{ "name": "Pal panel" }]
+}
+{% endschema %}

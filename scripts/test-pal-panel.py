@@ -164,73 +164,105 @@ if __name__ == '__main__':
 
 
 
-    # --- The dome's shape ---------------------------------------------------
-    # Scrolled so the panel's top edge is on screen, then read the curve off
-    # the pixels the way the reference video was read.
-    # The face is turned off for this one: the ears sit right on the dome's
-    # edge at some columns, so a scan for the body colour would find it below
-    # an ear and report the curve as deeper than it is.
-    img = shot(build({'settings': {'show_face': False}}, 'domeonly'), 600, 'dome')
-    vpw, vph = 1185, 713          # the rendered area inside the window
-    def edge(x):
-        for y in range(0, vph):
-            if near(img.getpixel((x, y)), PAL):
+    # --- The outline -------------------------------------------------------
+    # The hankie narrows at the top and flares out to a point at each side.
+    # A border radius can only bow outwards, so what is checked here is the
+    # thing a radius could not have produced: a head narrower than the body,
+    # and a shoulder where it reaches full width.
+    # A shallow head and almost nothing above it, so the whole outline down to
+    # the shoulder fits on one screen and can be read in a single frame.
+    img = shot(build({'settings': {'show_face': False, 'dome_height': 35}},
+                     'shape', above_h=20), 0, 'shape', w=1200, h=1000)
+    vpw = 1185
+
+    def row_extent(y):
+        """Leftmost and rightmost Pal pixel on this row."""
+        xs = [x for x in range(0, vpw, 3) if near(img.getpixel((x, y)), PAL)]
+        return (min(xs), max(xs)) if xs else None
+
+    def first_row():
+        for y in range(0, 900):
+            if row_extent(y):
                 return y
         return None
-    # The curve is checked against the ellipse it is supposed to be, rather
-    # than against a rule of thumb about how far it should drop: a corner with
-    # radii (rx, ry) puts its edge at ry - ry*sqrt(1 - ((rx-x)/rx)^2) below the
-    # apex. Only part of the curve is ever on screen at once, so a test that
-    # needed to see all of it would be testing the screenshot, not the shape.
-    import math
-    rx = vpw / 2
-    ry = 606.05                     # the radius the browser reported above
-    xs = [int(vpw * f) for f in (0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8)]
-    prof = [(x, edge(x)) for x in xs]
-    apex = min(y for _, y in prof if y is not None)
-    rows = []
-    worst = 0
-    for x, y in prof:
-        if y is None:
-            continue
-        dx = min(x, vpw - x)
-        want = ry - ry * math.sqrt(max(0.0, 1 - ((rx - dx) / rx) ** 2))
-        got = y - apex
-        worst = max(worst, abs(got - want))
-        rows.append(f'{int(x/vpw*100)}%: {got:.0f} vs {want:.0f}')
-    # Five columns is what fits on screen at once: past about 30% from either
-    # edge the curve has already dropped below the viewport.
-    check('the top edge follows the ellipse it is meant to be',
-          worst <= 4 and len(rows) >= 5,
-          'depth below the apex, measured vs predicted — ' + ',  '.join(rows)
-          + f'   (worst {worst:.1f}px)')
 
-    check('the corners above the dome are not the Pal',
-          not near(img.getpixel((3, 3)), PAL) and not near(img.getpixel((vpw - 4, 3)), PAL),
-          f"top corners {img.getpixel((3,3))}, {img.getpixel((vpw-4,3))}")
+    top = first_row()
+    check('the outline starts somewhere down the page, not at full width',
+          top is not None, f'first Pal pixel at y={top}')
 
-    # --- Dome height follows its setting ------------------------------------
+    widths = {}
+    # The last one is deliberately past the shoulder, which sits about
+    # 0.35 of the viewport height down at this setting.
+    for dy in (4, 40, 90, 160, 250, 400):
+        ext = row_extent(top + dy)
+        widths[dy] = (ext[1] - ext[0]) if ext else None
+
+    head = widths[4]
+    body = widths[400]
+    check('the head is narrower than the body',
+          head is not None and body is not None and head < body * 0.75,
+          '  '.join(f'{dy}px down: {w}px wide' for dy, w in widths.items()))
+
+    check('it widens all the way down to the shoulder, never narrowing',
+          all(widths[a] <= widths[b] + 2
+              for a, b in zip([4, 40, 90, 160, 250], [40, 90, 160, 250, 400])),
+          'widths in order: ' + ', '.join(str(widths[d]) for d in (4, 40, 90, 160, 250, 400)))
+
+    check('it reaches the full width of the screen by the shoulder',
+          body is not None and body >= vpw - 12,
+          f'{body}px of a {vpw}px viewport')
+
+    ext = row_extent(top + 90)
+    check('the outline is symmetric about the centre',
+          ext is not None and abs((ext[0] + ext[1]) / 2 - vpw / 2) <= 6,
+          f'left {ext[0]}, right {ext[1]}, centre {(ext[0]+ext[1])//2} vs {vpw//2}')
+
+    # --- The shoulder depth the pin relies on -------------------------------
     for vh, tag in ((85, 'tall'), (40, 'shallow')):
-        p2 = build({'settings': {'dome_height': vh}}, f'cap{vh}')
         D = """<script>
           window.addEventListener('load', function () {
             var el = document.querySelector('.hp-pp');
-            var cs = getComputedStyle(el);
             document.title = 'RESULT' + JSON.stringify({
-              radius: cs.borderTopLeftRadius,
               vh: window.innerHeight,
+              gauge: document.querySelector('.hp-pp__gauge').offsetHeight,
               faceTop: Math.round(document.querySelector('.hp-pp__face')
                        .getBoundingClientRect().top - el.getBoundingClientRect().top)
             });
           });
         </script>"""
-        d = probe(p2, D)
+        d = probe(build({'settings': {'dome_height': vh}}, f'cap{vh}'), D)
         want = round(d['vh'] * vh / 100)
-        got = float(d['radius'].split()[-1].rstrip('px'))
-        check(f'dome height {vh}vh renders as {want}px of rise',
-              abs(got - want) <= 2, f"border radius {d['radius']}")
-        check(f'the face sits 22% down that dome at {vh}vh',
+        check(f'at {vh}vh the shoulder measures {want}px, which is what the pin reads',
+              abs(d['gauge'] - want) <= 2, f"gauge {d['gauge']}px")
+        check(f'the face sits 22% down the head at {vh}vh',
               abs(d['faceTop'] - want * 0.22) <= 4,
               f"face {d['faceTop']}px from the top, wanted {round(want*0.22)}px")
+
+    # --- Ear styles ---------------------------------------------------------
+    EARS = """<script>
+      window.addEventListener('load', function () {
+        var ear = document.querySelector('.hp-pp__ear');
+        var cs = getComputedStyle(ear);
+        document.title = 'RESULT' + JSON.stringify({
+          cls: document.querySelector('.hp-pp').className,
+          radius: cs.borderTopLeftRadius + ' / ' + cs.borderBottomLeftRadius,
+          origin: cs.transformOrigin,
+          h: Math.round(ear.getBoundingClientRect().height),
+          w: Math.round(ear.getBoundingClientRect().width)
+        });
+      });
+    </script>"""
+    seen = {}
+    for style in ('cow', 'bunny', 'dog'):
+        d = probe(build({'settings': {'ear_style': style}}, 'ear-' + style), EARS)
+        seen[style] = d
+        check(f'{style} ears are their own shape',
+              f'hp-pp--ears-{style}' in d['cls'] and d['radius'] and d['origin'],
+              f"radius {d['radius']}, pivot {d['origin']}")
+
+    check('the three ear styles really differ from one another',
+          len({seen[k]['radius'] for k in seen}) == 3
+          and len({seen[k]['origin'] for k in seen}) == 3,
+          '  '.join(f"{k}: pivot {seen[k]['origin']}" for k in seen))
 
     print(f"\n{sum(res)} passed, {len(res) - sum(res)} failed")

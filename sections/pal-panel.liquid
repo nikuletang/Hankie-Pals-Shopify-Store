@@ -56,15 +56,58 @@
   .hp-pp {
     --hp-pp-heading-scale: var(--font-heading-scale, 1);
     --hp-pp-body-scale: var(--font-body-scale, 1);
+    --hp-pp-c: var(--hp-pp-cap, 85vh);
     position: relative;
-    background: var(--hp-pp-color, #CFE1B9);
-    /* The dome. A horizontal radius of half the width makes the curve span the
-       whole panel; the vertical radius is how far it rises. */
-    border-start-start-radius: 50% var(--hp-pp-cap, 85vh);
-    border-start-end-radius: 50% var(--hp-pp-cap, 85vh);
-    padding-block: calc(var(--hp-pp-cap, 85vh) * var(--hp-pp-copy, 0.55))
+    padding-block: calc(var(--hp-pp-c) * var(--hp-pp-copy, 0.55))
                    var(--hp-pp-pb, 96px);
     padding-inline: 24px;
+  }
+
+  .hp-pp__gauge {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: var(--hp-pp-c);
+    pointer-events: none;
+  }
+
+  .hp-pp__body {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: var(--hp-pp-color, #CFE1B9);
+    clip-path: polygon(
+      /* The head closes to a near-vertical side by 0.36 before the flare
+         starts, which is what puts a shoulder in the outline instead of one
+         continuous bell. */
+      50% 0,
+      57% calc(var(--hp-pp-c) * 0.03),
+      63% calc(var(--hp-pp-c) * 0.09),
+      67.5% calc(var(--hp-pp-c) * 0.17),
+      70% calc(var(--hp-pp-c) * 0.26),
+      71% calc(var(--hp-pp-c) * 0.36),
+      71.5% calc(var(--hp-pp-c) * 0.46),
+      73.5% calc(var(--hp-pp-c) * 0.56),
+      78% calc(var(--hp-pp-c) * 0.66),
+      84% calc(var(--hp-pp-c) * 0.76),
+      91% calc(var(--hp-pp-c) * 0.87),
+      100% var(--hp-pp-c),
+      100% calc(100% - var(--hp-pp-tip, 0px)),
+      50% 100%,
+      0 calc(100% - var(--hp-pp-tip, 0px)),
+      0 var(--hp-pp-c),
+      9% calc(var(--hp-pp-c) * 0.87),
+      16% calc(var(--hp-pp-c) * 0.76),
+      22% calc(var(--hp-pp-c) * 0.66),
+      26.5% calc(var(--hp-pp-c) * 0.56),
+      28.5% calc(var(--hp-pp-c) * 0.46),
+      29% calc(var(--hp-pp-c) * 0.36),
+      30% calc(var(--hp-pp-c) * 0.26),
+      32.5% calc(var(--hp-pp-c) * 0.17),
+      37% calc(var(--hp-pp-c) * 0.09),
+      43% calc(var(--hp-pp-c) * 0.03)
+    );
   }
 
   /* --- The face ----------------------------------------------------------
@@ -76,7 +119,7 @@
   .hp-pp__face {
     position: absolute;
     inset-inline: 0;
-    top: calc(var(--hp-pp-cap, 85vh) * var(--hp-pp-face, 0.22));
+    top: calc(var(--hp-pp-c) * var(--hp-pp-face, 0.22));
     height: 0;
     pointer-events: none;
   }
@@ -94,9 +137,37 @@
     width: var(--hp-pp-ear-w, 7vw);
     aspect-ratio: 1 / var(--hp-pp-ear-len, 1.5);
     background: var(--hp-pp-ear, #2F3326);
-    border-radius: 50% 50% 46% 54% / 62% 62% 38% 38%;
     display: grid;
     place-items: center;
+  }
+
+  /* Three ears, three outlines. What separates them is where the weight sits
+     and what the tilt pivots around: a cow's turns about its middle, a bunny's
+     stands up from its base, and a dog's hangs from where it joins the head. */
+  .hp-pp--ears-cow .hp-pp__ear {
+    border-radius: 52% 48% 46% 54% / 60% 60% 40% 40%;
+    transform-origin: 50% 50%;
+  }
+
+  .hp-pp--ears-bunny .hp-pp__ear {
+    /* Narrow, tall, and rounded hard at the tip. */
+    border-radius: 50% 50% 44% 56% / 40% 40% 60% 60%;
+    transform-origin: 50% 100%;
+  }
+
+  .hp-pp--ears-dog .hp-pp__ear {
+    /* Wider at the bottom than the top, so it reads as hanging rather than
+       standing. */
+    border-radius: 46% 54% 50% 50% / 26% 26% 74% 74%;
+    transform-origin: 50% 0;
+  }
+
+  .hp-pp--ears-bunny .hp-pp__ear::after { border-radius: 50% 50% 46% 54% / 42% 42% 58% 58%; }
+
+  .hp-pp--ears-dog .hp-pp__ear::after {
+    border-radius: 46% 54% 50% 50% / 28% 28% 72% 72%;
+    align-self: end;
+    margin-block-end: 8%;
   }
 
   .hp-pp__ear--l {
@@ -112,7 +183,7 @@
   .hp-pp__ear::after {
     content: "";
     width: 46%;
-    height: 58%;
+    height: 62%;
     background: var(--hp-pp-ear-in, #ECA883);
     border-radius: 50%;
   }
@@ -197,16 +268,6 @@
   @keyframes hp-pp-blink {
     0%, 93%, 100% { transform: translate(-50%, -50%) scaleY(1); }
     95.5%, 96.5%  { transform: translate(-50%, -50%) scaleY(0.08); }
-  }
-
-  /* The hankie comes to a point at the bottom. It is a separate box in the
-     flow rather than a clip on the panel, because clipping the panel would
-     take the ears off with it. */
-  .hp-pp__tip {
-    width: 100%;
-    height: var(--hp-pp-tip, 0px);
-    background: var(--hp-pp-color, #CFE1B9);
-    clip-path: polygon(0 0, 100% 0, 50% 100%);
   }
 
   /* --- Copy --------------------------------------------------------------- */
@@ -298,18 +359,12 @@
 
   @media screen and (max-width: 989px) {
     .hp-pp {
-      border-start-start-radius: 50% var(--hp-pp-cap-mobile, 45vh);
-      border-start-end-radius: 50% var(--hp-pp-cap-mobile, 45vh);
-      padding-block: calc(var(--hp-pp-cap-mobile, 45vh) * var(--hp-pp-copy, 0.55))
+      /* One override: the outline, the padding and the face all measure
+         themselves against this. */
+      --hp-pp-c: var(--hp-pp-cap-mobile, 45vh);
+      padding-block: calc(var(--hp-pp-c) * var(--hp-pp-copy, 0.55))
                      var(--hp-pp-pb-mobile, 64px);
       padding-inline: 18px;
-    }
-
-    .hp-pp__face { top: calc(var(--hp-pp-cap-mobile, 45vh) * var(--hp-pp-face, 0.22)); }
-
-    .hp-pp__mouth {
-      top: calc(var(--hp-pp-cap-mobile, 45vh) * var(--hp-pp-face, 0.22)
-                + var(--hp-pp-eye, 5%) * 0.9);
     }
 
     .hp-pp__sticker { display: none; }
@@ -324,7 +379,7 @@
 
 <hp-pal-panel>
 <div
-  class="hp-pp{% if s.blink %} hp-pp--blink{% endif %}"
+  class="hp-pp hp-pp--ears-{{ s.ear_style | default: 'cow' }}{% if s.blink %} hp-pp--blink{% endif %}"
   style="
     --hp-pp-color: {{ s.pal_color | default: '#CFE1B9' }};
     --hp-pp-ink: {{ s.heading_color | default: '#2F3326' }};
@@ -365,6 +420,9 @@
   "
   {{ section.shopify_attributes }}
 >
+  <span class="hp-pp__body" aria-hidden="true"></span>
+  <span class="hp-pp__gauge" aria-hidden="true"></span>
+
   {%- if s.show_face -%}
     <div class="hp-pp__face" aria-hidden="true">
       {%- if s.show_ears -%}
@@ -434,9 +492,6 @@
   </div>
 </div>
 
-{%- if s.tip_depth > 0 -%}
-  <div class="hp-pp__tip" aria-hidden="true"></div>
-{%- endif -%}
 </hp-pal-panel>
 
 {%- if s.pin_previous -%}
@@ -500,14 +555,14 @@
             getComputedStyle(this.panel).getPropertyValue('--hp-pp-pin-top')
           ) || 0;
 
-          // The screen is covered once the dome's shoulders — its lowest point
-          // along the top edge — have passed the pin line. Using the apex
-          // instead would let go while the corners still showed through.
-          var cap = this.panel.getBoundingClientRect().width;
-          var radius = parseFloat(getComputedStyle(this.panel).borderTopLeftRadius
-                                  .split(' ').pop()) || 0;
+          // The screen is covered once the outline's shoulders — the lowest
+          // point along its top edge, where it reaches full width — have
+          // passed the pin line. Letting go at the head's apex instead would
+          // release while the corners still showed the section behind.
+          var gauge = this.querySelector('.hp-pp__gauge');
+          var shoulder = gauge ? gauge.offsetHeight : 0;
           var top = this.panel.getBoundingClientRect().top;
-          var covered = top + radius <= pinTop;
+          var covered = top + shoulder <= pinTop;
 
           el.classList.toggle('hp-pp-pin', !covered);
         }
@@ -664,6 +719,18 @@
       "info": "Brings the panel to a point underneath, the way the hankie does. 0 leaves it square."
     },
     { "type": "header", "content": "Ears" },
+    {
+      "type": "select",
+      "id": "ear_style",
+      "label": "Which Pal",
+      "options": [
+        { "value": "cow", "label": "Cow — short, round, turned out" },
+        { "value": "bunny", "label": "Bunny — long and standing up" },
+        { "value": "dog", "label": "Dog — floppy, hanging down" }
+      ],
+      "default": "cow",
+      "info": "Sets the ear's outline and what its tilt pivots around. The sizes below then fit it: a cow wants length about 150 and tilt 18, a bunny length 300 and tilt 6, a dog length 190 and tilt 30 with the height raised towards 0 so they hang beside the face."
+    },
     { "type": "color", "id": "ear_color", "label": "Outer", "default": "#2F3326" },
     { "type": "color", "id": "ear_inner_color", "label": "Inner", "default": "#ECA883" },
     {

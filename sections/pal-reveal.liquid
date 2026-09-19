@@ -497,20 +497,20 @@
     {
       "type": "header",
       "content": "Before the reveal",
-      "info": "What is on screen while the Pal is still small. This section holds both halves, because a Shopify section cannot pin the one above it."
+      "info": "Built to sit last on the page, as the closing ask. It holds both halves, because a Shopify section cannot pin the one above it. Whatever sits above must end on the Background colour set further down, and whatever sits below — usually the footer — should start on the Pal's body colour, because the reveal does not fade out, it hands over mid-colour."
     },
-    { "type": "text", "id": "before_eyebrow", "label": "Eyebrow", "default": "Meet the Pals" },
+    { "type": "text", "id": "before_eyebrow", "label": "Eyebrow", "default": "Before you go" },
     {
       "type": "textarea",
       "id": "before_heading",
       "label": "Heading",
-      "default": "Keep scrolling."
+      "default": "One more thing."
     },
     {
       "type": "textarea",
       "id": "before_text",
       "label": "Text",
-      "default": "Someone is about to say hello."
+      "default": "Someone would rather like to come home with you."
     },
     {
       "type": "range",
@@ -540,12 +540,12 @@
       "content": "After the reveal",
       "info": "Sits on the Pal's body once it fills the screen. Colours here need to work against the Pal's colour, not the background."
     },
-    { "type": "text", "id": "after_eyebrow", "label": "Eyebrow", "default": "Hello" },
+    { "type": "text", "id": "after_eyebrow", "label": "Eyebrow", "default": "Hankie Pals" },
     {
       "type": "textarea",
       "id": "after_heading",
       "label": "Heading",
-      "default": "One hankie. Three Pals to pick from."
+      "default": "Pick your Pal."
     },
     {
       "type": "select",
@@ -561,7 +561,7 @@
       "type": "textarea",
       "id": "after_text",
       "label": "Text",
-      "default": "Soft muslin, a clip that reaches, and a face they will actually want to use."
+      "default": "Bunny, Cow or Dog. The same soft muslin and the same clip that reaches — three very different faces."
     },
     {
       "type": "range",
@@ -587,8 +587,13 @@
     { "type": "color", "id": "after_heading_color", "label": "Heading colour", "default": "#2F3326" },
     { "type": "color", "id": "after_text_color", "label": "Text colour", "default": "#3F4630" },
     { "type": "header", "content": "Button" },
-    { "type": "text", "id": "button_label", "label": "Label", "default": "Meet them" },
-    { "type": "url", "id": "button_link", "label": "Link" },
+    { "type": "text", "id": "button_label", "label": "Label", "default": "Shop the Pals" },
+    {
+      "type": "url",
+      "id": "button_link",
+      "label": "Link",
+      "info": "Point it at the Hankie Pals product or collection. This is the last thing on the page, so it is the last chance to ask."
+    },
     { "type": "color", "id": "button_background", "label": "Background", "default": "#D88B6D" },
     { "type": "color", "id": "button_text_color", "label": "Text", "default": "#2F3326" },
     {

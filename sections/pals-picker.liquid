@@ -671,7 +671,7 @@
     {%- endif -%}
 
     {%- if s.footnote != blank -%}
-      <div class="hp-pals__footnote">{{ s.footnote | default: '<p>More Pals on the way. Waitlist members get to vote on who comes next.</p>' }}</div>
+      <div class="hp-pals__footnote">{{ s.footnote | default: '<p>More Pals on the way. Tell us who you would like to meet next.</p>' }}</div>
     {%- endif -%}
   </div>
 </section>
@@ -761,7 +761,7 @@
       "type": "richtext",
       "id": "footnote",
       "label": "Closing line",
-      "default": "<p>More Pals on the way. Waitlist members get to vote on who comes next.</p>"
+      "default": "<p>More Pals on the way. Tell us who you would like to meet next.</p>"
     },
     { "type": "header", "content": "Buying" },
     {
@@ -967,7 +967,7 @@
           "type": "url",
           "id": "link",
           "label": "Secondary link",
-          "info": "Becomes the main button when there is no matching variant. Point it at the waitlist before launch."
+          "info": "Becomes the main button when there is no matching variant — point it at the collection so the card still goes somewhere."
         },
         { "type": "text", "id": "link_label", "label": "Secondary link label", "default": "Meet this Pal" }
       ]

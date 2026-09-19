@@ -1,0 +1,530 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — scrolling marquee
+  ---------------------------------------------------------------------------
+  A band of text and images sliding past, for directly under the hero. Text
+  blocks and image blocks sit in whatever order they are added, so a logo
+  between each phrase is just alternating the two.
+
+  The loop is seamless because the whole run is rendered twice and the track
+  slides by exactly one run's width. The script measures that run and sets the
+  duration from it, so the speed is a real pixels-per-second whatever is in the
+  band; it also clones more runs when the content is narrower than the screen,
+  which is the case where a marquee otherwise scrolls a gap across itself.
+
+  Without the script the CSS still animates, using a duration worked out from
+  an assumed run width — the band scrolls, just not at a measured speed.
+
+  Outlined text is -webkit-text-stroke behind an @supports test, because the
+  fallback for a browser without it is transparent text on a coloured band,
+  which is no text at all.
+
+  Sizes are px: Dawn's root font-size is 62.5%, so rem renders at 62.5% of its
+  intended value. Every setting carries a `| default:`.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+  assign speed = s.speed | default: 60
+
+  # The no-script fallback. A real run is measured by the script; this stands in
+  # for one about 2000px wide so the band still moves at a sane rate if the
+  # script never runs.
+  assign fallback_dur = 2000.0 | divided_by: speed
+-%}
+
+{% style %}
+  .hp-mq {
+    --hp-mq-body-scale: var(--font-body-scale, 1);
+    --hp-mq-heading-scale: var(--font-heading-scale, 1);
+    display: block;
+    position: relative;
+    overflow: hidden;
+    background: var(--hp-mq-bg);
+    border-top: var(--hp-mq-rule-w) solid var(--hp-mq-rule-c);
+    border-bottom: var(--hp-mq-rule-w) solid var(--hp-mq-rule-c);
+    padding-block: var(--hp-mq-pad);
+  }
+
+  /* A tilted band has to be wider than the screen, or rotating it pulls its
+     ends inside the viewport and leaves wedges of background at the corners. */
+  .hp-mq--tilted {
+    width: 112%;
+    margin-inline-start: -6%;
+    transform: rotate(var(--hp-mq-tilt));
+  }
+
+  .hp-mq__track {
+    display: flex;
+    align-items: center;
+    width: max-content;
+    will-change: transform;
+    animation: hp-mq-run var(--hp-mq-dur) linear infinite;
+  }
+
+  .hp-mq--right .hp-mq__track { animation-direction: reverse; }
+
+  .hp-mq--pause .hp-mq__track:hover { animation-play-state: paused; }
+
+  @keyframes hp-mq-run {
+    from { transform: translateX(0); }
+    /* One run's share of the track, so the frame it lands on is identical to
+       the one it started from. The script resets this when it adds runs. */
+    to { transform: translateX(var(--hp-mq-end, -50%)); }
+  }
+
+  .hp-mq__group {
+    display: flex;
+    align-items: center;
+    flex: none;
+  }
+
+  /* The spacing is a trailing margin on each item rather than a gap, so a run
+     measures with its own spacing included and the track is an exact multiple
+     of one run. */
+  .hp-mq__group > * {
+    flex: none;
+    margin-inline-end: var(--hp-mq-gap);
+  }
+
+  .hp-mq__text {
+    flex: none;
+    margin: 0;
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(var(--hp-mq-size) * var(--hp-mq-heading-scale));
+    letter-spacing: var(--hp-mq-tracking);
+    text-transform: var(--hp-mq-case);
+    line-height: 1.1;
+    white-space: nowrap;
+    color: var(--hp-mq-ink);
+  }
+
+  .hp-mq--body .hp-mq__text {
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-weight: 600;
+  }
+
+  /* Filled unless the browser can actually stroke it, so the failure mode is
+     solid text rather than none. */
+  .hp-mq__text--outline { color: var(--hp-mq-ink); }
+
+  @supports (-webkit-text-stroke: 1px red) {
+    .hp-mq__text--outline {
+      color: transparent;
+      -webkit-text-stroke: var(--hp-mq-stroke) var(--hp-mq-ink);
+    }
+  }
+
+  .hp-mq__img {
+    flex: none;
+    display: block;
+    height: var(--hp-mq-img-h);
+    width: auto;
+    object-fit: contain;
+  }
+
+  @media screen and (max-width: 749px) {
+    .hp-mq { padding-block: var(--hp-mq-pad-mobile); }
+
+    .hp-mq__group > * { margin-inline-end: var(--hp-mq-gap-mobile); }
+
+    .hp-mq__text {
+      font-size: calc(var(--hp-mq-size-mobile) * var(--hp-mq-heading-scale));
+    }
+
+    .hp-mq__img { height: var(--hp-mq-img-h-mobile); }
+  }
+
+  /* Stopped dead, the band still has to be readable and reachable, so it
+     becomes a row that can be scrolled by hand. */
+  @media (prefers-reduced-motion: reduce) {
+    .hp-mq { overflow-x: auto; }
+
+    .hp-mq__track {
+      animation: none;
+      transform: none;
+    }
+  }
+{% endstyle %}
+
+<hp-marquee
+  class="hp-mq hp-mq--{{ s.direction | default: 'left' }}{% if s.font == 'body' %} hp-mq--body{% endif %}{% if s.pause_on_hover %} hp-mq--pause{% endif %}{% if s.tilt != 0 and s.tilt != blank %} hp-mq--tilted{% endif %}"
+  data-speed="{{ speed }}"
+  style="
+    --hp-mq-bg: {{ s.background | default: '#B5C99A' }};
+    --hp-mq-ink: {{ s.text_color | default: '#FCFBF6' }};
+    --hp-mq-size: {{ s.text_size | default: 44 }}px;
+    --hp-mq-size-mobile: {{ s.text_size_mobile | default: 26 }}px;
+    --hp-mq-tracking: {{ s.tracking | default: 0 | divided_by: 100.0 }}em;
+    --hp-mq-case: {{ s.text_case | default: 'none' }};
+    --hp-mq-stroke: {{ s.outline_width | default: 1 }}px;
+    --hp-mq-gap: {{ s.gap | default: 48 }}px;
+    --hp-mq-gap-mobile: {{ s.gap_mobile | default: 28 }}px;
+    --hp-mq-img-h: {{ s.image_height | default: 56 }}px;
+    --hp-mq-img-h-mobile: {{ s.image_height_mobile | default: 34 }}px;
+    --hp-mq-pad: {{ s.padding | default: 18 }}px;
+    --hp-mq-pad-mobile: {{ s.padding_mobile | default: 12 }}px;
+    --hp-mq-rule-w: {{ s.rule_width | default: 0 }}px;
+    --hp-mq-rule-c: {{ s.rule_color | default: '#2F3326' }};
+    --hp-mq-tilt: {{ s.tilt | default: 0 }}deg;
+    --hp-mq-dur: {{ fallback_dur }}s;
+  "
+  {{ section.shopify_attributes }}
+>
+  <div class="hp-mq__track">
+    {%- comment -%}
+      Two runs in the markup: one loop's worth plus the copy it slides into.
+      Only the first carries the editor's block attributes — duplicating those
+      would give the theme editor two elements claiming the same block.
+    {%- endcomment -%}
+    {%- for pass in (1..2) -%}
+      <div class="hp-mq__group"{% if pass > 1 %} aria-hidden="true"{% endif %}>
+        {%- for block in section.blocks -%}
+          {%- assign b = block.settings -%}
+          {%- case block.type -%}
+            {%- when 'text' -%}
+              <span
+                class="hp-mq__text{% if b.style == 'outline' %} hp-mq__text--outline{% endif %}"
+                {% if b.color != blank %}style="--hp-mq-ink: {{ b.color }};"{% endif %}
+                {% if pass == 1 %}{{ block.shopify_attributes }}{% endif %}
+              >{{ b.text | escape }}</span>
+
+            {%- when 'image' -%}
+              {%- if b.image != blank -%}
+                <span {% if pass == 1 %}{{ block.shopify_attributes }}{% endif %}>
+                  {{
+                    b.image
+                    | image_url: width: 400
+                    | image_tag:
+                      loading: 'lazy',
+                      widths: '80, 120, 180, 260, 400',
+                      sizes: '200px',
+                      alt: b.alt,
+                      class: 'hp-mq__img'
+                  }}
+                </span>
+              {%- endif -%}
+          {%- endcase -%}
+        {%- endfor -%}
+      </div>
+    {%- endfor -%}
+  </div>
+</hp-marquee>
+
+<script>
+  (function () {
+    if (customElements.get('hp-marquee')) return;
+
+    customElements.define('hp-marquee', class extends HTMLElement {
+      connectedCallback() {
+        try {
+          this.track = this.querySelector('.hp-mq__track');
+          if (!this.track || !this.track.children.length) return;
+
+          // Reduced motion is handled in the stylesheet; measuring here would
+          // only set a duration for an animation that is not running.
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+          this.speed = parseFloat(this.dataset.speed) || 60;
+
+          // An image that has not loaded yet measures as nothing, which would
+          // set the duration off a short run.
+          var self = this;
+          this.querySelectorAll('img').forEach(function (img) {
+            if (!img.complete) {
+              img.addEventListener('load', function () { self.measure(); }, { once: true });
+            }
+          });
+
+          this.measure();
+
+          if ('ResizeObserver' in window) {
+            this.ro = new ResizeObserver(function () { self.measure(); });
+            this.ro.observe(this);
+          }
+        } catch (e) {
+          // Leave the CSS fallback duration in place; the band still scrolls.
+        }
+      }
+
+      disconnectedCallback() {
+        if (this.ro) this.ro.disconnect();
+      }
+
+      measure() {
+        var first = this.track.children[0];
+        if (!first) return;
+
+        var runWidth = first.getBoundingClientRect().width;
+        if (!runWidth) return;
+
+        // Short content would otherwise slide a gap across the band, so the
+        // run is repeated until the track covers the width twice over.
+        var wanted = Math.max(2, Math.ceil((this.offsetWidth * 2) / runWidth));
+
+        while (this.track.children.length < wanted) {
+          var copy = first.cloneNode(true);
+          copy.setAttribute('aria-hidden', 'true');
+          // A clone must not claim the block its original belongs to.
+          copy.querySelectorAll('[data-shopify-editor-block]').forEach(function (el) {
+            el.removeAttribute('data-shopify-editor-block');
+          });
+          this.track.appendChild(copy);
+        }
+
+        var runs = this.track.children.length;
+        this.style.setProperty('--hp-mq-end', (-100 / runs) + '%');
+        this.style.setProperty('--hp-mq-dur', (runWidth / this.speed) + 's');
+      }
+    });
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Scrolling marquee",
+  "tag": "div",
+  "class": "hp-mq-section",
+  "max_blocks": 12,
+  "settings": [
+    { "type": "header", "content": "Motion" },
+    {
+      "type": "range",
+      "id": "speed",
+      "label": "Speed",
+      "unit": "px/s",
+      "min": 10,
+      "max": 200,
+      "step": 5,
+      "default": 60,
+      "info": "Pixels travelled per second, so adding more text makes the band longer rather than faster."
+    },
+    {
+      "type": "select",
+      "id": "direction",
+      "label": "Direction",
+      "options": [
+        { "value": "left", "label": "Right to left" },
+        { "value": "right", "label": "Left to right" }
+      ],
+      "default": "left"
+    },
+    {
+      "type": "checkbox",
+      "id": "pause_on_hover",
+      "label": "Pause when hovered",
+      "default": false,
+      "info": "Desktop only — a touch screen has no hover."
+    },
+    { "type": "header", "content": "Text" },
+    {
+      "type": "select",
+      "id": "font",
+      "label": "Font",
+      "options": [
+        { "value": "heading", "label": "Heading font" },
+        { "value": "body", "label": "Body font" }
+      ],
+      "default": "heading"
+    },
+    {
+      "type": "range",
+      "id": "text_size",
+      "label": "Text size (desktop)",
+      "unit": "px",
+      "min": 14,
+      "max": 96,
+      "step": 2,
+      "default": 44
+    },
+    {
+      "type": "range",
+      "id": "text_size_mobile",
+      "label": "Text size (mobile)",
+      "unit": "px",
+      "min": 12,
+      "max": 60,
+      "step": 1,
+      "default": 26
+    },
+    {
+      "type": "range",
+      "id": "tracking",
+      "label": "Letter spacing",
+      "unit": "%",
+      "min": 0,
+      "max": 20,
+      "step": 1,
+      "default": 0,
+      "info": "Percent of the font size."
+    },
+    {
+      "type": "select",
+      "id": "text_case",
+      "label": "Case",
+      "options": [
+        { "value": "none", "label": "As typed" },
+        { "value": "uppercase", "label": "UPPERCASE" }
+      ],
+      "default": "none"
+    },
+    {
+      "type": "range",
+      "id": "outline_width",
+      "label": "Outline thickness",
+      "unit": "px",
+      "min": 1,
+      "max": 4,
+      "step": 1,
+      "default": 1,
+      "info": "Applies to any text block set to Outlined."
+    },
+    { "type": "header", "content": "Colours" },
+    { "type": "color", "id": "background", "label": "Band background", "default": "#B5C99A" },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text",
+      "default": "#FCFBF6",
+      "info": "A block can override this for itself."
+    },
+    {
+      "type": "range",
+      "id": "rule_width",
+      "label": "Line above and below",
+      "unit": "px",
+      "min": 0,
+      "max": 8,
+      "step": 1,
+      "default": 0
+    },
+    { "type": "color", "id": "rule_color", "label": "Line colour", "default": "#2F3326" },
+    { "type": "header", "content": "Layout" },
+    {
+      "type": "range",
+      "id": "gap",
+      "label": "Gap between items (desktop)",
+      "unit": "px",
+      "min": 8,
+      "max": 160,
+      "step": 4,
+      "default": 48
+    },
+    {
+      "type": "range",
+      "id": "gap_mobile",
+      "label": "Gap between items (mobile)",
+      "unit": "px",
+      "min": 6,
+      "max": 100,
+      "step": 2,
+      "default": 28
+    },
+    {
+      "type": "range",
+      "id": "image_height",
+      "label": "Image height (desktop)",
+      "unit": "px",
+      "min": 16,
+      "max": 140,
+      "step": 2,
+      "default": 56
+    },
+    {
+      "type": "range",
+      "id": "image_height_mobile",
+      "label": "Image height (mobile)",
+      "unit": "px",
+      "min": 12,
+      "max": 90,
+      "step": 2,
+      "default": 34
+    },
+    {
+      "type": "range",
+      "id": "padding",
+      "label": "Band padding (desktop)",
+      "unit": "px",
+      "min": 0,
+      "max": 80,
+      "step": 2,
+      "default": 18
+    },
+    {
+      "type": "range",
+      "id": "padding_mobile",
+      "label": "Band padding (mobile)",
+      "unit": "px",
+      "min": 0,
+      "max": 60,
+      "step": 2,
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "tilt",
+      "label": "Tilt",
+      "unit": "deg",
+      "min": -6,
+      "max": 6,
+      "step": 1,
+      "default": 0,
+      "info": "0 keeps it level. A tilted band is made wider than the screen so its ends stay off-screen."
+    }
+  ],
+  "blocks": [
+    {
+      "type": "text",
+      "name": "Text",
+      "settings": [
+        { "type": "text", "id": "text", "label": "Text", "default": "Soft on little noses" },
+        {
+          "type": "select",
+          "id": "style",
+          "label": "Style",
+          "options": [
+            { "value": "filled", "label": "Filled" },
+            { "value": "outline", "label": "Outlined" }
+          ],
+          "default": "filled",
+          "info": "Alternating the two down the band is what gives the reference its rhythm."
+        },
+        {
+          "type": "color",
+          "id": "color",
+          "label": "Colour",
+          "info": "Optional. Overrides the section's text colour for this block only."
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "name": "Image",
+      "settings": [
+        { "type": "image_picker", "id": "image", "label": "Image" },
+        {
+          "type": "text",
+          "id": "alt",
+          "label": "Alt text",
+          "info": "Leave empty if the image is decorative, which a logo between phrases usually is."
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Scrolling marquee",
+      "blocks": [
+        { "type": "text", "settings": { "text": "Soft on little noses", "style": "filled" } },
+        { "type": "image" },
+        { "type": "text", "settings": { "text": "Always within reach", "style": "outline" } },
+        { "type": "image" },
+        { "type": "text", "settings": { "text": "Made in small batches", "style": "filled" } },
+        { "type": "image" }
+      ]
+    }
+  ]
+}
+{% endschema %}

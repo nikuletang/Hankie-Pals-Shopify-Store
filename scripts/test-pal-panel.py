@@ -74,42 +74,103 @@ if __name__ == '__main__':
     page = build({}, 'base')
 
     # --- Does the section above actually hold still? ------------------------
+    # update() is called directly after each scroll: the live handler is rAF
+    # throttled, and headless virtual time renders about two frames, so waiting
+    # on the throttle would be testing the harness rather than the logic.
     PIN = """<script>
       window.addEventListener('load', function () {
         var above = document.getElementById('above');
         var panel = document.querySelector('.hp-pp');
+        var el = document.querySelector('hp-pal-panel');
         function at(y) {
           window.scrollTo(0, y);
-          return { above: Math.round(above.getBoundingClientRect().top),
+          if (el && el.update) el.update();
+          return { pinned: above.classList.contains('hp-pp-pin'),
+                   pos: getComputedStyle(above).position,
+                   above: Math.round(above.getBoundingClientRect().top),
                    panel: Math.round(panel.getBoundingClientRect().top) };
         }
-        document.title = 'RESULT' + JSON.stringify({
-          sticky: getComputedStyle(above).position,
-          s0: at(0), s300: at(300), s600: at(600), s900: at(900), s1200: at(1200)
+        var out = {};
+        [0, 300, 600, 900, 1200, 1800, 2400].forEach(function (y) {
+          out['s' + y] = at(y);
         });
+        // Back up the way we came: the pin has to come back, not stay off.
+        out.back = at(600);
+        document.title = 'RESULT' + JSON.stringify(out);
       });
     </script>"""
     d = probe(page, PIN)
-    tops = [d[k]['above'] for k in ('s300', 's600', 's900', 's1200')]
-    panels = [d[k]['panel'] for k in ('s300', 's600', 's900', 's1200')]
-    check('the section above is pinned once it reaches the top',
-          d['sticky'] == 'sticky' and all(t == 0 for t in tops),
-          f"position {d['sticky']}; its top at scroll 300/600/900/1200 = {tops}")
+
+    rising = [d['s300'], d['s600'], d['s900']]
+    check('pinned while the Pal is on its way up',
+          all(f['pinned'] and f['pos'] == 'sticky' for f in rising)
+          and all(f['above'] == 0 for f in rising[1:]),
+          '  '.join(f"{y}: pinned={d['s'+str(y)]['pinned']} top={d['s'+str(y)]['above']}"
+                    for y in (300, 600, 900)))
+
+    panels = [d['s' + str(y)]['panel'] for y in (300, 600, 900)]
     check('the Pal rises over it while it holds',
-          panels == sorted(panels, reverse=True) and panels[0] > panels[-1],
-          f"panel top at the same scrolls = {panels}")
+          panels == sorted(panels, reverse=True),
+          f'panel top at those scrolls = {panels}')
+
+    late = [d['s1800'], d['s2400']]
+    check('let go once the Pal has covered the screen',
+          all(not f['pinned'] and f['pos'] == 'static' for f in late)
+          and late[0]['above'] < 0 and late[1]['above'] < late[0]['above'],
+          '  '.join(f"{y}: pinned={d['s'+str(y)]['pinned']} pos={d['s'+str(y)]['pos']} "
+                    f"top={d['s'+str(y)]['above']}" for y in (1800, 2400)))
+
+    check('the release is not permanent — scrolling back up pins it again',
+          d['back']['pinned'] and d['back']['above'] == 0,
+          f"after releasing at 2400, back at 600: pinned={d['back']['pinned']}, "
+          f"top={d['back']['above']}")
 
     # --- Turning it off must really turn it off -----------------------------
-    d = probe(build({'settings': {'pin_previous': False}}, 'nopin'), PIN)
-    moved = [d[k]['above'] for k in ('s300', 's600', 's900')]
+    d2 = probe(build({'settings': {'pin_previous': False}}, 'nopin'), PIN)
+    moved = [d2['s' + str(y)]['above'] for y in (300, 600, 900)]
     check('with the pin off, the section above scrolls away as usual',
-          d['sticky'] == 'static' and moved == sorted(moved, reverse=True),
-          f"position {d['sticky']}; its top = {moved}")
+          all(not d2['s' + str(y)]['pinned'] for y in (300, 600, 900))
+          and moved == sorted(moved, reverse=True),
+          f'its top = {moved}, never pinned')
+
+    # --- The face is a Pal, and it blinks -----------------------------------
+    FACE = """<script>
+      window.addEventListener('load', function () {
+        function has(sel) { return !!document.querySelector(sel); }
+        var eye = document.querySelector('.hp-pp__eye');
+        document.title = 'RESULT' + JSON.stringify({
+          ears: document.querySelectorAll('.hp-pp__ear').length,
+          cheeks: document.querySelectorAll('.hp-pp__cheek').length,
+          muzzle: has('.hp-pp__muzzle'), nose: has('.hp-pp__nose'),
+          smile: has('.hp-pp__smile'),
+          blink: getComputedStyle(eye).animationName,
+          period: getComputedStyle(eye).animationDuration,
+          highlight: getComputedStyle(eye, '::after').backgroundColor
+        });
+      });
+    </script>"""
+    d = probe(page, FACE)
+    check('the face has ears, cheeks and a muzzle with a nose and smile',
+          d['ears'] == 2 and d['cheeks'] == 2 and d['muzzle'] and d['nose'] and d['smile'],
+          f"{d['ears']} ears, {d['cheeks']} cheeks, muzzle {d['muzzle']}, "
+          f"nose {d['nose']}, smile {d['smile']}")
+    check('the eyes blink, and have a catchlight',
+          d['blink'] == 'hp-pp-blink' and d['period'] == '6s'
+          and '255, 255, 255' in d['highlight'],
+          f"animation {d['blink']} every {d['period']}, catchlight {d['highlight']}")
+
+    d = probe(build({'settings': {'blink': False}}, 'noblink'), FACE)
+    check('blink can be switched off', d['blink'] == 'none', f"animation {d['blink']}")
+
+
 
     # --- The dome's shape ---------------------------------------------------
     # Scrolled so the panel's top edge is on screen, then read the curve off
     # the pixels the way the reference video was read.
-    img = shot(page, 600, 'dome')
+    # The face is turned off for this one: the ears sit right on the dome's
+    # edge at some columns, so a scan for the body colour would find it below
+    # an ear and report the curve as deeper than it is.
+    img = shot(build({'settings': {'show_face': False}}, 'domeonly'), 600, 'dome')
     vpw, vph = 1185, 713          # the rendered area inside the window
     def edge(x):
         for y in range(0, vph):

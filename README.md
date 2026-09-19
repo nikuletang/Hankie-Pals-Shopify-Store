@@ -20,6 +20,7 @@ anything moving.
 | [`sections/why-choose.liquid`](sections/why-choose.liquid) | **Why choose us** | A heading over a row of value props, each with an icon drawn in SVG rather than uploaded |
 | [`sections/section-divider.liquid`](sections/section-divider.liquid) | **Section divider** | A shaped edge — torn, zigzag, wave, scallop, slant, arch — to sit between two sections |
 | [`sections/marquee.liquid`](sections/marquee.liquid) | **Scrolling marquee** | A band of text and images sliding past, with filled or outlined lettering |
+| [`sections/pal-reveal.liquid`](sections/pal-reveal.liquid) | **Pal reveal** | A Pal that grows on scroll until its body becomes the next section |
 
 Click a filename above, then use the **copy icon** in the toolbar over the code
 to take the whole file.

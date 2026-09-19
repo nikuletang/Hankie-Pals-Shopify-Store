@@ -1,0 +1,740 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — Pal reveal
+  ---------------------------------------------------------------------------
+  A Pal that grows on scroll until its body becomes the next section.
+
+  The shape of it: a tall track, and inside it a stage that is position: sticky
+  and pinned to the viewport. While the track scrolls past, the stage does not
+  move — which is what makes the first half look like it is staying put — and
+  how far through the track you are drives the Pal's scale directly. Tied to
+  the scrollbar, not to a clock, so it follows the finger both ways.
+
+  The Pal grows about its own centre, so its face, which sits above that
+  centre, travels up and out of frame as the body fills the screen. That is the
+  whole trick; there is no second animation moving it.
+
+  The script writes one number per frame, --p from 0 to 1. Every other value —
+  the scale, both fades, the wash — is worked out from it in CSS, so a scroll
+  frame costs one property write.
+
+  Both halves live here. Shopify sections are siblings and one cannot pin the
+  one above it, so the content on screen before the reveal belongs to this
+  section too.
+
+  Without the script, and for anyone who asks for reduced motion, the section
+  is two ordinary stacked halves with the Pal at a fixed size. The enhanced
+  behaviour only exists while the script has added hp-rv--live, so nothing here
+  can leave a viewport pinned and empty.
+
+  Sizes are px: Dawn's root font-size is 62.5%, so rem renders at 62.5% of its
+  intended value. Every setting carries a `| default:`, and every var() in a
+  shorthand carries a fallback.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+  assign heading_tag = s.after_heading_tag | default: 'h2'
+-%}
+
+{% style %}
+  .hp-rv {
+    --hp-rv-body-scale: var(--font-body-scale, 1);
+    --hp-rv-heading-scale: var(--font-heading-scale, 1);
+    position: relative;
+    background: var(--hp-rv-stage-bg, #FCFBF6);
+  }
+
+  /* --- Static fallback ----------------------------------------------------
+     What the section is before the script gets to it: two halves, stacked,
+     both readable. Everything below this is switched on by hp-rv--live. */
+  .hp-rv__stage {
+    position: relative;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    padding-block: 72px;
+  }
+
+  .hp-rv__half {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: var(--hp-rv-measure, 680px);
+    margin-inline: auto;
+    padding-inline: 24px;
+    text-align: center;
+  }
+
+  .hp-rv__pal {
+    position: relative;
+    width: var(--hp-rv-pal-size, 280px);
+    aspect-ratio: 1 / 1.06;
+    margin: 32px auto;
+    background: var(--hp-rv-pal-color, #CFE1B9);
+    /* Each edge's radius pair sums to 100%, the same lopsided pebble the rest
+       of the site uses. */
+    border-radius: 46% 54% 50% 50% / 54% 46% 55% 45%;
+  }
+
+  /* --- Live: pinned stage, Pal driven by scroll --------------------------- */
+  .hp-rv--live {
+    /* dvh first where it is understood: on a phone the address bar sliding
+       away changes vh mid-scroll, which shows up as a jump. */
+    height: var(--hp-rv-track, 250vh);
+  }
+
+  @supports (height: 100dvh) {
+    .hp-rv--live { height: var(--hp-rv-track-d, 250dvh); }
+  }
+
+  .hp-rv--live .hp-rv__stage {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    padding-block: 0;
+  }
+
+  @supports (height: 100dvh) {
+    .hp-rv--live .hp-rv__stage { height: 100dvh; }
+  }
+
+  .hp-rv--live .hp-rv__half {
+    position: absolute;
+    inset-inline: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  /* The first half clears out early, because the Pal only covers the middle of
+     the screen until it is very large and the corners would still show it. */
+  .hp-rv--live .hp-rv__before {
+    z-index: 1;
+    /* Above the middle, so the Pal can sit low without covering the words. */
+    top: var(--hp-rv-before-y, 40%);
+    opacity: clamp(0, calc((var(--hp-rv-out) - var(--p, 0)) / var(--hp-rv-out)), 1);
+    transform: translateY(calc(-50% - var(--p, 0) * 40px));
+  }
+
+  .hp-rv--live .hp-rv__pal {
+    position: absolute;
+    z-index: 2;
+    left: 50%;
+    top: var(--hp-rv-pal-y, 64%);
+    margin: 0;
+    /* Grows about its own centre: the face rides up and out as the body
+       fills the screen. One transform, no second animation. */
+    transform:
+      translate(-50%, -50%)
+      scale(calc(1 + var(--p, 0) * (var(--hp-rv-smax, 12) - 1)));
+    will-change: transform;
+  }
+
+  /* A full-bleed wash in the Pal's own colour, brought in just before the body
+     would reach the corners. The blob's rounded edge never has to cover them
+     exactly, which would take a much larger scale and a visible seam. */
+  .hp-rv--live .hp-rv__wash {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    background: var(--hp-rv-pal-color, #CFE1B9);
+    opacity: clamp(0, calc((var(--p, 0) - var(--hp-rv-wash)) / 0.12), 1);
+    pointer-events: none;
+  }
+
+  .hp-rv--live .hp-rv__after {
+    z-index: 4;
+    opacity: clamp(0, calc((var(--p, 0) - var(--hp-rv-in)) / 0.22), 1);
+    transform: translateY(calc(-50% + (1 - clamp(0, calc((var(--p, 0) - var(--hp-rv-in)) / 0.22), 1)) * 28px));
+  }
+
+  .hp-rv__wash { display: none; }
+
+  .hp-rv--live .hp-rv__wash { display: block; }
+
+  /* The face clears just before the wash covers the screen. Left in, it shows
+     through the wash as soft grey smudges behind the second half's text. */
+  .hp-rv--live .hp-rv__pal > * {
+    opacity: clamp(0, calc((var(--hp-rv-wash) - var(--p, 0)) / 0.22), 1);
+  }
+
+  /* --- The Pal's face ----------------------------------------------------
+     Every part is a percentage of the body, so it scales with it and needs no
+     separate handling. */
+  .hp-rv__ear,
+  .hp-rv__eye,
+  .hp-rv__cheek,
+  .hp-rv__mouth {
+    position: absolute;
+    display: block;
+  }
+
+  .hp-rv__ear {
+    width: 26%;
+    height: 42%;
+    top: -26%;
+    background: var(--hp-rv-ear-color, #B5C99A);
+    border-radius: 50% 50% 40% 40% / 60% 60% 40% 40%;
+    z-index: -1;
+  }
+
+  .hp-rv__ear--l { left: 12%; transform: rotate(-14deg); }
+  .hp-rv__ear--r { right: 12%; transform: rotate(14deg); }
+
+  .hp-rv__eye {
+    width: 13%;
+    aspect-ratio: 1;
+    top: 26%;
+    background: var(--hp-rv-face-color, #2F3326);
+    border-radius: 50%;
+  }
+
+  .hp-rv__eye--l { left: 24%; }
+  .hp-rv__eye--r { right: 24%; }
+
+  .hp-rv__cheek {
+    width: 12%;
+    aspect-ratio: 1;
+    top: 41%;
+    background: var(--hp-rv-cheek-color, #ECA883);
+    border-radius: 50%;
+    opacity: 0.75;
+  }
+
+  .hp-rv__cheek--l { left: 14%; }
+  .hp-rv__cheek--r { right: 14%; }
+
+  /* A half disc, flat side up — the same smile the reference uses. */
+  .hp-rv__mouth {
+    width: 20%;
+    height: 10%;
+    top: 40%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--hp-rv-face-color, #2F3326);
+    border-radius: 0 0 100px 100px;
+  }
+
+  /* --- Copy --------------------------------------------------------------- */
+  .hp-rv__eyebrow {
+    margin: 0 0 14px;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-weight: 600;
+    font-size: calc(var(--hp-rv-eyebrow-size, 13px) * var(--hp-rv-body-scale));
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .hp-rv__heading {
+    margin: 0;
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    line-height: 1.06;
+    letter-spacing: -0.015em;
+  }
+
+  .hp-rv__text {
+    margin: 18px 0 0;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  .hp-rv__before .hp-rv__eyebrow { color: var(--hp-rv-before-eyebrow, #6B7056); }
+  .hp-rv__before .hp-rv__heading {
+    font-size: calc(
+      clamp(calc(var(--hp-rv-before-size, 64px) * 0.44), 6vw, var(--hp-rv-before-size, 64px))
+      * var(--hp-rv-heading-scale)
+    );
+    color: var(--hp-rv-before-ink, #2F3326);
+  }
+  .hp-rv__before .hp-rv__text {
+    font-size: calc(var(--hp-rv-before-text-size, 19px) * var(--hp-rv-body-scale));
+    color: var(--hp-rv-before-sub, #5C6150);
+  }
+
+  .hp-rv__after .hp-rv__eyebrow { color: var(--hp-rv-after-eyebrow, #3F4630); }
+  .hp-rv__after .hp-rv__heading {
+    font-size: calc(
+      clamp(calc(var(--hp-rv-after-size, 60px) * 0.44), 5.6vw, var(--hp-rv-after-size, 60px))
+      * var(--hp-rv-heading-scale)
+    );
+    color: var(--hp-rv-after-ink, #2F3326);
+  }
+  .hp-rv__after .hp-rv__text {
+    font-size: calc(var(--hp-rv-after-text-size, 19px) * var(--hp-rv-body-scale));
+    color: var(--hp-rv-after-sub, #3F4630);
+  }
+
+  .hp-rv__cta {
+    display: inline-block;
+    margin-block-start: 28px;
+    padding: 17px 38px;
+    border-radius: var(--hp-rv-btn-radius, 999px);
+    background: var(--hp-rv-btn-bg, #D88B6D);
+    color: var(--hp-rv-btn-ink, #2F3326);
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(15px * var(--hp-rv-heading-scale));
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1;
+    text-decoration: none;
+    transition: transform 180ms ease, filter 180ms ease;
+  }
+
+  .hp-rv__cta:hover { transform: translateY(-2px); filter: brightness(0.96); }
+
+  .hp-rv__cta:focus-visible {
+    outline: 3px solid var(--hp-rv-after-ink, #2F3326);
+    outline-offset: 4px;
+  }
+
+  @media screen and (max-width: 749px) {
+    .hp-rv--live { height: var(--hp-rv-track-mobile, 200vh); }
+
+    @supports (height: 100dvh) {
+      .hp-rv--live { height: var(--hp-rv-track-mobile-d, 200dvh); }
+    }
+
+    .hp-rv__half { padding-inline: 18px; }
+    .hp-rv__pal { width: var(--hp-rv-pal-size-mobile, 190px); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hp-rv__cta { transition: none; }
+    .hp-rv__cta:hover { transform: none; }
+  }
+{% endstyle %}
+
+<section
+  class="hp-rv"
+  style="
+    --hp-rv-stage-bg: {{ s.stage_background | default: '#FCFBF6' }};
+    --hp-rv-pal-color: {{ s.pal_color | default: '#CFE1B9' }};
+    --hp-rv-ear-color: {{ s.ear_color | default: '#B5C99A' }};
+    --hp-rv-face-color: {{ s.face_color | default: '#2F3326' }};
+    --hp-rv-cheek-color: {{ s.cheek_color | default: '#ECA883' }};
+    --hp-rv-pal-size: {{ s.pal_size | default: 280 }}px;
+    --hp-rv-pal-size-mobile: {{ s.pal_size_mobile | default: 190 }}px;
+    --hp-rv-pal-y: {{ s.pal_position | default: 86 }}%;
+    --hp-rv-before-y: {{ s.before_position | default: 40 }}%;
+    --hp-rv-track: {{ s.track_length | default: 250 }}vh;
+    --hp-rv-track-d: {{ s.track_length | default: 250 }}dvh;
+    --hp-rv-track-mobile: {{ s.track_length_mobile | default: 200 }}vh;
+    --hp-rv-track-mobile-d: {{ s.track_length_mobile | default: 200 }}dvh;
+    --hp-rv-out: {{ s.fade_out_at | default: 45 | divided_by: 100.0 }};
+    --hp-rv-wash: {{ s.wash_at | default: 72 | divided_by: 100.0 }};
+    --hp-rv-in: {{ s.fade_in_at | default: 70 | divided_by: 100.0 }};
+    --hp-rv-measure: {{ s.measure | default: 680 }}px;
+    --hp-rv-eyebrow-size: {{ s.eyebrow_size | default: 13 }}px;
+    --hp-rv-before-size: {{ s.before_heading_size | default: 64 }}px;
+    --hp-rv-before-text-size: {{ s.before_text_size | default: 19 }}px;
+    --hp-rv-before-ink: {{ s.before_heading_color | default: '#2F3326' }};
+    --hp-rv-before-sub: {{ s.before_text_color | default: '#5C6150' }};
+    --hp-rv-before-eyebrow: {{ s.before_eyebrow_color | default: '#6B7056' }};
+    --hp-rv-after-size: {{ s.after_heading_size | default: 60 }}px;
+    --hp-rv-after-text-size: {{ s.after_text_size | default: 19 }}px;
+    --hp-rv-after-ink: {{ s.after_heading_color | default: '#2F3326' }};
+    --hp-rv-after-sub: {{ s.after_text_color | default: '#3F4630' }};
+    --hp-rv-after-eyebrow: {{ s.after_eyebrow_color | default: '#3F4630' }};
+    --hp-rv-btn-bg: {{ s.button_background | default: '#D88B6D' }};
+    --hp-rv-btn-ink: {{ s.button_text_color | default: '#2F3326' }};
+    --hp-rv-btn-radius: {{ s.button_radius | default: 50 }}px;
+  "
+  {{ section.shopify_attributes }}
+>
+  <hp-pal-reveal class="hp-rv__stage">
+    <div class="hp-rv__half hp-rv__before">
+      {%- if s.before_eyebrow != blank -%}
+        <p class="hp-rv__eyebrow">{{ s.before_eyebrow | escape }}</p>
+      {%- endif -%}
+      {%- if s.before_heading != blank -%}
+        <p class="hp-rv__heading">{{ s.before_heading | escape | newline_to_br }}</p>
+      {%- endif -%}
+      {%- if s.before_text != blank -%}
+        <p class="hp-rv__text">{{ s.before_text | escape | newline_to_br }}</p>
+      {%- endif -%}
+    </div>
+
+    <div class="hp-rv__pal" aria-hidden="true">
+      {%- if s.show_ears -%}
+        <span class="hp-rv__ear hp-rv__ear--l"></span>
+        <span class="hp-rv__ear hp-rv__ear--r"></span>
+      {%- endif -%}
+      <span class="hp-rv__eye hp-rv__eye--l"></span>
+      <span class="hp-rv__eye hp-rv__eye--r"></span>
+      {%- if s.show_cheeks -%}
+        <span class="hp-rv__cheek hp-rv__cheek--l"></span>
+        <span class="hp-rv__cheek hp-rv__cheek--r"></span>
+      {%- endif -%}
+      <span class="hp-rv__mouth"></span>
+    </div>
+
+    <span class="hp-rv__wash" aria-hidden="true"></span>
+
+    <div class="hp-rv__half hp-rv__after">
+      {%- if s.after_eyebrow != blank -%}
+        <p class="hp-rv__eyebrow">{{ s.after_eyebrow | escape }}</p>
+      {%- endif -%}
+      {%- if s.after_heading != blank -%}
+        <{{ heading_tag }} class="hp-rv__heading">
+          {{- s.after_heading | escape | newline_to_br -}}
+        </{{ heading_tag }}>
+      {%- endif -%}
+      {%- if s.after_text != blank -%}
+        <p class="hp-rv__text">{{ s.after_text | escape | newline_to_br }}</p>
+      {%- endif -%}
+      {%- if s.button_label != blank -%}
+        <a class="hp-rv__cta" href="{{ s.button_link | default: '#' }}">
+          {{- s.button_label | escape -}}
+        </a>
+      {%- endif -%}
+    </div>
+  </hp-pal-reveal>
+</section>
+
+<script>
+  (function () {
+    if (customElements.get('hp-pal-reveal')) return;
+
+    customElements.define('hp-pal-reveal', class extends HTMLElement {
+      connectedCallback() {
+        try {
+          this.root = this.closest('.hp-rv');
+          this.pal = this.querySelector('.hp-rv__pal');
+          if (!this.root || !this.pal) return;
+
+          // Reduced motion keeps the stacked fallback: a pinned viewport whose
+          // content only arrives on scroll is the last thing to give someone
+          // who has asked for less movement.
+          this.reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+          if (this.reduced.matches) return;
+
+          this.onScroll = this.onScroll.bind(this);
+          this.onResize = this.onResize.bind(this);
+
+          // Only now does the section become the pinned version. Until this
+          // line runs there is nothing that can strand a blank viewport.
+          this.root.classList.add('hp-rv--live');
+
+          this.measure();
+          this.update();
+
+          window.addEventListener('scroll', this.onScroll, { passive: true });
+          window.addEventListener('resize', this.onResize, { passive: true });
+        } catch (e) {
+          if (this.root) this.root.classList.remove('hp-rv--live');
+        }
+      }
+
+      disconnectedCallback() {
+        window.removeEventListener('scroll', this.onScroll);
+        window.removeEventListener('resize', this.onResize);
+        if (this.frame) cancelAnimationFrame(this.frame);
+      }
+
+      // How far the Pal has to grow to reach the furthest corner of the
+      // viewport from where it sits. Measured rather than guessed, because it
+      // depends on the window's shape and on where the Pal is placed.
+      measure() {
+        var vw = window.innerWidth;
+        var vh = this.getBoundingClientRect().height || window.innerHeight;
+        var size = this.pal.offsetWidth;
+        if (!size) return;
+
+        var yPct = parseFloat(getComputedStyle(this.root).getPropertyValue('--hp-rv-pal-y')) || 64;
+        var cx = vw / 2;
+        var cy = vh * (yPct / 100);
+
+        var far = 0;
+        [[0, 0], [vw, 0], [0, vh], [vw, vh]].forEach(function (c) {
+          far = Math.max(far, Math.hypot(c[0] - cx, c[1] - cy));
+        });
+
+        // Diameter has to span twice the furthest corner, with a little over
+        // so the blob's rounded edge is past it rather than on it.
+        this.root.style.setProperty('--hp-rv-smax', ((2 * far) / size) * 1.12);
+      }
+
+      onResize() {
+        this.measure();
+        this.update();
+      }
+
+      onScroll() {
+        if (this.frame) return;
+        var self = this;
+        this.frame = requestAnimationFrame(function () {
+          self.frame = null;
+          self.update();
+        });
+      }
+
+      // 0 before the track is reached, 1 once it has fully passed. Split out
+      // so the arithmetic can be checked on its own.
+      progress() {
+        var rect = this.root.getBoundingClientRect();
+        var travel = rect.height - this.getBoundingClientRect().height;
+        if (travel <= 0) return 0;
+        return Math.min(1, Math.max(0, -rect.top / travel));
+      }
+
+      update() {
+        this.root.style.setProperty('--p', this.progress().toFixed(4));
+      }
+    });
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Pal reveal",
+  "tag": "div",
+  "class": "hp-rv-section",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Before the reveal",
+      "info": "What is on screen while the Pal is still small. This section holds both halves, because a Shopify section cannot pin the one above it."
+    },
+    { "type": "text", "id": "before_eyebrow", "label": "Eyebrow", "default": "Meet the Pals" },
+    {
+      "type": "textarea",
+      "id": "before_heading",
+      "label": "Heading",
+      "default": "Keep scrolling."
+    },
+    {
+      "type": "textarea",
+      "id": "before_text",
+      "label": "Text",
+      "default": "Someone is about to say hello."
+    },
+    {
+      "type": "range",
+      "id": "before_heading_size",
+      "label": "Heading size",
+      "unit": "px",
+      "min": 24,
+      "max": 110,
+      "step": 2,
+      "default": 64
+    },
+    {
+      "type": "range",
+      "id": "before_text_size",
+      "label": "Text size",
+      "unit": "px",
+      "min": 13,
+      "max": 30,
+      "step": 1,
+      "default": 19
+    },
+    { "type": "color", "id": "before_eyebrow_color", "label": "Eyebrow colour", "default": "#6B7056" },
+    { "type": "color", "id": "before_heading_color", "label": "Heading colour", "default": "#2F3326" },
+    { "type": "color", "id": "before_text_color", "label": "Text colour", "default": "#5C6150" },
+    {
+      "type": "header",
+      "content": "After the reveal",
+      "info": "Sits on the Pal's body once it fills the screen. Colours here need to work against the Pal's colour, not the background."
+    },
+    { "type": "text", "id": "after_eyebrow", "label": "Eyebrow", "default": "Hello" },
+    {
+      "type": "textarea",
+      "id": "after_heading",
+      "label": "Heading",
+      "default": "One hankie. Three Pals to pick from."
+    },
+    {
+      "type": "select",
+      "id": "after_heading_tag",
+      "label": "Heading level",
+      "options": [
+        { "value": "h2", "label": "H2 — the usual choice" },
+        { "value": "h3", "label": "H3" }
+      ],
+      "default": "h2"
+    },
+    {
+      "type": "textarea",
+      "id": "after_text",
+      "label": "Text",
+      "default": "Soft muslin, a clip that reaches, and a face they will actually want to use."
+    },
+    {
+      "type": "range",
+      "id": "after_heading_size",
+      "label": "Heading size",
+      "unit": "px",
+      "min": 24,
+      "max": 100,
+      "step": 2,
+      "default": 60
+    },
+    {
+      "type": "range",
+      "id": "after_text_size",
+      "label": "Text size",
+      "unit": "px",
+      "min": 13,
+      "max": 30,
+      "step": 1,
+      "default": 19
+    },
+    { "type": "color", "id": "after_eyebrow_color", "label": "Eyebrow colour", "default": "#3F4630" },
+    { "type": "color", "id": "after_heading_color", "label": "Heading colour", "default": "#2F3326" },
+    { "type": "color", "id": "after_text_color", "label": "Text colour", "default": "#3F4630" },
+    { "type": "header", "content": "Button" },
+    { "type": "text", "id": "button_label", "label": "Label", "default": "Meet them" },
+    { "type": "url", "id": "button_link", "label": "Link" },
+    { "type": "color", "id": "button_background", "label": "Background", "default": "#D88B6D" },
+    { "type": "color", "id": "button_text_color", "label": "Text", "default": "#2F3326" },
+    {
+      "type": "range",
+      "id": "button_radius",
+      "label": "Corner radius",
+      "unit": "px",
+      "min": 0,
+      "max": 60,
+      "step": 2,
+      "default": 50
+    },
+    { "type": "header", "content": "The Pal" },
+    { "type": "color", "id": "pal_color", "label": "Body", "default": "#CFE1B9" },
+    { "type": "color", "id": "ear_color", "label": "Ears", "default": "#B5C99A" },
+    { "type": "color", "id": "face_color", "label": "Eyes and mouth", "default": "#2F3326" },
+    { "type": "color", "id": "cheek_color", "label": "Cheeks", "default": "#ECA883" },
+    { "type": "checkbox", "id": "show_ears", "label": "Ears", "default": true },
+    { "type": "checkbox", "id": "show_cheeks", "label": "Cheeks", "default": true },
+    {
+      "type": "range",
+      "id": "pal_size",
+      "label": "Starting size (desktop)",
+      "unit": "px",
+      "min": 120,
+      "max": 520,
+      "step": 10,
+      "default": 280,
+      "info": "How big the Pal is before it starts growing. The size it ends at is worked out from your screen, so it always reaches the corners."
+    },
+    {
+      "type": "range",
+      "id": "pal_size_mobile",
+      "label": "Starting size (mobile)",
+      "unit": "px",
+      "min": 80,
+      "max": 320,
+      "step": 10,
+      "default": 190
+    },
+    {
+      "type": "range",
+      "id": "pal_position",
+      "label": "Vertical position",
+      "unit": "%",
+      "min": 30,
+      "max": 95,
+      "step": 1,
+      "default": 86,
+      "info": "Where the Pal's middle sits at the start. Low down means only the top of its head shows, and the face travels up past you as it grows."
+    },
+    {
+      "type": "range",
+      "id": "before_position",
+      "label": "First half's vertical position",
+      "unit": "%",
+      "min": 20,
+      "max": 70,
+      "step": 2,
+      "default": 40,
+      "info": "Keep this well above the Pal's position or the words sit on its head."
+    },
+    { "type": "header", "content": "Scroll" },
+    {
+      "type": "range",
+      "id": "track_length",
+      "label": "Scroll length (desktop)",
+      "unit": "vh",
+      "min": 120,
+      "max": 400,
+      "step": 10,
+      "default": 250,
+      "info": "How much scrolling the whole reveal takes, as a share of one screen. Longer is slower and more deliberate; shorter can feel rushed."
+    },
+    {
+      "type": "range",
+      "id": "track_length_mobile",
+      "label": "Scroll length (mobile)",
+      "unit": "vh",
+      "min": 120,
+      "max": 320,
+      "step": 10,
+      "default": 200
+    },
+    {
+      "type": "range",
+      "id": "fade_out_at",
+      "label": "First half gone by",
+      "unit": "%",
+      "min": 15,
+      "max": 80,
+      "step": 5,
+      "default": 45,
+      "info": "How far through the scroll the first half has finished fading out."
+    },
+    {
+      "type": "range",
+      "id": "wash_at",
+      "label": "Colour fills the screen at",
+      "unit": "%",
+      "min": 40,
+      "max": 90,
+      "step": 2,
+      "default": 72,
+      "info": "The point the Pal's colour takes over the whole screen, so the corners are covered without needing the body to grow further."
+    },
+    {
+      "type": "range",
+      "id": "fade_in_at",
+      "label": "Second half arrives at",
+      "unit": "%",
+      "min": 40,
+      "max": 90,
+      "step": 2,
+      "default": 70,
+      "info": "Keep this at or after the setting above, or the text arrives before the colour it is meant to sit on."
+    },
+    { "type": "header", "content": "Section" },
+    {
+      "type": "color",
+      "id": "stage_background",
+      "label": "Background",
+      "default": "#FCFBF6",
+      "info": "Behind the first half. Match it to the section above so the join does not show."
+    },
+    {
+      "type": "range",
+      "id": "measure",
+      "label": "Text width",
+      "unit": "px",
+      "min": 360,
+      "max": 1000,
+      "step": 20,
+      "default": 680
+    },
+    {
+      "type": "range",
+      "id": "eyebrow_size",
+      "label": "Eyebrow size",
+      "unit": "px",
+      "min": 9,
+      "max": 22,
+      "step": 1,
+      "default": 13
+    }
+  ],
+  "presets": [{ "name": "Pal reveal" }]
+}
+{% endschema %}

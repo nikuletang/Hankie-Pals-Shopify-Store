@@ -171,6 +171,17 @@ Two traps it is built around, both of which produced false results first:
 
 ## Check a schema before pasting it in
 
+It knows the rules Shopify only tells you about one at a time, on paste:
+
+- a range may have at most **101 steps** between its min and max
+- a range's **unit is at most 3 characters** — `px/s` is rejected, `px` is fine
+- the max must be reachable from the min in whole steps
+- a default must sit inside its own range, and a select's default must be one
+  of its options
+- no duplicate setting ids, and nothing interpolated into CSS without a
+  `| default:`
+
+
     python3 scripts/check-schemas.py
 
 Shopify validates a section's schema on save, reports only the first failure, and

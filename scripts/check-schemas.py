@@ -51,6 +51,12 @@ def check(path):
                         f"{path.name}: {prefix}range '{sid}' — {hi} is not reachable "
                         f"from {lo} in steps of {step}"
                     )
+                unit = setting.get("unit")
+                if unit is not None and len(str(unit)) > 3:
+                    problems.append(
+                        f"{path.name}: {prefix}range '{sid}' unit {unit!r} is "
+                        f"{len(str(unit))} characters; Shopify allows at most 3"
+                    )
                 default = setting.get("default")
                 if default is not None and not (lo <= default <= hi):
                     problems.append(

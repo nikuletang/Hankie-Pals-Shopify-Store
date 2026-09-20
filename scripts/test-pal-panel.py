@@ -67,7 +67,11 @@ def near(px, ref, tol=14):
 
 res = []
 def check(label, ok, detail):
-    res.append(ok); print(f"{'PASS' if ok else 'FAIL'}  {label}\n        {detail}")
+    # bool(), because `a and b` on strings returns the string, and a count of
+    # passes then fails on the sum rather than on the assertion.
+    ok = bool(ok)
+    res.append(ok)
+    print(f"{'PASS' if ok else 'FAIL'}  {label}\n        {detail}")
 
 
 if __name__ == '__main__':
@@ -164,58 +168,47 @@ if __name__ == '__main__':
 
 
 
-    # --- The outline -------------------------------------------------------
-    # The hankie narrows at the top and flares out to a point at each side.
-    # A border radius can only bow outwards, so what is checked here is the
-    # thing a radius could not have produced: a head narrower than the body,
-    # and a shoulder where it reaches full width.
-    # A shallow head and almost nothing above it, so the whole outline down to
-    # the shoulder fits on one screen and can be read in a single frame.
-    img = shot(build({'settings': {'show_face': False, 'dome_height': 35}},
-                     'shape', above_h=20), 0, 'shape', w=1200, h=1000)
-    vpw = 1185
+    # --- The dome -----------------------------------------------------------
+    # Checked against the ellipse it is meant to be rather than against a rule
+    # of thumb about how far it should drop: a corner with radii (rx, ry) puts
+    # its edge ry - ry*sqrt(1 - ((rx-x)/rx)^2) below the apex. The face is off
+    # for this — the ears sit on the dome's edge at some columns, and a scan
+    # for the body colour would find it below an ear and read the curve as
+    # twice as deep.
+    import math
+    img = shot(build({'settings': {'show_face': False}}, 'domeonly'), 600, 'dome')
+    vpw, vph = 1185, 713
 
-    def row_extent(y):
-        """Leftmost and rightmost Pal pixel on this row."""
-        xs = [x for x in range(0, vpw, 3) if near(img.getpixel((x, y)), PAL)]
-        return (min(xs), max(xs)) if xs else None
-
-    def first_row():
-        for y in range(0, 900):
-            if row_extent(y):
+    def edge(x):
+        for y in range(0, vph):
+            if near(img.getpixel((x, y)), PAL):
                 return y
         return None
 
-    top = first_row()
-    check('the outline starts somewhere down the page, not at full width',
-          top is not None, f'first Pal pixel at y={top}')
+    rx = vpw / 2
+    ry = 606.05
+    xs = [int(vpw * f) for f in (0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8)]
+    prof = [(x, edge(x)) for x in xs]
+    apex = min(y for _, y in prof if y is not None)
+    rows, worst = [], 0
+    for x, y in prof:
+        if y is None:
+            continue
+        dx = min(x, vpw - x)
+        want = ry - ry * math.sqrt(max(0.0, 1 - ((rx - dx) / rx) ** 2))
+        worst = max(worst, abs((y - apex) - want))
+        rows.append(f'{int(x/vpw*100)}%: {y - apex:.0f} vs {want:.0f}')
 
-    widths = {}
-    # The last one is deliberately past the shoulder, which sits about
-    # 0.35 of the viewport height down at this setting.
-    for dy in (4, 40, 90, 160, 250, 400):
-        ext = row_extent(top + dy)
-        widths[dy] = (ext[1] - ext[0]) if ext else None
+    # Five columns is what fits on screen at once: past about 30% from either
+    # edge the curve has already dropped below the viewport.
+    check('the top edge follows the ellipse it is meant to be',
+          worst <= 4 and len(rows) >= 5,
+          'depth below the apex, measured vs predicted — ' + ',  '.join(rows)
+          + f'   (worst {worst:.1f}px)')
 
-    head = widths[4]
-    body = widths[400]
-    check('the head is narrower than the body',
-          head is not None and body is not None and head < body * 0.75,
-          '  '.join(f'{dy}px down: {w}px wide' for dy, w in widths.items()))
-
-    check('it widens all the way down to the shoulder, never narrowing',
-          all(widths[a] <= widths[b] + 2
-              for a, b in zip([4, 40, 90, 160, 250], [40, 90, 160, 250, 400])),
-          'widths in order: ' + ', '.join(str(widths[d]) for d in (4, 40, 90, 160, 250, 400)))
-
-    check('it reaches the full width of the screen by the shoulder',
-          body is not None and body >= vpw - 12,
-          f'{body}px of a {vpw}px viewport')
-
-    ext = row_extent(top + 90)
-    check('the outline is symmetric about the centre',
-          ext is not None and abs((ext[0] + ext[1]) / 2 - vpw / 2) <= 6,
-          f'left {ext[0]}, right {ext[1]}, centre {(ext[0]+ext[1])//2} vs {vpw//2}')
+    check('the corners above the dome are not the Pal',
+          not near(img.getpixel((3, 3)), PAL) and not near(img.getpixel((vpw - 4, 3)), PAL),
+          f"top corners {img.getpixel((3,3))}, {img.getpixel((vpw-4,3))}")
 
     # --- The shoulder depth the pin relies on -------------------------------
     for vh, tag in ((85, 'tall'), (40, 'shallow')):
@@ -232,9 +225,9 @@ if __name__ == '__main__':
         </script>"""
         d = probe(build({'settings': {'dome_height': vh}}, f'cap{vh}'), D)
         want = round(d['vh'] * vh / 100)
-        check(f'at {vh}vh the shoulder measures {want}px, which is what the pin reads',
+        check(f'at {vh}vh the dome rises {want}px, which is what the pin reads',
               abs(d['gauge'] - want) <= 2, f"gauge {d['gauge']}px")
-        check(f'the face sits 22% down the head at {vh}vh',
+        check(f'the face sits 22% down the dome at {vh}vh',
               abs(d['faceTop'] - want * 0.22) <= 4,
               f"face {d['faceTop']}px from the top, wanted {round(want*0.22)}px")
 
@@ -264,5 +257,42 @@ if __name__ == '__main__':
           len({seen[k]['radius'] for k in seen}) == 3
           and len({seen[k]['origin'] for k in seen}) == 3,
           '  '.join(f"{k}: pivot {seen[k]['origin']}" for k in seen))
+
+    # --- Nose, whiskers and the signature sparkle ---------------------------
+    NOSE = """<script>
+      window.addEventListener('load', function () {
+        var nose = document.querySelector('.hp-pp__nose');
+        var sp = document.querySelector('.hp-pp__sparkle');
+        document.title = 'RESULT' + JSON.stringify({
+          cls: document.querySelector('.hp-pp').className,
+          noseClip: getComputedStyle(nose).clipPath,
+          whiskers: document.querySelectorAll('.hp-pp__whiskers i').length,
+          sparkle: !!sp,
+          sparkleClip: sp ? getComputedStyle(sp).clipPath : null,
+          sparkleColor: sp ? getComputedStyle(sp).backgroundColor : null
+        });
+      });
+    </script>"""
+
+    d = probe(page, NOSE)
+    check('the sparkle is on the nose by default — it is the signature',
+          d['sparkle'] and 'polygon' in (d['sparkleClip'] or '')
+          and '255, 255, 255' in (d['sparkleColor'] or ''),
+          f"clip {'set' if d['sparkleClip'] else 'none'}, colour {d['sparkleColor']}")
+
+    check('an oval nose draws no whiskers',
+          'hp-pp--nose-oval' in d['cls'] and d['whiskers'] == 0
+          and d['noseClip'] == 'none',
+          f"{d['whiskers']} whisker lines, nose clip {d['noseClip']}")
+
+    d = probe(build({'settings': {'nose_style': 'diamond'}}, 'diamond'), NOSE)
+    check('the diamond nose is cut to a diamond and brings whiskers',
+          'polygon' in d['noseClip'] and d['whiskers'] == 6,
+          f"nose clip {'a polygon' if 'polygon' in d['noseClip'] else d['noseClip']}, "
+          f"{d['whiskers']} whisker lines")
+
+    d = probe(build({'settings': {'show_sparkle': False}}, 'nosparkle'), NOSE)
+    check('the sparkle can be switched off', not d['sparkle'],
+          f"sparkle present: {d['sparkle']}")
 
     print(f"\n{sum(res)} passed, {len(res) - sum(res)} failed")

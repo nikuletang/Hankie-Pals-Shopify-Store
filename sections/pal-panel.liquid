@@ -56,11 +56,27 @@
   .hp-pp {
     --hp-pp-heading-scale: var(--font-heading-scale, 1);
     --hp-pp-body-scale: var(--font-body-scale, 1);
+    /* One value drives the outline, the padding and the face, so the mobile
+       override below is a single line. */
     --hp-pp-c: var(--hp-pp-cap, 85vh);
     position: relative;
+    background: var(--hp-pp-color, #CFE1B9);
+    /* The dome. A horizontal radius of half the width makes the curve span the
+       whole panel; the vertical radius is how far it rises. */
+    border-start-start-radius: 50% var(--hp-pp-c);
+    border-start-end-radius: 50% var(--hp-pp-c);
     padding-block: calc(var(--hp-pp-c) * var(--hp-pp-copy, 0.55))
                    var(--hp-pp-pb, 96px);
     padding-inline: 24px;
+  }
+
+  /* The hankie comes to a point at the bottom. A box of its own rather than a
+     clip on the panel, because clipping the panel would take the ears off. */
+  .hp-pp__tip {
+    width: 100%;
+    height: var(--hp-pp-tip, 0px);
+    background: var(--hp-pp-color, #CFE1B9);
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
   }
 
   .hp-pp__gauge {
@@ -70,44 +86,6 @@
     width: 0;
     height: var(--hp-pp-c);
     pointer-events: none;
-  }
-
-  .hp-pp__body {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    background: var(--hp-pp-color, #CFE1B9);
-    clip-path: polygon(
-      /* The head closes to a near-vertical side by 0.36 before the flare
-         starts, which is what puts a shoulder in the outline instead of one
-         continuous bell. */
-      50% 0,
-      57% calc(var(--hp-pp-c) * 0.03),
-      63% calc(var(--hp-pp-c) * 0.09),
-      67.5% calc(var(--hp-pp-c) * 0.17),
-      70% calc(var(--hp-pp-c) * 0.26),
-      71% calc(var(--hp-pp-c) * 0.36),
-      71.5% calc(var(--hp-pp-c) * 0.46),
-      73.5% calc(var(--hp-pp-c) * 0.56),
-      78% calc(var(--hp-pp-c) * 0.66),
-      84% calc(var(--hp-pp-c) * 0.76),
-      91% calc(var(--hp-pp-c) * 0.87),
-      100% var(--hp-pp-c),
-      100% calc(100% - var(--hp-pp-tip, 0px)),
-      50% 100%,
-      0 calc(100% - var(--hp-pp-tip, 0px)),
-      0 var(--hp-pp-c),
-      9% calc(var(--hp-pp-c) * 0.87),
-      16% calc(var(--hp-pp-c) * 0.76),
-      22% calc(var(--hp-pp-c) * 0.66),
-      26.5% calc(var(--hp-pp-c) * 0.56),
-      28.5% calc(var(--hp-pp-c) * 0.46),
-      29% calc(var(--hp-pp-c) * 0.36),
-      30% calc(var(--hp-pp-c) * 0.26),
-      32.5% calc(var(--hp-pp-c) * 0.17),
-      37% calc(var(--hp-pp-c) * 0.09),
-      43% calc(var(--hp-pp-c) * 0.03)
-    );
   }
 
   /* --- The face ----------------------------------------------------------
@@ -244,6 +222,57 @@
     border-radius: 50%;
   }
 
+  /* A bunny's nose is a diamond, not an oval. Cut rather than rotated: the
+     nose is already using its transform to sit centred. */
+  .hp-pp--nose-diamond .hp-pp__nose {
+    width: 26%;
+    aspect-ratio: 1 / 0.92;
+    border-radius: 0;
+    clip-path: polygon(50% 0, 100% 44%, 50% 100%, 0 44%);
+  }
+
+  .hp-pp__whiskers {
+    top: calc(var(--hp-pp-eye, 5vw) * 1.38);
+    width: 0;
+    height: 0;
+  }
+
+  .hp-pp__whiskers--l { left: calc(50% - var(--hp-pp-muzzle, 9vw) * 0.44); }
+  .hp-pp__whiskers--r { left: calc(50% + var(--hp-pp-muzzle, 9vw) * 0.44); }
+
+  .hp-pp__whiskers i {
+    position: absolute;
+    top: 0;
+    width: var(--hp-pp-whisker, 6vw);
+    height: max(2px, 0.26vw);
+    border-radius: 100vw;
+    background: var(--hp-pp-ink, #2F3326);
+  }
+
+  /* Each side fans from the edge nearest the muzzle, so the three lines meet
+     at the face rather than at the tips. */
+  .hp-pp__whiskers--r i { left: 0; transform-origin: 0 50%; }
+  .hp-pp__whiskers--l i { right: 0; transform-origin: 100% 50%; }
+
+  .hp-pp__whiskers--r i:nth-child(1) { transform: rotate(-15deg); }
+  .hp-pp__whiskers--r i:nth-child(3) { transform: rotate(15deg); }
+  .hp-pp__whiskers--l i:nth-child(1) { transform: rotate(15deg); }
+  .hp-pp__whiskers--l i:nth-child(3) { transform: rotate(-15deg); }
+
+  /* The signature: a four-point sparkle sitting on the nose. */
+  .hp-pp__sparkle {
+    position: absolute;
+    left: 63%;
+    top: 4%;
+    width: var(--hp-pp-sparkle, 26%);
+    aspect-ratio: 1;
+    background: var(--hp-pp-sparkle-c, #FFFFFF);
+    clip-path: polygon(
+      50% 0%, 60% 40%, 100% 50%, 60% 60%,
+      50% 100%, 40% 60%, 0% 50%, 40% 40%
+    );
+  }
+
   /* Drawn as the bottom edge of a box rather than a filled shape, so it stays
      a line at any size instead of closing up into a dark blob. */
   .hp-pp__smile {
@@ -359,8 +388,6 @@
 
   @media screen and (max-width: 989px) {
     .hp-pp {
-      /* One override: the outline, the padding and the face all measure
-         themselves against this. */
       --hp-pp-c: var(--hp-pp-cap-mobile, 45vh);
       padding-block: calc(var(--hp-pp-c) * var(--hp-pp-copy, 0.55))
                      var(--hp-pp-pb-mobile, 64px);
@@ -379,7 +406,7 @@
 
 <hp-pal-panel>
 <div
-  class="hp-pp hp-pp--ears-{{ s.ear_style | default: 'cow' }}{% if s.blink %} hp-pp--blink{% endif %}"
+  class="hp-pp hp-pp--ears-{{ s.ear_style | default: 'cow' }} hp-pp--nose-{{ s.nose_style | default: 'oval' }}{% if s.blink %} hp-pp--blink{% endif %}"
   style="
     --hp-pp-color: {{ s.pal_color | default: '#CFE1B9' }};
     --hp-pp-ink: {{ s.heading_color | default: '#2F3326' }};
@@ -403,6 +430,9 @@
     --hp-pp-cheek-x: {{ s.cheek_spread | default: 34 | divided_by: 2.0 }}vw;
     --hp-pp-muzzle: {{ s.muzzle_size | default: 9 }}vw;
     --hp-pp-muzzle-c: {{ s.muzzle_color | default: '#D7A06A' }};
+    --hp-pp-whisker: {{ s.whisker_length | default: 6 }}vw;
+    --hp-pp-sparkle: {{ s.sparkle_size | default: 26 }}%;
+    --hp-pp-sparkle-c: {{ s.sparkle_color | default: '#FFFFFF' }};
     --hp-pp-blink: {{ s.blink_every | default: 6 }}s;
     --hp-pp-tip: {{ s.tip_depth | default: 0 }}px;
     --hp-pp-pin-top: {{ s.pin_offset | default: 0 }}px;
@@ -420,7 +450,6 @@
   "
   {{ section.shopify_attributes }}
 >
-  <span class="hp-pp__body" aria-hidden="true"></span>
   <span class="hp-pp__gauge" aria-hidden="true"></span>
 
   {%- if s.show_face -%}
@@ -439,9 +468,17 @@
       <span class="hp-pp__eye hp-pp__eye--r"></span>
 
       {%- if s.show_muzzle -%}
+        {%- if s.nose_style == 'diamond' -%}
+          <span class="hp-pp__whiskers hp-pp__whiskers--l"><i></i><i></i><i></i></span>
+          <span class="hp-pp__whiskers hp-pp__whiskers--r"><i></i><i></i><i></i></span>
+        {%- endif -%}
+
         <span class="hp-pp__muzzle">
           <span class="hp-pp__nose"></span>
           <span class="hp-pp__smile"></span>
+          {%- if s.show_sparkle -%}
+            <span class="hp-pp__sparkle"></span>
+          {%- endif -%}
         </span>
       {%- endif -%}
     </div>
@@ -492,6 +529,9 @@
   </div>
 </div>
 
+{%- if s.tip_depth > 0 -%}
+  <div class="hp-pp__tip" aria-hidden="true"></div>
+{%- endif -%}
 </hp-pal-panel>
 
 {%- if s.pin_previous -%}
@@ -809,6 +849,45 @@
       "default": 34
     },
     { "type": "color", "id": "muzzle_color", "label": "Muzzle", "default": "#D7A06A" },
+    {
+      "type": "select",
+      "id": "nose_style",
+      "label": "Nose",
+      "options": [
+        { "value": "oval", "label": "Oval — the Cow and the Dog" },
+        { "value": "diamond", "label": "Diamond with whiskers — the Bunny" }
+      ],
+      "default": "oval"
+    },
+    {
+      "type": "range",
+      "id": "whisker_length",
+      "label": "Whisker length",
+      "unit": "%",
+      "min": 2,
+      "max": 16,
+      "step": 1,
+      "default": 6,
+      "info": "Share of the panel's width. Only drawn with the diamond nose."
+    },
+    {
+      "type": "checkbox",
+      "id": "show_sparkle",
+      "label": "Sparkle on the nose",
+      "default": true
+    },
+    { "type": "color", "id": "sparkle_color", "label": "Sparkle", "default": "#FFFFFF" },
+    {
+      "type": "range",
+      "id": "sparkle_size",
+      "label": "Sparkle size",
+      "unit": "%",
+      "min": 8,
+      "max": 60,
+      "step": 2,
+      "default": 26,
+      "info": "Share of the muzzle."
+    },
     {
       "type": "range",
       "id": "muzzle_size",

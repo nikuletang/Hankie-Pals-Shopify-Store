@@ -13,7 +13,7 @@ anything moving.
 | File | Shows up in the editor as | What it is |
 | --- | --- | --- |
 | [`sections/problem-cards.liquid`](sections/problem-cards.liquid) | **Problem blobs** | Eyebrow pill, display heading, three organic blob cards |
-| [`sections/pals-picker.liquid`](sections/pals-picker.liquid) | **Meet the Pals** | Character picker: choosing a Pal swaps the photo, tint, copy and buy button, and sends the other two out to wait in the side gutters |
+| [`sections/pals-picker.liquid`](sections/pals-picker.liquid) | **Meet the Pals** | Character picker: choosing a Pal swaps the photo, tint, copy and buy button |
 | [`sections/solution-tabs.liquid`](sections/solution-tabs.liquid) | **Solution tabs** | Three feature cards; picking one crossfades the large image beside them |
 | [`sections/hero-split.liquid`](sections/hero-split.liquid) | **Split hero** | Two panels with independent backgrounds: copy and an offset CTA left, a portrait right. Stays side by side on a phone unless set to stack |
 | [`sections/variant-grid.liquid`](sections/variant-grid.liquid) | **Variant grid** | Full-width cards, one per variant of a single product, with a hover image swap |
@@ -173,39 +173,42 @@ Two traps it is built around, both of which produced false results first:
 
 ## Decoration that must not touch the content
 
-The side Pals in **Meet the Pals** sit in the gutters either side of the panel,
-and the rule that keeps them out of the copy is worth repeating anywhere else
-this pattern is used:
+The pebbles in the top corners of **Meet the Pals** are the pattern for any
+shape that decorates a band of text. Three rules, all of them learned by
+measuring:
 
-- **Anchor on the centre line, not on the container's edge.** Every wrapper in
-  these sections is `margin-inline: auto`, so `50%` of any of them is the
-  section's middle. `right: calc(50% + <half the panel>)` then holds the same
-  distance from the panel at every window width, and the screen edge does the
-  cropping. Anchoring on the container's own edge moves with the viewport and
-  has to be re-tuned per breakpoint.
-- **A rotation grows the element's footprint on the side it swings towards.**
-  A 7deg tilt on a 300px-wide portrait reaches about 24px past the box it was
-  positioned into — enough to sit under the last word of a wrapped line. Pinning
-  `transform-origin` to the corner nearest the content fixes that corner in
-  place and sends the rest of the shape the other way, so the tilt costs
-  nothing. `scripts/test-pals-picker-peek.py` asserts the peek's rect lands
-  within 1px of `centre ± offset` *with the tilt applied*, which is the check
-  that caught it.
-- **Measure against the boxes, not the text.** A heading, a one-line trait and a
-  button row are all block level, so their boxes run to the column's edge
-  whatever the words do. The suite runs a long-copy fixture and asserts the
-  closest approach between a peek and any of those boxes is at least zero.
-- **Read shape from the layout box.** `getBoundingClientRect()` on a rotated
-  element reports the rotated bounds, so an aspect-ratio assertion has to use
-  `offsetWidth / offsetHeight` or it measures the tilt instead.
+- **Place a bleeding shape by its inner edge, not by its own width.** Offsetting
+  by a share of the shape (`left: calc(var(--w) * -0.34)`) means a bigger shape
+  reaches further into the content — and the heading is closest to the margin at
+  exactly the sizes where the shape is largest. `left: calc(<edge> - var(--w))`
+  pins the inner edge instead and lets the overhang grow off-screen, which is
+  where it should go.
+- **The margin closes faster than the window does.** Headings here only shrink
+  from 52px to 36px across the whole desktop range, so the space beside them
+  falls away faster than a plain `vw` gives up. The edge is
+  `calc(12vw - 44px)`, which holds a flat ~36px of clearance from 750px to
+  1200px and opens out above that.
+- **Measure the lines, not the element.** `.hp-pals__heading` is `28ch` wide and
+  centred, so its box runs nearly edge to edge while the words sit in the middle
+  of it. Asserting against the box reports an overlap nobody can see and would
+  push the decoration off the screen to satisfy it. The suite takes
+  `document.createRange().selectNodeContents(el).getClientRects()` and asserts
+  against the line boxes, with a floor of 24px so a later tweak cannot creep
+  back up to the text.
 
-    python3 scripts/test-pals-picker-peek.py
+The picker row uses `justify-content: safe center` on a horizontally scrolling
+flex row. Plain `center` pushes the overflow out of the *left* edge, where no
+amount of scrolling reaches it; `safe` centres while the Pals fit and falls back
+to the start when they do not. A browser that does not know the keyword drops
+the declaration, so the `flex-start` above it stays as the floor.
 
-Thirty-three cases: which Pals are out at the sides and on which side, the swap
-when another is picked, the offset holding exactly, nothing covering the panel
-at the longest copy, the band clipping instead of widening the page, the whole
-layer gone below 1320px, the sparkles on and off, reduced motion, the blob mask,
-and the two-Pal and one-Pal cases.
+    python3 scripts/test-pals-picker.py
+
+Twenty-seven cases: both pebbles in their corners and hanging off the edge,
+behind the content, unclickable, 24px clear of every line of text at seven
+widths, gone below 750px, the band clipping instead of widening the page,
+reduced motion, and the picker row centred at three phone widths while a row of
+six Pals still starts at the first one.
 
 ## Check a schema before pasting it in
 

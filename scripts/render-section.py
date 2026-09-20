@@ -31,13 +31,21 @@ blocks = []
 preset_blocks = overrides.get('blocks')
 if preset_blocks is None:
     preset_blocks = (schema.get('presets') or [{}])[0].get('blocks', [])
-for pb in preset_blocks:
+for i, pb in enumerate(preset_blocks):
     bs = defaults(block_schema[pb['type']].get('settings', []))
     bs.update(pb.get('settings', {}))
-    blocks.append({'settings': bs, 'type': pb['type'], 'shopify_attributes': ''})
+    # Shopify gives every block an id, and sections key their per-block CSS off
+    # it. Stable and short here, so a failure names a block you can find.
+    blocks.append({'settings': bs, 'type': pb['type'], 'id': f'block{i + 1}',
+                   'shopify_attributes': ''})
 
 body = re.sub(r'{% schema %}.*?{% endschema %}', '', src, flags=re.S)
 body = body.replace('{% style %}', '<style>').replace('{% endstyle %}', '</style>')
+
+# Shopify-only tags python-liquid has never heard of. Only the markup they emit
+# matters for layout, so they are reduced to it before parsing.
+body = re.sub(r'{%-?\s*form\b.*?-?%}', '<form>', body, flags=re.S)
+body = re.sub(r'{%-?\s*endform\s*-?%}', '</form>', body)
 
 from liquid import Environment
 env = Environment()

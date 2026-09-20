@@ -14,6 +14,15 @@
   display:none until its radio is checked, the entrance animation restarts every
   time you pick a Pal without a line of script.
 
+  The same :checked rules place the two Pals you did not pick out in the side
+  gutters, one left and one right, so the alternatives never leave the screen.
+  Each Pal is rendered once and the rule decides its side, which is why there
+  are n peeks rather than 2n. They are anchored to 50% of the stage — the
+  section's own centre line, since every wrapper is margin-inline:auto — so the
+  distance to the panel is fixed no matter how wide the window is, and the
+  screen edge does the cropping. Below 1320px there are no gutters to fill and
+  no rule ever displays them.
+
   Sizes are px: Dawn's root font-size is 62.5%, so rem renders at 62.5% of its
   intended value. Theme type sliders arrive via --font-body-scale and
   --font-heading-scale instead.
@@ -37,11 +46,20 @@
        background-image and the shorthand would reset it. */
     background-color: var(--hp-bg);
     padding-block: var(--hp-pt) var(--hp-pb);
+    /* The peeks run off both sides on purpose; without this they would widen
+       the page. clip where it is understood: it does not make a scroll
+       container, so nothing else in the theme changes behaviour. */
+    overflow: hidden;
+  }
+
+  @supports (overflow: clip) {
+    .hp-pals { overflow: clip; }
   }
 
 
   .hp-pals__inner {
     position: relative;
+    z-index: 1;
     max-width: var(--hp-width);
     margin-inline: auto;
     padding-inline: clamp(16px, 3.5vw, 48px);
@@ -176,17 +194,103 @@
   }
 
   /* --- Stage ------------------------------------------------------------- */
-  .hp-pals__stage { margin-block-start: clamp(32px, 4vw, 60px); }
+  .hp-pals__stage {
+    position: relative;
+    margin-block-start: clamp(32px, 4vw, 60px);
+  }
 
   /* fr tracks, not auto: the photo's own width is a percentage, and a
      percentage inside a content-sized track collapses both columns. */
   .hp-pals__panel {
     display: none;
+    position: relative;
+    z-index: 1;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
     align-items: center;
     gap: var(--hp-gap);
-    max-width: min(100%, 1060px);
+    max-width: min(100%, var(--hp-panel-w, 1120px));
     margin-inline: auto;
+  }
+
+  /* --- The two Pals you did not pick ------------------------------------
+     Hidden until a :checked rule below gives one a side. Anchoring on 50%
+     rather than on the stage's own edge is what keeps them clear of the
+     panel: --hp-peek-off is measured from the centre line, so setting it to
+     half the panel width guarantees they never reach the copy. */
+  .hp-pals__peek {
+    display: none;
+    position: absolute;
+    top: 50%;
+    z-index: 0;
+    width: var(--hp-peek-size, 300px);
+    pointer-events: none;
+    opacity: var(--hp-peek-op, 0.55);
+    transform: translateY(-50%) rotate(var(--hp-peek-rot, 0deg));
+  }
+
+  .hp-pals__peek > img,
+  .hp-pals__peek > svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  /* For photos that are not cut out: the same blob the main photo uses, so a
+     square crop reads as a bubble rather than a floating rectangle. */
+  .hp-pals__peek--mask {
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    background: var(--hp-pal-tint);
+    border-radius: 58% 42% 51% 49% / 47% 55% 45% 53%;
+  }
+
+  .hp-pals__peek--mask > img,
+  .hp-pals__peek--mask > svg {
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* --- Confetti ----------------------------------------------------------
+     Brand marks scattered in the corners of the band, clear of the vertical
+     middle where the peeks live. */
+  .hp-pals__marks {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .hp-pals__mark {
+    display: none;
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    width: var(--s);
+    aspect-ratio: 1;
+    background: var(--hp-mark-c, #B5C99A);
+    opacity: var(--hp-mark-op, 0.6);
+    transform: rotate(var(--r, 0deg));
+  }
+
+  /* The signature four-point sparkle, same shape as the one on every nose. */
+  .hp-pals__mark--star {
+    clip-path: polygon(
+      50% 0%, 60% 40%, 100% 50%, 60% 60%,
+      50% 100%, 40% 60%, 0% 50%, 40% 40%
+    );
+  }
+
+  .hp-pals__mark--dot { border-radius: 50%; }
+
+  .hp-pals__mark--dash {
+    aspect-ratio: 4 / 1;
+    border-radius: 999px;
+  }
+
+  .hp-pals__mark--ring {
+    background: none;
+    border: 2px solid var(--hp-mark-c, #B5C99A);
+    border-radius: 50%;
   }
 
   .hp-pals__photo {
@@ -377,6 +481,48 @@
   .hp-pals--motion .hp-pals__copy > *:nth-child(4) { animation-delay: 290ms; }
   .hp-pals--motion .hp-pals__copy > *:nth-child(5) { animation-delay: 360ms; }
 
+  /* Each peek slides in from its own side, then drifts. The rotation has to be
+     repeated in every frame: a keyframe sets the whole transform, so leaving it
+     out would unwind the tilt as the animation runs. */
+  @keyframes hp-pals-peek-l {
+    from { opacity: 0; transform: translate(-32px, -50%) rotate(var(--hp-peek-rot, 0deg)); }
+    to { opacity: var(--hp-peek-op, 0.55); transform: translateY(-50%) rotate(var(--hp-peek-rot, 0deg)); }
+  }
+
+  @keyframes hp-pals-peek-r {
+    from { opacity: 0; transform: translate(32px, -50%) rotate(var(--hp-peek-rot, 0deg)); }
+    to { opacity: var(--hp-peek-op, 0.55); transform: translateY(-50%) rotate(var(--hp-peek-rot, 0deg)); }
+  }
+
+  @keyframes hp-pals-peek-float {
+    0%, 100% { transform: translateY(-50%) rotate(var(--hp-peek-rot, 0deg)); }
+    50% { transform: translateY(calc(-50% - 14px)) rotate(var(--hp-peek-rot, 0deg)); }
+  }
+
+  @keyframes hp-pals-mark-float {
+    0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+    50% { transform: translateY(-10px) rotate(calc(var(--r, 0deg) + 10deg)); }
+  }
+
+  /* The name arrives as a custom property from the :checked rule, because the
+     side is not known until a Pal is picked. Keeping it out of animation-name
+     here is what lets the reduced-motion block below switch it off: that rule
+     has the same selector, so it wins on order, where the high-specificity
+     :checked rules would not. */
+  .hp-pals--motion .hp-pals__peek {
+    animation-name: var(--hp-peek-anim, none);
+    animation-duration: 640ms, var(--hp-drift);
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1), ease-in-out;
+    animation-delay: 0ms, 640ms;
+    animation-iteration-count: 1, infinite;
+    animation-fill-mode: both, none;
+  }
+
+  .hp-pals--motion .hp-pals__mark {
+    animation: hp-pals-mark-float var(--hp-drift) ease-in-out infinite;
+    animation-delay: var(--d, 0s);
+  }
+
   {%- if s.background_image != blank -%}
     {%- assign fade = 100 | minus: s.background_opacity | times: 0.01 -%}
     {%- assign wash = s.background | color_modify: 'alpha', fade -%}
@@ -420,6 +566,55 @@
       outline-offset: 3px;
     }
   {%- endfor -%}
+
+  /* Peeks only exist where there is room beside the panel for them. */
+  @media screen and (min-width: 1320px) {
+    {%- assign pal_count = section.blocks.size -%}
+    {%- if s.show_peeks != false and pal_count > 1 -%}
+      {%- for block in section.blocks -%}
+        {%- liquid
+          assign k = block.id
+          assign prev_i = forloop.index0 | plus: pal_count | minus: 1 | modulo: pal_count
+          assign next_i = forloop.index0 | plus: 1 | modulo: pal_count
+          assign prev_id = section.blocks[prev_i].id
+          assign next_id = section.blocks[next_i].id
+        -%}
+        .hp-pals__radio[data-pal="{{ k }}"]:checked ~ .hp-pals__stage .hp-pals__peek[data-pal="{{ prev_id }}"] {
+          display: block;
+          right: calc(50% + var(--hp-peek-off, 560px));
+          left: auto;
+          /* Pivot on the top corner nearest the panel, and tilt away from it.
+             A rotation grows an element's footprint on whichever side it swings
+             towards, so pinning that corner is what keeps the tilt from eating
+             into the panel: the head stays on the line and the feet swing out.
+             Without it a 7deg tilt on a 300px Pal reaches 24px over the copy. */
+          transform-origin: 100% 0;
+          --hp-peek-rot: var(--hp-peek-tilt, 7deg);
+          --hp-peek-anim: hp-pals-peek-l, hp-pals-peek-float;
+        }
+
+        {%- comment -%}
+          Two Pals means prev and next are the same block, so only the left
+          rule is written: the alternative would put one Pal on both sides.
+        {%- endcomment -%}
+        {%- if pal_count > 2 -%}
+          .hp-pals__radio[data-pal="{{ k }}"]:checked ~ .hp-pals__stage .hp-pals__peek[data-pal="{{ next_id }}"] {
+            display: block;
+            left: calc(50% + var(--hp-peek-off, 560px));
+            right: auto;
+            transform-origin: 0 0;
+            --hp-peek-rot: calc(var(--hp-peek-tilt, 7deg) * -1);
+            --hp-peek-anim: hp-pals-peek-r, hp-pals-peek-float;
+          }
+        {%- endif -%}
+      {%- endfor -%}
+    {%- endif -%}
+  }
+
+  /* The confetti needs less room than the peeks, so it starts earlier. */
+  @media screen and (min-width: 990px) {
+    .hp-pals__mark { display: block; }
+  }
 
   @media screen and (max-width: 989px) {
     .hp-pals__panel {
@@ -472,6 +667,11 @@
       animation: none;
     }
 
+    .hp-pals--motion .hp-pals__peek,
+    .hp-pals--motion .hp-pals__mark {
+      animation: none;
+    }
+
     .hp-pals__chip,
     .hp-pals__chip-face,
     .hp-pals__chip-name,
@@ -504,6 +704,13 @@
     --hp-heading-size: {{ s.heading_size | default: 52 }}px;
     --hp-chip-size: {{ s.chip_size | default: 92 }}px;
     --hp-photo-size: {{ s.photo_size | default: 430 }}px;
+    --hp-panel-w: {{ s.panel_width | default: 1120 }}px;
+    --hp-peek-size: {{ s.peek_size | default: 300 }}px;
+    --hp-peek-off: {{ s.peek_offset | default: 560 }}px;
+    --hp-peek-op: {{ s.peek_opacity | default: 55 | divided_by: 100.0 }};
+    --hp-peek-tilt: {{ s.peek_tilt | default: 7 }}deg;
+    --hp-mark-c: {{ s.mark_color | default: '#B5C99A' }};
+    --hp-mark-op: {{ s.mark_opacity | default: 60 | divided_by: 100.0 }};
     --hp-shadow: {{ s.shadow_strength | default: 40 | divided_by: 200.0  }};
     --hp-drift: {{ s.drift_speed | default: 18 }}s;
     --hp-gap: {{ s.column_gap | default: 72 }}px;
@@ -513,6 +720,19 @@
     --hp-pb-mobile: {{ s.padding_bottom_mobile | default: 60 }}px;
   "
 >
+  {%- if s.show_marks != false -%}
+    <div class="hp-pals__marks" aria-hidden="true">
+      <i class="hp-pals__mark hp-pals__mark--star" style="--x: 3%; --y: 13%; --s: 26px; --d: 0s;"></i>
+      <i class="hp-pals__mark hp-pals__mark--dot" style="--x: 8.5%; --y: 26%; --s: 10px; --d: 1.4s;"></i>
+      <i class="hp-pals__mark hp-pals__mark--star" style="--x: 2%; --y: 79%; --s: 18px; --r: -12deg; --d: 2.6s;"></i>
+      <i class="hp-pals__mark hp-pals__mark--dash" style="--x: 7%; --y: 89%; --s: 34px; --r: 24deg; --d: 0.8s;"></i>
+      <i class="hp-pals__mark hp-pals__mark--star" style="--x: 94.5%; --y: 15%; --s: 21px; --d: 0.6s;"></i>
+      <i class="hp-pals__mark hp-pals__mark--ring" style="--x: 90%; --y: 25%; --s: 13px; --d: 2s;"></i>
+      <i class="hp-pals__mark hp-pals__mark--star" style="--x: 95.5%; --y: 81%; --s: 28px; --r: 10deg; --d: 1.2s;"></i>
+      <i class="hp-pals__mark hp-pals__mark--dash" style="--x: 88.5%; --y: 90%; --s: 30px; --r: -18deg; --d: 2.2s;"></i>
+    </div>
+  {%- endif -%}
+
   <div class="hp-pals__inner">
     {%- if s.eyebrow != blank -%}
       <p class="hp-pals__eyebrow">
@@ -575,6 +795,34 @@
         </div>
 
         <div class="hp-pals__stage">
+          {%- comment -%}
+            One peek per Pal, all in the same place and all hidden; the :checked
+            rules above give two of them a side. Decorative only — every name is
+            already in the chip row above, so these are hidden from readers.
+          {%- endcomment -%}
+          {%- if s.show_peeks != false and section.blocks.size > 1 -%}
+            {%- for block in section.blocks -%}
+              {%- liquid
+                assign pb = block.settings
+                assign peek = pb.peek_image | default: pb.image | default: pb.avatar
+              -%}
+              {%- if peek != blank -%}
+                <div
+                  class="hp-pals__peek{% if s.peek_mask %} hp-pals__peek--mask{% endif %}"
+                  data-pal="{{ block.id }}"
+                  style="--hp-pal-tint: {{ pb.color }};"
+                  aria-hidden="true"
+                >
+                  {{
+                    peek
+                    | image_url: width: 700
+                    | image_tag: loading: 'lazy', widths: '240, 360, 480, 700', sizes: '300px', alt: ''
+                  }}
+                </div>
+              {%- endif -%}
+            {%- endfor -%}
+          {%- endif -%}
+
           {%- for block in section.blocks -%}
             {%- liquid
               assign b = block.settings
@@ -838,7 +1086,93 @@
       "default": 18,
       "info": "Seconds for one full loop. Higher is slower and calmer."
     },
+    { "type": "header", "content": "Side decoration" },
+    {
+      "type": "checkbox",
+      "id": "show_peeks",
+      "label": "Show the other Pals at the sides",
+      "default": true,
+      "info": "The two Pals you did not pick wait in the side gutters and swap over when a new one is chosen. Needs at least two Pals and a window wider than 1320px — below that there is no room beside the panel, so nothing is shown."
+    },
+    {
+      "type": "range",
+      "id": "peek_size",
+      "label": "Size of each side Pal",
+      "unit": "px",
+      "min": 180,
+      "max": 460,
+      "step": 10,
+      "default": 300
+    },
+    {
+      "type": "range",
+      "id": "peek_offset",
+      "label": "Distance from the middle",
+      "unit": "px",
+      "min": 460,
+      "max": 760,
+      "step": 10,
+      "default": 560,
+      "info": "Measured from the centre of the section to the inside edge of each side Pal. Keep it at or above half the panel width below, or they will reach the text."
+    },
+    {
+      "type": "range",
+      "id": "peek_opacity",
+      "label": "Side Pal strength",
+      "unit": "%",
+      "min": 15,
+      "max": 100,
+      "step": 5,
+      "default": 55,
+      "info": "Lower holds them back so the chosen Pal stays the loudest thing on the page."
+    },
+    {
+      "type": "range",
+      "id": "peek_tilt",
+      "label": "Side Pal tilt",
+      "unit": "deg",
+      "min": 0,
+      "max": 14,
+      "step": 1,
+      "default": 7
+    },
+    {
+      "type": "checkbox",
+      "id": "peek_mask",
+      "label": "Cut the side Pals into a blob",
+      "default": false,
+      "info": "Leave off for photos cut out on a transparent background. Turn it on if a photo has its own square backdrop, so it reads as a bubble instead of a floating rectangle."
+    },
+    {
+      "type": "checkbox",
+      "id": "show_marks",
+      "label": "Show sparkles in the corners",
+      "default": true,
+      "info": "The signature sparkle scattered around the band, above and below the Pals. Hidden below 990px."
+    },
+    { "type": "color", "id": "mark_color", "label": "Sparkle colour", "default": "#B5C99A" },
+    {
+      "type": "range",
+      "id": "mark_opacity",
+      "label": "Sparkle strength",
+      "unit": "%",
+      "min": 10,
+      "max": 100,
+      "step": 5,
+      "default": 60
+    },
     { "type": "header", "content": "Layout" },
+    {
+      "type": "range",
+      "id": "panel_width",
+      "label": "Panel width",
+      "unit": "px",
+      "min": 900,
+      "max": 1400,
+      "step": 20,
+      "default": 1120,
+      "info": "How wide the photo and copy are allowed to spread before the side Pals begin."
+    },
     {
       "type": "range",
       "id": "content_width",
@@ -955,6 +1289,12 @@
           "id": "avatar",
           "label": "Character circle",
           "info": "The small round portrait in the picker row. Leave empty to reuse the main photo."
+        },
+        {
+          "type": "image_picker",
+          "id": "peek_image",
+          "label": "Side photo",
+          "info": "Used when this Pal is waiting at the side. Leave empty to reuse the main photo. A cut-out on a transparent background works best here."
         },
         { "type": "color", "id": "color", "label": "Pal colour", "default": "#CFE1B9" },
         {

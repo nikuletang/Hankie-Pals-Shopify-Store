@@ -1,0 +1,4 @@
+# Scratch output from the scripts in scripts/: rendered pages, probe copies and
+# screenshots. Every one of them is rebuilt by running the script again.
+scripts/*.html
+scripts/*.png

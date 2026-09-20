@@ -289,6 +289,32 @@ widths, gone below 750px, the band clipping instead of widening the page,
 reduced motion, and the picker row centred at three phone widths while a row of
 six Pals still starts at the first one.
 
+## A shadow on a shape that is not a rectangle
+
+The Pal panel's dome is a `border-radius`, not a clip path, and `box-shadow`
+follows `border-radius` — so the shadow traces the dome with nothing extra to
+draw. Two consequences worth keeping:
+
+- **The offset is negative.** The panel rises over the section above it, so the
+  shadow goes up. A shadow pointing down would put it on the section it is
+  covering, which is backwards.
+- **The flat bottom edge cannot leak.** An outer `box-shadow` is clipped to
+  outside the border box, so none of it reaches the next section however far the
+  strength is turned up. `scripts/test-pal-panel.py` measures that rather than
+  trusting it, at 60%.
+
+The ears need their own. They stand above the dome as separate elements, so
+without one the panel lifts off the page and they stay pasted flat to it — at
+exactly the point the eye goes to.
+
+The shadow is measured by differencing two frames of the same page, one with it
+and one without, rather than by comparing it to the colour behind it: what is
+behind depends on where the pin has got to, and the difference between the two
+frames is the shadow and nothing else. The bottom-edge case scrolls nothing,
+because **Chromium does not repaint after a programmatic scroll** under a
+virtual time budget and the frame comes back blank — the section above is set
+to zero height instead, so the whole panel starts in view.
+
 ## Check a schema before pasting it in
 
 It knows the rules Shopify only tells you about one at a time, on paste:

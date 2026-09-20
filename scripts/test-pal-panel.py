@@ -336,4 +336,85 @@ if __name__ == '__main__':
     check('the sparkle can be switched off', not d['sparkle'],
           f"sparkle present: {d['sparkle']}")
 
+    # --- the shadow ------------------------------------------------------
+    # Comparing the shadow against the colour behind it would mean knowing what
+    # is behind it, which depends on where the pin has got to. Comparing the
+    # same pixel with the shadow on and off does not: the difference between
+    # the two frames is the shadow and nothing else.
+    def frame(strength, name, scroll):
+        ov = {'settings': {'shadow_strength': strength}}
+        return shot(build(ov, name), scroll, name)
+
+    SCROLL = 700
+    off = frame(0, 'shadow-off', SCROLL)
+    mid = frame(28, 'shadow-mid', SCROLL)
+    top = frame(60, 'shadow-max', SCROLL)
+
+    def dome_top(img, x):
+        for y in range(img.size[1]):
+            if near(img.getpixel((x, y)), PAL, 8):
+                return y
+        return None
+
+    def drop(a, b, x, y):
+        """How much darker b is than a at one pixel."""
+        return sum(a.getpixel((x, y))) - sum(b.getpixel((x, y)))
+
+    col = 200                      # clear of the ears, which shadow separately
+    y_off, y_mid = dome_top(off, col), dome_top(mid, col)
+    check('the shadow changes nothing about where the dome is',
+          y_off is not None and y_off == y_mid,
+          f"dome top at y={y_off} without it, y={y_mid} with it")
+
+    just_above = max(y_off - 4, 0)
+    check('there is a shadow above the dome by default',
+          drop(off, mid, col, just_above) > 20,
+          f"{drop(off, mid, col, just_above)} darker 4px above the dome")
+    check('turning it up makes it deeper, not wider',
+          drop(off, top, col, just_above) > drop(off, mid, col, just_above),
+          f"60% is {drop(off, top, col, just_above)} deep against 28%'s "
+          f"{drop(off, mid, col, just_above)}")
+    check('it fades out rather than ending on a line',
+          all(drop(off, mid, col, max(y_off - d, 0)) >= drop(off, mid, col, max(y_off - d - 8, 0))
+              for d in range(4, 40, 8)),
+          'each step up from the dome is lighter than the last: '
+          + ', '.join(str(drop(off, mid, col, max(y_off - d, 0))) for d in range(4, 44, 8)))
+    check('and is gone well before the top of the section above',
+          drop(off, mid, col, max(y_off - 60, 0)) <= 4,
+          f"{drop(off, mid, col, max(y_off - 60, 0))} darker 60px up")
+
+    # An outer box-shadow is clipped to outside the border box, so the flat
+    # bottom edge should be clean. Scrolling down to it is no good — Chromium
+    # does not repaint after a programmatic scroll under a virtual time budget
+    # and the frame comes back blank — so the section above is dropped to
+    # nothing instead and the whole panel starts in view.
+    foot_off = shot(build({'settings': {'shadow_strength': 0}}, 'foot-off', above_h=0),
+                    0, 'foot-off')
+    foot_max = shot(build({'settings': {'shadow_strength': 60}}, 'foot-max', above_h=0),
+                    0, 'foot-max')
+    edge = None
+    for y in range(foot_max.size[1] - 1, 0, -1):
+        if near(foot_max.getpixel((col, y)), PAL, 8):
+            edge = y
+            break
+    rows = list(range(edge + 2, min(edge + 30, foot_max.size[1]))) if edge else []
+    worst = max((drop(foot_off, foot_max, col, y) for y in rows), default=None)
+    check('nothing leaks onto the section below, even at full strength',
+          edge is not None and rows and worst is not None and worst <= 3,
+          f"panel ends at y={edge}; worst of the {len(rows)} rows under it is {worst}")
+
+    EAR = """<script>
+      var e = document.querySelector('.hp-pp__ear');
+      document.title = 'RESULT' + JSON.stringify({
+        ear: getComputedStyle(e).boxShadow,
+        panel: getComputedStyle(document.querySelector('.hp-pp')).boxShadow
+      });
+    </script>"""
+    d = probe(build({}, 'shadow-ear'), EAR)
+    check('the ears cast one too, so they do not stay flat on a lifted dome',
+          d['ear'] != 'none', f"ear box-shadow: {d['ear']}")
+    check('both are the ink colour rather than black',
+          d['panel'].startswith('rgba(47, 51, 38') and d['ear'].startswith('rgba(47, 51, 38'),
+          f"panel {d['panel'].split(')')[0]})")
+
     print(f"\n{sum(res)} passed, {len(res) - sum(res)} failed")

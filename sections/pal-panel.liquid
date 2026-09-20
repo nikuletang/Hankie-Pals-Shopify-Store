@@ -65,6 +65,12 @@
        whole panel; the vertical radius is how far it rises. */
     border-start-start-radius: 50% var(--hp-pp-c);
     border-start-end-radius: 50% var(--hp-pp-c);
+    /* Depth as the panel rises over the section above. A box-shadow follows the
+       border-radius, so it traces the dome with nothing extra to draw, and an
+       outer shadow is clipped to outside the border box — so none of it reaches
+       the flat bottom edge where the next section begins. The offset is
+       negative because the panel is coming up over what is behind it. */
+    box-shadow: 0 -16px 36px -10px rgba(47, 51, 38, var(--hp-pp-shadow, 0.28));
     padding-block: calc(var(--hp-pp-c) * var(--hp-pp-copy, 0.55))
                    var(--hp-pp-pb, 96px);
     padding-inline: 24px;
@@ -111,6 +117,11 @@
      why the panel does not clip its children. The rounded box still clips its
      own background, so the dome's edge stays exactly as measured. */
   .hp-pp__ear {
+    /* The ears stand above the dome as separate elements, so without their own
+       shadow the panel lifts off the page and they stay pasted flat to it —
+       at exactly the point the eye goes to. Smaller than the panel's, because
+       they are smaller things. */
+    box-shadow: 0 -9px 20px -7px rgba(47, 51, 38, var(--hp-pp-shadow, 0.28));
     top: var(--hp-pp-ear-y, -7vw);
     width: var(--hp-pp-ear-w, 7vw);
     aspect-ratio: 1 / var(--hp-pp-ear-len, 1.5);
@@ -480,6 +491,7 @@
     --hp-pp-blink: {{ s.blink_every | default: 6 }}s;
     --hp-pp-tip: {{ s.tip_depth | default: 0 }}px;
     --hp-pp-pin-top: {{ s.pin_offset | default: 0 }}px;
+    --hp-pp-shadow: {{ s.shadow_strength | default: 28 | divided_by: 100.0 }};
     --hp-pp-measure: {{ s.measure | default: 860 }}px;
     --hp-pp-text-measure: {{ s.text_measure | default: 560 }}px;
     --hp-pp-eyebrow-size: {{ s.eyebrow_size | default: 13 }}px;
@@ -769,6 +781,17 @@
       "label": "Button outline and shadow",
       "default": "#2F3326",
       "info": "Both are the one colour. Keep it dark and keep it the same on every section — it is what makes the button read as the same object all over the site."
+    },
+    {
+      "type": "range",
+      "id": "shadow_strength",
+      "label": "Shadow behind the panel",
+      "unit": "%",
+      "min": 0,
+      "max": 60,
+      "step": 2,
+      "default": 28,
+      "info": "Depth as the panel rises over the section above. 0 turns it off. It falls across that section's words, so the high end buys depth with some legibility."
     },
     { "type": "header", "content": "The Pal" },
     { "type": "color", "id": "pal_color", "label": "Body", "default": "#CFE1B9" },

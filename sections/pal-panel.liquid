@@ -234,9 +234,19 @@
     clip-path: polygon(0 0, 100% 0, 100% 46%, 50% 100%, 0 46%);
   }
 
-  /* The philtrum, and the two lips it opens into. Each lip is the bottom arc
-     of a circle: a ring with only its lower edge coloured, which curves the
-     right way round at any size without needing a path. */
+  /* The philtrum, and the two lips it opens into.
+
+     Each lip is the bottom edge of a box whose two lower corners are rounded
+     to the full height: that makes the edge a half ellipse running from the
+     box's top-left corner, down through the middle, and back up to its
+     top-right corner. The endpoints are the box's own top corners, so setting
+     a lip's top to the philtrum's bottom joins them exactly.
+
+     A ring with only its lower border coloured was the obvious way to do it
+     and is what was here before, but the borders of a box are mitred at the
+     diagonals, so it draws about ninety degrees rather than a half circle.
+     Its ends land down and inward of the box's sides — 13px below the
+     philtrum here — which is what left the mouth hanging unattached. */
   .hp-pp__philtrum,
   .hp-pp__lip { display: none; }
 
@@ -249,7 +259,7 @@
     top: 40%;
     transform: translateX(-50%);
     width: max(2px, 0.26vw);
-    height: 20%;
+    height: 16%;
     border-radius: 100vw;
     background: var(--hp-pp-ink, #2F3326);
   }
@@ -257,12 +267,15 @@
   .hp-pp--nose-diamond .hp-pp__lip {
     display: block;
     position: absolute;
-    top: 40%;
-    width: 25%;
-    aspect-ratio: 1;
-    border: max(2px, 0.26vw) solid transparent;
+    /* Exactly where the philtrum ends, so the three marks are one mouth. */
+    top: 56%;
+    /* Wide and shallow: a deep half circle reads as a bowl, not a smile. */
+    width: 33%;
+    height: 10%;
+    border: 0 solid transparent;
+    border-bottom-width: max(2px, 0.26vw);
     border-bottom-color: var(--hp-pp-ink, #2F3326);
-    border-radius: 50%;
+    border-radius: 0 0 50% 50% / 0 0 100% 100%;
   }
 
   .hp-pp--nose-diamond .hp-pp__lip--l { right: 50%; }

@@ -301,6 +301,37 @@ if __name__ == '__main__':
           d['philtrum'] != 'none' and d['lips'] == 2 and d['smile'] == 'none',
           f"philtrum {d['philtrum']}, {d['lips']} lips, single smile {d['smile']}")
 
+    # The mouth has to be one mark, not three. This is measured rather than
+    # eyeballed because the parts can sit a few pixels apart and still look
+    # deliberate in a thumbnail — and because the primitive that was here
+    # before drew about ninety degrees rather than a half ellipse, putting the
+    # lips' ends thirteen pixels below where the geometry said they were.
+    JOIN = """<script>
+      window.addEventListener('load', function () {
+        function r(sel) {
+          var b = document.querySelector(sel).getBoundingClientRect();
+          return { t: b.top, b: b.bottom, l: b.left, r: b.right };
+        }
+        var p = r('.hp-pp__philtrum'), L = r('.hp-pp__lip--l'), R = r('.hp-pp__lip--r');
+        document.title = 'RESULT' + JSON.stringify({
+          dy: Math.round(Math.abs(L.t - p.b)),
+          dyR: Math.round(Math.abs(R.t - p.b)),
+          dxL: Math.round(Math.abs(L.r - (p.l + p.r) / 2)),
+          dxR: Math.round(Math.abs(R.l - (p.l + p.r) / 2)),
+          // Wider than deep, or it reads as a bowl rather than a smile.
+          ratio: Math.round(((L.r - L.l) / (L.b - L.t)) * 10) / 10
+        });
+      });
+    </script>"""
+    d = probe(build({'settings': {'nose_style': 'diamond'}}, 'join'), JOIN)
+    check('the lips meet the philtrum exactly, so the mouth is one mark',
+          d['dy'] <= 1 and d['dyR'] <= 1 and d['dxL'] <= 1 and d['dxR'] <= 1,
+          f"vertical gap {d['dy']}px and {d['dyR']}px, "
+          f"horizontal {d['dxL']}px and {d['dxR']}px")
+
+    check('each lip is a wide sweep rather than a deep bowl',
+          d['ratio'] >= 2.5, f"{d['ratio']}x wider than deep")
+
     d = probe(build({'settings': {'show_sparkle': False}}, 'nosparkle'), NOSE)
     check('the sparkle can be switched off', not d['sparkle'],
           f"sparkle present: {d['sparkle']}")

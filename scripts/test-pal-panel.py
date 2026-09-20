@@ -267,6 +267,10 @@ if __name__ == '__main__':
           cls: document.querySelector('.hp-pp').className,
           noseClip: getComputedStyle(nose).clipPath,
           whiskers: document.querySelectorAll('.hp-pp__whiskers i').length,
+          philtrum: getComputedStyle(document.querySelector('.hp-pp__philtrum')).display,
+          lips: [].filter.call(document.querySelectorAll('.hp-pp__lip'),
+                 function (el) { return getComputedStyle(el).display !== 'none'; }).length,
+          smile: getComputedStyle(document.querySelector('.hp-pp__smile')).display,
           sparkle: !!sp,
           sparkleClip: sp ? getComputedStyle(sp).clipPath : null,
           sparkleColor: sp ? getComputedStyle(sp).backgroundColor : null
@@ -280,16 +284,22 @@ if __name__ == '__main__':
           and '255, 255, 255' in (d['sparkleColor'] or ''),
           f"clip {'set' if d['sparkleClip'] else 'none'}, colour {d['sparkleColor']}")
 
-    check('an oval nose draws no whiskers',
+    check('an oval nose keeps the single smile, with no whiskers or philtrum',
           'hp-pp--nose-oval' in d['cls'] and d['whiskers'] == 0
-          and d['noseClip'] == 'none',
-          f"{d['whiskers']} whisker lines, nose clip {d['noseClip']}")
+          and d['noseClip'] == 'none' and d['philtrum'] == 'none'
+          and d['lips'] == 0 and d['smile'] != 'none',
+          f"{d['whiskers']} whiskers, philtrum {d['philtrum']}, {d['lips']} lips, "
+          f"smile {d['smile']}")
 
     d = probe(build({'settings': {'nose_style': 'diamond'}}, 'diamond'), NOSE)
-    check('the diamond nose is cut to a diamond and brings whiskers',
+    check('the bunny nose is cut to a point and brings whiskers',
           'polygon' in d['noseClip'] and d['whiskers'] == 6,
           f"nose clip {'a polygon' if 'polygon' in d['noseClip'] else d['noseClip']}, "
           f"{d['whiskers']} whisker lines")
+
+    check('the bunny gets a philtrum and two lips instead of the single smile',
+          d['philtrum'] != 'none' and d['lips'] == 2 and d['smile'] == 'none',
+          f"philtrum {d['philtrum']}, {d['lips']} lips, single smile {d['smile']}")
 
     d = probe(build({'settings': {'show_sparkle': False}}, 'nosparkle'), NOSE)
     check('the sparkle can be switched off', not d['sparkle'],

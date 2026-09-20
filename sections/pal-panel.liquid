@@ -222,14 +222,51 @@
     border-radius: 50%;
   }
 
-  /* A bunny's nose is a diamond, not an oval. Cut rather than rotated: the
-     nose is already using its transform to sit centred. */
+  /* Rounded across the top by the radius, then cut to a point at the bottom
+     by the clip — the clip works on the already-rounded box, so the two
+     combine instead of fighting. */
   .hp-pp--nose-diamond .hp-pp__nose {
-    width: 26%;
-    aspect-ratio: 1 / 0.92;
-    border-radius: 0;
-    clip-path: polygon(50% 0, 100% 44%, 50% 100%, 0 44%);
+    /* Wider than it is tall, which is what separates a rabbit's nose from the
+       spade shape a symmetric diamond gives. */
+    width: 32%;
+    aspect-ratio: 1 / 0.7;
+    border-radius: 44% 44% 0 0 / 68% 68% 0 0;
+    clip-path: polygon(0 0, 100% 0, 100% 46%, 50% 100%, 0 46%);
   }
+
+  /* The philtrum, and the two lips it opens into. Each lip is the bottom arc
+     of a circle: a ring with only its lower edge coloured, which curves the
+     right way round at any size without needing a path. */
+  .hp-pp__philtrum,
+  .hp-pp__lip { display: none; }
+
+  .hp-pp--nose-diamond .hp-pp__smile { display: none; }
+
+  .hp-pp--nose-diamond .hp-pp__philtrum {
+    display: block;
+    position: absolute;
+    left: 50%;
+    top: 40%;
+    transform: translateX(-50%);
+    width: max(2px, 0.26vw);
+    height: 20%;
+    border-radius: 100vw;
+    background: var(--hp-pp-ink, #2F3326);
+  }
+
+  .hp-pp--nose-diamond .hp-pp__lip {
+    display: block;
+    position: absolute;
+    top: 40%;
+    width: 25%;
+    aspect-ratio: 1;
+    border: max(2px, 0.26vw) solid transparent;
+    border-bottom-color: var(--hp-pp-ink, #2F3326);
+    border-radius: 50%;
+  }
+
+  .hp-pp--nose-diamond .hp-pp__lip--l { right: 50%; }
+  .hp-pp--nose-diamond .hp-pp__lip--r { left: 50%; }
 
   .hp-pp__whiskers {
     top: calc(var(--hp-pp-eye, 5vw) * 1.38);
@@ -262,8 +299,8 @@
   /* The signature: a four-point sparkle sitting on the nose. */
   .hp-pp__sparkle {
     position: absolute;
-    left: 63%;
-    top: 4%;
+    left: 64%;
+    top: 2%;
     width: var(--hp-pp-sparkle, 26%);
     aspect-ratio: 1;
     background: var(--hp-pp-sparkle-c, #FFFFFF);
@@ -431,7 +468,7 @@
     --hp-pp-muzzle: {{ s.muzzle_size | default: 9 }}vw;
     --hp-pp-muzzle-c: {{ s.muzzle_color | default: '#D7A06A' }};
     --hp-pp-whisker: {{ s.whisker_length | default: 6 }}vw;
-    --hp-pp-sparkle: {{ s.sparkle_size | default: 26 }}%;
+    --hp-pp-sparkle: {{ s.sparkle_size | default: 22 }}%;
     --hp-pp-sparkle-c: {{ s.sparkle_color | default: '#FFFFFF' }};
     --hp-pp-blink: {{ s.blink_every | default: 6 }}s;
     --hp-pp-tip: {{ s.tip_depth | default: 0 }}px;
@@ -476,6 +513,9 @@
         <span class="hp-pp__muzzle">
           <span class="hp-pp__nose"></span>
           <span class="hp-pp__smile"></span>
+          <span class="hp-pp__philtrum"></span>
+          <span class="hp-pp__lip hp-pp__lip--l"></span>
+          <span class="hp-pp__lip hp-pp__lip--r"></span>
           {%- if s.show_sparkle -%}
             <span class="hp-pp__sparkle"></span>
           {%- endif -%}
@@ -855,7 +895,7 @@
       "label": "Nose",
       "options": [
         { "value": "oval", "label": "Oval — the Cow and the Dog" },
-        { "value": "diamond", "label": "Diamond with whiskers — the Bunny" }
+        { "value": "diamond", "label": "Bunny — pointed nose, philtrum and whiskers" }
       ],
       "default": "oval"
     },
@@ -885,7 +925,7 @@
       "min": 8,
       "max": 60,
       "step": 2,
-      "default": 26,
+      "default": 22,
       "info": "Share of the muzzle."
     },
     {

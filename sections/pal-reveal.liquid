@@ -273,9 +273,95 @@
 
   .hp-rv__cta { margin-block-start: 28px; }
 
-  .hp-rv__cta:focus-visible {
-    outline: 3px solid var(--hp-rv-after-ink, #2F3326);
-    outline-offset: 4px;
+  /* --- Mailing list ------------------------------------------------------
+     The last thing on the page asks for an address rather than a click. The
+     submit is the site's button; the field is built to match it — same outline
+     weight, same pill — but with no shadow, because a field that looks raised
+     looks like it has already been pressed. */
+  .hp-rv__signup {
+    display: grid;
+    justify-items: center;
+    gap: 12px;
+    margin-block-start: 28px;
+  }
+
+  .hp-rv__signup-label {
+    margin: 0;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-weight: 600;
+    font-size: calc(16px * var(--hp-rv-body-scale, 1));
+    color: var(--hp-rv-after-sub, #3F4630);
+  }
+
+  .hp-rv__form { margin: 0; width: 100%; }
+
+  .hp-rv__row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .hp-rv__email {
+    box-sizing: border-box;
+    min-width: 0;
+    width: min(320px, 74vw);
+    padding: 14px 22px;
+    border: 2px solid var(--hp-rv-field-line, #2F3326);
+    border-radius: 999px;
+    background: var(--hp-rv-field-bg, #FCFBF6);
+    color: var(--hp-rv-field-ink, #2F3326);
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    /* 16px is a floor, not a preference: below it iOS Safari zooms the page in
+       when the field takes focus, and never zooms back out. */
+    font-size: calc(16px * var(--hp-rv-body-scale, 1));
+    line-height: 1.3;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  /* Firefox dims placeholders on its own, which takes this one under contrast. */
+  .hp-rv__email::placeholder {
+    color: var(--hp-rv-field-hint, #5C6150);
+    opacity: 1;
+  }
+
+  .hp-rv__email:focus-visible {
+    outline: 3px solid var(--hp-rv-field-line, #2F3326);
+    outline-offset: 3px;
+  }
+
+  .hp-rv__msg {
+    margin: 0;
+    max-width: 44ch;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-size: calc(16px * var(--hp-rv-body-scale, 1));
+    line-height: 1.5;
+    color: var(--hp-rv-after-ink, #2F3326);
+  }
+
+  .hp-rv__note {
+    margin: 0;
+    max-width: 40ch;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-size: calc(14px * var(--hp-rv-body-scale, 1));
+    line-height: 1.5;
+    color: var(--hp-rv-after-sub, #3F4630);
+  }
+
+  /* In the accessibility tree, off the screen. display:none would take it out
+     of both. */
+  .hp-rv__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
   }
 
   @media screen and (max-width: 749px) {
@@ -328,6 +414,10 @@
     --hp-rv-before-ink: {{ s.before_heading_color | default: '#2F3326' }};
     --hp-rv-before-sub: {{ s.before_text_color | default: '#5C6150' }};
     --hp-rv-before-eyebrow: {{ s.before_eyebrow_color | default: '#6B7056' }};
+    --hp-rv-field-bg: {{ s.field_background | default: '#FCFBF6' }};
+    --hp-rv-field-ink: {{ s.field_text_color | default: '#2F3326' }};
+    --hp-rv-field-hint: {{ s.field_hint_color | default: '#5C6150' }};
+    --hp-rv-field-line: {{ s.field_border_color | default: '#2F3326' }};
     --hp-rv-after-size: {{ s.after_heading_size | default: 60 }}px;
     --hp-rv-after-text-size: {{ s.after_text_size | default: 19 }}px;
     --hp-rv-after-ink: {{ s.after_heading_color | default: '#2F3326' }};
@@ -377,18 +467,90 @@
       {%- if s.after_text != blank -%}
         <p class="hp-rv__text">{{ s.after_text | escape | newline_to_br }}</p>
       {%- endif -%}
-      {%- if s.button_label != blank -%}
-        <a
-          class="hp-btn hp-rv__cta"
-          href="{{ s.button_link | default: '#' }}"
-          style="
-            --hp-btn-bg: {{ s.btn_fill | default: '#D88B6D' }};
-            --hp-btn-ink: {{ s.btn_ink | default: '#2F3326' }};
-            --hp-btn-line: {{ s.btn_line | default: '#2F3326' }};
-          "
-        >
-          {{- s.button_label | escape -}}
-        </a>
+      {%- comment -%}
+        A section saved before this setting existed has no cta_style at all, so
+        comparing against 'button' rather than testing for 'email' is what puts
+        those instances on the sign-up rather than leaving them on the button.
+      {%- endcomment -%}
+      {%- if s.cta_style == 'button' -%}
+        {%- if s.button_label != blank -%}
+          <a
+            class="hp-btn hp-rv__cta"
+            href="{{ s.button_link | default: '#' }}"
+            style="
+              --hp-btn-bg: {{ s.btn_fill | default: '#D88B6D' }};
+              --hp-btn-ink: {{ s.btn_ink | default: '#2F3326' }};
+              --hp-btn-line: {{ s.btn_line | default: '#2F3326' }};
+            "
+          >
+            {{- s.button_label | escape -}}
+          </a>
+        {%- endif -%}
+      {%- else -%}
+        {%- liquid
+          assign signup_id = 'RevealSignup-' | append: section.id
+          assign email_id = 'RevealEmail-' | append: section.id
+          assign field_label = s.signup_placeholder | default: 'Email address'
+        -%}
+        <div class="hp-rv__signup">
+          {%- if s.signup_label != blank -%}
+            <p class="hp-rv__signup-label">{{ s.signup_label | escape }}</p>
+          {%- endif -%}
+
+          {%- comment -%}
+            Shopify's own customer form. It creates the customer with the
+            newsletter tag, which is what Shopify Email builds its list from, so
+            there is no app and nothing to connect. It posts to /contact and
+            comes back with ?customer_posted=true, which is what
+            form.posted_successfully? is reading below.
+          {%- endcomment -%}
+          {%- form 'customer', id: signup_id, class: 'hp-rv__form' -%}
+            <input type="hidden" name="contact[tags]" value="newsletter">
+            <label class="hp-rv__sr" for="{{ email_id }}">{{ field_label | escape }}</label>
+
+            <div class="hp-rv__row">
+              <input
+                id="{{ email_id }}"
+                class="hp-rv__email"
+                type="email"
+                name="contact[email]"
+                value="{{ form.email }}"
+                placeholder="{{ field_label | escape }}"
+                autocomplete="email"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
+                required
+              >
+              <button
+                type="submit"
+                name="commit"
+                class="hp-btn"
+                style="
+                  --hp-btn-bg: {{ s.btn_fill | default: '#D88B6D' }};
+                  --hp-btn-ink: {{ s.btn_ink | default: '#2F3326' }};
+                  --hp-btn-line: {{ s.btn_line | default: '#2F3326' }};
+                "
+              >
+                {{- s.signup_button | default: 'Join the list' | escape -}}
+              </button>
+            </div>
+
+            {%- if form.errors -%}
+              <p class="hp-rv__msg" role="alert">{{ form.errors | default_errors }}</p>
+            {%- endif -%}
+
+            {%- if form.posted_successfully? -%}
+              <p class="hp-rv__msg" role="status">
+                {{- s.signup_success | default: 'You are on the list. We will write when the Pals land.' | escape -}}
+              </p>
+            {%- endif -%}
+          {%- endform -%}
+
+          {%- if s.signup_note != blank -%}
+            <p class="hp-rv__note">{{ s.signup_note | escape }}</p>
+          {%- endif -%}
+        </div>
       {%- endif -%}
     </div>
   </hp-pal-reveal>
@@ -585,8 +747,44 @@
     { "type": "color", "id": "after_eyebrow_color", "label": "Eyebrow colour", "default": "#3F4630" },
     { "type": "color", "id": "after_heading_color", "label": "Heading colour", "default": "#2F3326" },
     { "type": "color", "id": "after_text_color", "label": "Text colour", "default": "#3F4630" },
-    { "type": "header", "content": "Button" },
-    { "type": "text", "id": "button_label", "label": "Label", "default": "Shop the Pals" },
+    { "type": "header", "content": "What comes last" },
+    {
+      "type": "select",
+      "id": "cta_style",
+      "label": "The last thing on the page",
+      "options": [
+        { "value": "email", "label": "Mailing list sign-up" },
+        { "value": "button", "label": "Button" }
+      ],
+      "default": "email",
+      "info": "The sign-up uses Shopify's own customer form: the address becomes a customer tagged newsletter, which is the list Shopify Email sends to. No app, nothing to connect."
+    },
+    { "type": "text", "id": "signup_label", "label": "Line above the field" },
+    {
+      "type": "text",
+      "id": "signup_placeholder",
+      "label": "Field placeholder",
+      "default": "Email address",
+      "info": "Also the label a screen reader reads out, so keep it a description of the field rather than an instruction."
+    },
+    { "type": "text", "id": "signup_button", "label": "Sign-up button label", "default": "Join the list" },
+    {
+      "type": "text",
+      "id": "signup_success",
+      "label": "After they sign up",
+      "default": "You are on the list. We will write when the Pals land."
+    },
+    {
+      "type": "text",
+      "id": "signup_note",
+      "label": "Small print under the field",
+      "info": "Optional. What they are signing up for, and how often."
+    },
+    { "type": "color", "id": "field_background", "label": "Field background", "default": "#FCFBF6" },
+    { "type": "color", "id": "field_text_color", "label": "Field text", "default": "#2F3326" },
+    { "type": "color", "id": "field_hint_color", "label": "Field placeholder", "default": "#5C6150" },
+    { "type": "color", "id": "field_border_color", "label": "Field outline", "default": "#2F3326" },
+    { "type": "text", "id": "button_label", "label": "Button label", "default": "Shop the Pals" },
     {
       "type": "url",
       "id": "button_link",

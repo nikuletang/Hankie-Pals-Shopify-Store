@@ -93,6 +93,7 @@ env.add_filter('image_url', lambda v, **kw: str(v))
 env.add_filter('placeholder_svg_tag',
                lambda v, cls='': f'<svg class="{cls}" viewBox="0 0 60 60"><rect width="60" height="60"/></svg>')
 env.add_filter('money', lambda v: f'${int(v)/100:,.2f}')
+env.add_filter('default_errors', lambda v: '; '.join(v) if v else '')
 
 # Sections link the shared button stylesheet through the assets folder. Pointing
 # it at the real file is what lets the suite measure the button a visitor gets
@@ -110,7 +111,13 @@ def image_tag(url, **kw):
 
 env.add_filter('image_tag', image_tag)
 
-html = env.from_string(body).render(shop=SHOP, linklists=LINKLISTS,
+# A Shopify form object. Passed through from the overrides so a suite can put
+# the form in its posted and its errored state, which no amount of rendering
+# the page normally will reach.
+FORM = {'posted_successfully?': False, 'errors': None, 'email': ''}
+FORM.update(overrides.get('form', {}))
+
+html = env.from_string(body).render(shop=SHOP, linklists=LINKLISTS, form=FORM,
                                     routes={'root_url': '/', 'cart_url': '/cart',
                                             'cart_add_url': '/cart/add',
                                             'search_url': '/search'},

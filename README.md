@@ -47,6 +47,43 @@ token expires. Use the copy icon instead.
 Section settings live in the theme, not in these files, so re-pasting an updated
 file keeps the images, copy and colours already set in the editor.
 
+## The mailing list
+
+The Pal reveal's last act is a sign-up rather than a button. It is Shopify's own
+`{% form 'customer' %}` with a hidden `contact[tags]` of `newsletter`, which is
+the list Shopify Email sends to — no app, nothing to connect, and the address
+becomes a customer the moment it is submitted. The form posts to `/contact` and
+comes back with `?customer_posted=true`, which is what `form.posted_successfully?`
+reads.
+
+The button is still there under **What comes last → Button**. The branch tests
+`s.cta_style == 'button'` rather than `== 'email'`, so a section saved before the
+setting existed — where the value is nil — falls to the sign-up, which is the
+point of the change.
+
+Three things a form gets wrong that a page never shows you, all asserted in
+`scripts/test-signup.py`:
+
+- **16px on the field is a floor, not a preference.** Below it, iOS Safari zooms
+  the page in when the field takes focus and does not zoom back out.
+- **A placeholder is the contrast that gets missed.** Firefox dims placeholders
+  on its own, so the rule pins `opacity: 1` and the suite measures the computed
+  `::placeholder` colour rather than the declared one.
+- **The label has to be hidden, not removed.** `display: none` takes it out of
+  the accessibility tree as well as off the screen; the clip-path version leaves
+  it in one and not the other, and the suite checks both.
+
+The renderer grew a `form` object for this, passed through from the overrides,
+because the posted and refused states are not reachable by rendering the page
+normally.
+
+    python3 scripts/test-signup.py
+
+Twenty-six cases: the form tag, the field name and tag, the scoped ids, required
+and autocomplete, the hidden label, 16px and a 44px target, the success and
+error states with the typed address kept, the button still available, an unset
+setting landing on the sign-up, and no overflow at four widths.
+
 ## Installing the footer
 
 The footer is not installed like the others, and the difference is the point.

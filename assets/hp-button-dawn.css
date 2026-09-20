@@ -18,7 +18,7 @@
 .shopify-payment-button__button--unbranded,
 .customer button,
 .shopify-challenge__button {
-  --hp-btn-bg: #ECA883;
+  --hp-btn-bg: #D88B6D;
   --hp-btn-ink: #2F3326;
   --hp-btn-line: var(--hp-btn-ink);
   --hp-btn-drop: 4px;
@@ -67,11 +67,61 @@
   box-shadow: 0 var(--hp-btn-drop) 0 0 var(--hp-btn-line);
 }
 
-/* Dawn's quiet button keeps the outline and drops the fill. */
+/* Dawn's quiet button keeps the outline and drops the fill. View cart in the
+   drawer is one of these, and it should not shout as loudly as Check out. */
 .button--secondary,
 .button--tertiary {
   --hp-btn-bg: transparent;
   background: transparent;
+}
+
+/* Except Add to cart, which Dawn marks button--secondary the moment the
+   dynamic checkout button is switched on — so the shop's main action inherits
+   the quiet treatment and comes out as an empty outline. It is the primary
+   action on the page whatever class Dawn gives it. Later in the file than the
+   rule above and at the same weight, so it wins. */
+.product-form__submit {
+  --hp-btn-bg: #D88B6D;
+  background: var(--hp-btn-bg);
+  /* Dawn leaves about 10px between these two, and the shadow now occupies 4px
+     of it. Buy it now would otherwise sit almost against it. */
+  margin-block-end: 6px;
+}
+
+/* --- Buy it now ----------------------------------------------------------
+   Shopify injects the styles for this one at runtime, which puts them after
+   this file however early it loads — so matching Dawn's weight is not enough
+   and the black rectangle wins. The class is doubled to outdo it on
+   specificity, and the handful of properties Shopify sets itself are forced.
+   Third-party CSS that arrives after the page has loaded is the one place
+   !important is the right tool rather than a shortcut.
+
+   It is cream rather than the fill, so the two stacked actions read in order:
+   Add to cart first, Buy it now underneath it. */
+.shopify-payment-button__button--unbranded.shopify-payment-button__button--unbranded {
+  --hp-btn-bg: #FCFBF6;
+  min-height: 0 !important;
+  padding: 15px 32px !important;
+  border: 2px solid var(--hp-btn-line) !important;
+  border-radius: 999px !important;
+  background: var(--hp-btn-bg) !important;
+  background-color: var(--hp-btn-bg) !important;
+  color: var(--hp-btn-ink) !important;
+  font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif) !important;
+  font-weight: var(--font-heading-weight, 700) !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  box-shadow: 0 var(--hp-btn-drop) 0 0 var(--hp-btn-line) !important;
+}
+
+.shopify-payment-button__button--unbranded.shopify-payment-button__button--unbranded:hover {
+  background: var(--hp-btn-bg) !important;
+  background-color: var(--hp-btn-bg) !important;
+  box-shadow: 0 calc(var(--hp-btn-drop) + 2px) 0 0 var(--hp-btn-line) !important;
+}
+
+.shopify-payment-button__button--unbranded.shopify-payment-button__button--unbranded:active {
+  box-shadow: 0 0 0 0 var(--hp-btn-line) !important;
 }
 
 .button[disabled],

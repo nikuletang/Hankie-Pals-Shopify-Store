@@ -31,7 +31,7 @@
   assign s = section.settings
   assign pal_product = s.product
 
-  assign btn_fill = s.btn_fill | default: '#ECA883'
+  assign btn_fill = s.btn_fill | default: '#D88B6D'
   assign btn_ink = s.btn_ink | default: '#2F3326'
   assign btn_line = s.btn_line | default: '#2F3326'
   capture btn_vars
@@ -549,7 +549,7 @@
     --hp-accent-ink: {{ s.trait_color | default: '#6B7056' }};
     --hp-dot: {{ s.pill_dot_color | default: '#B5C99A' }};
     --hp-pill-bg: {{ s.pill_background | default: '#FCFBF6' }};
-    --hp-pill-border: {{ s.pill_border_color | default: '#ECA883' }};
+    --hp-pill-border: {{ s.pill_border_color | default: '#D88B6D' }};
     --hp-width: {{ s.content_width | default: 1320 }}px;
     --hp-heading-size: {{ s.heading_size | default: 52 }}px;
     --hp-chip-size: {{ s.chip_size | default: 92 }}px;
@@ -1020,7 +1020,7 @@
     { "type": "color", "id": "pill_background", "label": "Eyebrow pill background", "default": "#FCFBF6" },
     { "type": "color", "id": "pill_border_color", "label": "Eyebrow pill outline", "default": "#ECA883" },
     { "type": "color", "id": "pill_dot_color", "label": "Eyebrow dot", "default": "#B5C99A" },
-    { "type": "color", "id": "btn_fill", "label": "Button fill", "default": "#ECA883" },
+    { "type": "color", "id": "btn_fill", "label": "Button fill", "default": "#D88B6D" },
     { "type": "color", "id": "btn_ink", "label": "Button text", "default": "#2F3326" },
     {
       "type": "color",

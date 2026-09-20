@@ -18,7 +18,7 @@
 --------------------------------------------------------------------------- */
 
 .hp-btn {
-  --hp-btn-bg: #ECA883;
+  --hp-btn-bg: #D88B6D;
   --hp-btn-ink: #2F3326;
   /* The outline and the shadow are the same colour by default. They are
      separate properties so a button on a dark panel can keep a pale outline. */
@@ -91,10 +91,11 @@
 }
 
 /* --- Fills ---------------------------------------------------------------
-   Every one of these is measured against #2F3326: peach 6.47:1, sage 9.32:1,
-   cream 12.49:1, terracotta 4.83:1. Terracotta is the only one without room to
-   spare, which is why it is not the default. */
-.hp-btn--peach { --hp-btn-bg: #ECA883; }
+   Every one of these is measured against #2F3326: terracotta 4.83:1, peach
+   6.47:1, sage 9.32:1, cream 12.49:1. Terracotta is the default because it is
+   the brand's; it clears AA for normal text with the least room of the four, so
+   the label stays ink — cream on terracotta is 2.59:1 and fails outright. */
+.hp-btn--peach { --hp-btn-bg: #D88B6D; }
 .hp-btn--sage { --hp-btn-bg: #CFE1B9; }
 .hp-btn--cream { --hp-btn-bg: #FCFBF6; }
 .hp-btn--terracotta { --hp-btn-bg: #D88B6D; }

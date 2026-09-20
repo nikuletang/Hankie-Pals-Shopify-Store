@@ -69,6 +69,28 @@ separate on purpose: Dawn builds its buttons out of pseudo elements and its own
 custom properties, and those change between Dawn versions, so if anything looks
 wrong afterwards, delete that one line and nothing else on the site changes.
 
+Two things about Shopify's own buttons are worth knowing before changing that
+file, because both cost a round trip on the live store:
+
+- **Add to cart is `button--secondary` whenever the dynamic checkout button is
+  switched on.** So the shop's main action picks up whatever quiet treatment
+  `--secondary` gets and comes out as an empty outline. `.product-form__submit`
+  fills it back in, later in the file and at the same weight.
+- **Shopify injects the styles for Buy it now at runtime**, which puts them
+  after anything the theme loads, however early the theme loads it. Matching
+  Dawn's specificity is not enough — the class is doubled to outdo it, and the
+  properties Shopify sets itself are forced. That is the one place `!important`
+  is the right tool rather than a shortcut.
+
+`scripts/test-button-dawn.py` covers both, against a stand-in for Dawn rather
+than Dawn itself: the theme is not in this repo and the store is not reachable
+from here, so the page carries Dawn's product-form markup, a stylesheet that
+behaves like Dawn's, and a script that injects the payment-button styles the
+way Shopify does. It tests the override mechanics, which is what both of those
+bugs were; it would not catch a Dawn version that renames a class.
+
+    python3 scripts/test-button-dawn.py
+
 ## Changing the button
 
 Change `assets/hp-button.css` and every button on the site changes with it —

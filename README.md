@@ -77,7 +77,16 @@ set is the fill, the text colour, and the colour of the outline and shadow;
 shape, weight, size steps, shadow behaviour and states are not per-section
 decisions and are not exposed in the editor.
 
-`scripts/test-button.py` renders all four sections against the real stylesheet
+A new section does not inherit the button by being new. It needs two lines —
+the stylesheet link beside `{% endstyle %}`, and `hp-btn` on the element — and
+then it is bound by everything above. The suite is what makes that reliable: it
+finds the sections with buttons rather than being told them, so a section added
+later is held to the same rules without anyone remembering to add it. A call to
+action is a section offering a label and a link for one, which is why
+solution-tabs' tab and why-choose's text link are left alone — they are controls,
+and turning them into pills would be worse, not more consistent.
+
+`scripts/test-button.py` renders every section with a button against the real stylesheet
 and compares the computed style of every button to every other one, so a
 section that starts drawing its own button again fails the build rather than
 quietly shipping. Its first assertion is that the stylesheet actually loaded:
@@ -86,7 +95,8 @@ every comparison afterwards passes for nothing.
 
     python3 scripts/test-button.py
 
-Twenty-one cases: radius, outline, capitalisation, tracking, weight and typeface
+Twenty-four cases: every section with a button linking the stylesheet, putting
+its button on the shared class, and not redrawing it underneath; then radius, outline, capitalisation, tracking, weight and typeface
 identical across every section; every shadow hard, unblurred and straight down
 in the outline's colour; the label clearing 4.5:1 on every fill in use; the
 press travelling exactly the height of the shadow it lands on; the three sizes

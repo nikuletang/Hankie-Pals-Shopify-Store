@@ -14,16 +14,37 @@ ROOT = pathlib.Path('/home/user/hankie-pals-shopify-store')
 HERE = ROOT / 'scripts'
 TMP = pathlib.Path('/tmp/claude-0')
 
-# Every section with a button, and what its buttons should be.
-SECTIONS = {
-    'hero-split': {},
-    # Neither of these draws its button until it has a label, and neither
-    # schema gives one a default.
-    'pal-panel': {'settings': {'button_label': 'Shop the Pals'}},
-    'pal-reveal': {'settings': {'button_label': 'Shop the Pals'}},
+# Sections are found, not listed. A new section with a button is picked up and
+# held to the same rules without anyone remembering to add it here — which is
+# the only version of "consistent" that survives the next section.
+SECTION_DIR = ROOT / 'sections'
+LINK = "{{ 'hp-button.css' | asset_url | stylesheet_tag }}"
+
+def has_button(src):
+    """A call to action, which is what the shared button is for.
+
+    Not simply a <button>: solution-tabs' tab is a full-width card you click to
+    switch panels and why-choose's is a text link. Those are controls, not calls
+    to action, and turning them into pills would be worse, not more consistent.
+    What marks a real one is the section offering a label and a link for it.
+    """
+    return ('hp-btn' in src or '"id": "button_label"' in src
+            or '"id": "btn_fill"' in src)
+
+# Most sections need a label before they draw anything; a few need more.
+EXTRA = {
     'pals-picker': {'blocks': [{'type': 'pal', 'settings': {
         'name': 'Pip', 'link': '#', 'link_label': 'Meet Pip'}}]},
 }
+
+SECTIONS = {}
+for f in sorted(SECTION_DIR.glob('*.liquid')):
+    src = f.read_text(encoding='utf-8')
+    if not has_button(src):
+        continue
+    ov = {'settings': {'button_label': 'Shop the Pals'}}
+    ov.update(EXTRA.get(f.stem, {}))
+    SECTIONS[f.stem] = ov
 
 PROBE = """<script>
 // A button in every state the stylesheet has to cover, including the ones no
@@ -141,6 +162,46 @@ def contrast(a, b):
     l1, l2 = sorted((lum(a), lum(b)), reverse=True)
     return round((l1 + 0.05) / (l2 + 0.05), 2)
 
+
+# ------------------------------------------------- before the browser ----
+# Two things a rendered page cannot tell you: whether a section that has no
+# button today would get the right one tomorrow, and whether a section is
+# quietly redrawing the button underneath the shared rules.
+missing = [f.stem for f in sorted(SECTION_DIR.glob('*.liquid'))
+           if has_button(f.read_text(encoding='utf-8'))
+           and LINK not in f.read_text(encoding='utf-8')]
+check('every section with a button links the shared stylesheet',
+      not missing,
+      f"{len(SECTIONS)} sections with buttons: {', '.join(SECTIONS)}"
+      if not missing else 'not linked: ' + ', '.join(missing))
+
+ON_CLASS = re.compile(r'class="[^"]*\bhp-btn\b')
+unclassed = [f.stem for f in sorted(SECTION_DIR.glob('*.liquid'))
+             if has_button(f.read_text(encoding='utf-8'))
+             and not ON_CLASS.search(f.read_text(encoding='utf-8'))]
+check('and puts every button on the shared class',
+      not unclassed,
+      'all of them' if not unclassed else 'not on hp-btn: ' + ', '.join(unclassed))
+
+# A section may place its button and may hand it colours. Setting any of these
+# on a button selector is drawing a second button.
+BANNED = ('border-radius', 'box-shadow', 'text-transform', 'letter-spacing',
+          'font-size', 'padding', 'background')
+redrawn = []
+for f in sorted(SECTION_DIR.glob('*.liquid')):
+    src = f.read_text(encoding='utf-8')
+    if not ON_CLASS.search(src):
+        continue
+    for m in re.finditer(r'^( *)(\.hp-[a-z-]+__(?:cta|button)\b[^{]*)\{([^}]*)\}',
+                         src, re.M):
+        body = m.group(3)
+        for prop in BANNED:
+            # --hp-btn-padding-y and the like are how a section is meant to ask.
+            if re.search(r'(?<!-)\b' + prop + r'\s*:', body):
+                redrawn.append(f"{f.stem}: {m.group(2).strip()} sets {prop}")
+check('no section redraws the button under the shared rules',
+      not redrawn,
+      'none' if not redrawn else '; '.join(redrawn))
 
 data = {name: run(name, ov) for name, ov in SECTIONS.items()}
 

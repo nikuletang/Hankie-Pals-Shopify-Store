@@ -30,7 +30,7 @@ def run(page, probe, flags=(), spacer=False, kill_io=False):
     tmp = pathlib.Path(page).with_suffix('.t.html')
     tmp.write_text(probed, encoding='utf-8')
     dom = subprocess.run([CHROME, '--headless', '--no-sandbox', '--disable-gpu',
-                          '--window-size=900,800', '--virtual-time-budget=6000',
+                          '--window-size=900,800', '--virtual-time-budget=9000',
                           *flags, '--dump-dom', 'file://' + str(tmp)],
                          capture_output=True, text=True, timeout=120).stdout
     m = re.search(r'<title>RESULT(.*?)</title>', dom, re.S)

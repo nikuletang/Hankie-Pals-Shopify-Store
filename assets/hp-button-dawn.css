@@ -1,0 +1,98 @@
+/* ---------------------------------------------------------------------------
+   Totterful / Hankie Pals — the same button, applied to Dawn's own buttons
+   ---------------------------------------------------------------------------
+   The custom sections use .hp-btn from hp-button.css and need nothing here.
+   This file is for the buttons Dawn draws itself: add to cart on the product
+   page, the cart drawer, checkout, the newsletter sign-up, the 404 page.
+
+   It is a separate file on purpose. Dawn builds its buttons out of pseudo
+   elements and a pile of its own custom properties, and those change between
+   Dawn versions — so if anything looks wrong after adding it, remove the one
+   line that loads it and everything else on the site is unaffected.
+
+   Load order matters: this has to come after Dawn's own stylesheets, so put
+   the link at the END of <head> in layout/theme.liquid.
+--------------------------------------------------------------------------- */
+
+.button,
+.shopify-payment-button__button--unbranded,
+.customer button,
+.shopify-challenge__button {
+  --hp-btn-bg: #ECA883;
+  --hp-btn-ink: #2F3326;
+  --hp-btn-line: var(--hp-btn-ink);
+  --hp-btn-drop: 4px;
+
+  min-width: 0;
+  min-height: 0;
+  padding: 15px 32px;
+  border: 2px solid var(--hp-btn-line);
+  border-radius: 999px;
+  background: var(--hp-btn-bg);
+  color: var(--hp-btn-ink);
+  font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+  font-weight: var(--font-heading-weight, 700);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  box-shadow: 0 var(--hp-btn-drop) 0 0 var(--hp-btn-line);
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+/* Dawn draws its border and its focus ring as pseudo elements sitting on top
+   of the button. Left alone they double up with the real border above. */
+.button::after,
+.button::before,
+.shopify-payment-button__button--unbranded::after,
+.shopify-payment-button__button--unbranded::before {
+  display: none;
+}
+
+.button:hover,
+.shopify-payment-button__button--unbranded:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 calc(var(--hp-btn-drop) + 2px) 0 0 var(--hp-btn-line);
+}
+
+.button:active,
+.shopify-payment-button__button--unbranded:active {
+  transform: translateY(var(--hp-btn-drop));
+  box-shadow: 0 0 0 0 var(--hp-btn-line);
+}
+
+.button:focus-visible,
+.shopify-payment-button__button--unbranded:focus-visible {
+  outline: 3px solid var(--hp-btn-line);
+  outline-offset: 4px;
+  box-shadow: 0 var(--hp-btn-drop) 0 0 var(--hp-btn-line);
+}
+
+/* Dawn's quiet button keeps the outline and drops the fill. */
+.button--secondary,
+.button--tertiary {
+  --hp-btn-bg: transparent;
+  background: transparent;
+}
+
+.button[disabled],
+.button[aria-disabled="true"] {
+  --hp-btn-bg: #E4E7DC;
+  --hp-btn-line: #9AA08C;
+  color: #5C6150;
+  box-shadow: none;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button,
+  .shopify-payment-button__button--unbranded {
+    transition: none;
+  }
+
+  .button:hover,
+  .button:active,
+  .shopify-payment-button__button--unbranded:hover,
+  .shopify-payment-button__button--unbranded:active {
+    transform: none;
+  }
+}

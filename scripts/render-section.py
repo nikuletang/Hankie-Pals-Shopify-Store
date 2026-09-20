@@ -54,6 +54,13 @@ env.add_filter('placeholder_svg_tag',
                lambda v, cls='': f'<svg class="{cls}" viewBox="0 0 60 60"><rect width="60" height="60"/></svg>')
 env.add_filter('money', lambda v: f'${int(v)/100:,.2f}')
 
+# Sections link the shared button stylesheet through the assets folder. Pointing
+# it at the real file is what lets the suite measure the button a visitor gets
+# rather than a copy of it.
+ASSETS = pathlib.Path(__file__).resolve().parent.parent / 'assets'
+env.add_filter('asset_url', lambda v: 'file://' + str(ASSETS / str(v)))
+env.add_filter('stylesheet_tag', lambda v: f'<link rel="stylesheet" href="{v}">')
+
 
 def image_tag(url, **kw):
     cls = kw.get('class', '')

@@ -267,24 +267,11 @@
     color: var(--hp-rv-after-sub, #3F4630);
   }
 
-  .hp-rv__cta {
-    display: inline-block;
-    margin-block-start: 28px;
-    padding: 17px 38px;
-    border-radius: var(--hp-rv-btn-radius, 999px);
-    background: var(--hp-rv-btn-bg, #D88B6D);
-    color: var(--hp-rv-btn-ink, #2F3326);
-    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
-    font-weight: var(--font-heading-weight, 700);
-    font-size: calc(15px * var(--hp-rv-heading-scale));
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    line-height: 1;
-    text-decoration: none;
-    transition: transform 180ms ease, filter 180ms ease;
-  }
+  /* The button itself comes from assets/hp-button.css — shape, weight, shadow
+     and states are the same everywhere on the site and are not this section's
+     to change. */
 
-  .hp-rv__cta:hover { transform: translateY(-2px); filter: brightness(0.96); }
+  .hp-rv__cta { margin-block-start: 28px; }
 
   .hp-rv__cta:focus-visible {
     outline: 3px solid var(--hp-rv-after-ink, #2F3326);
@@ -307,6 +294,13 @@
     .hp-rv__cta:hover { transform: none; }
   }
 {% endstyle %}
+
+{%- comment -%}
+  The button lives in assets/hp-button.css so there is one of it on the site.
+  A duplicate link on a page that already loaded it costs nothing: the browser
+  fetches the file once and applies it once.
+{%- endcomment -%}
+{{ 'hp-button.css' | asset_url | stylesheet_tag }}
 
 <section
   class="hp-rv"
@@ -339,9 +333,6 @@
     --hp-rv-after-ink: {{ s.after_heading_color | default: '#2F3326' }};
     --hp-rv-after-sub: {{ s.after_text_color | default: '#3F4630' }};
     --hp-rv-after-eyebrow: {{ s.after_eyebrow_color | default: '#3F4630' }};
-    --hp-rv-btn-bg: {{ s.button_background | default: '#D88B6D' }};
-    --hp-rv-btn-ink: {{ s.button_text_color | default: '#2F3326' }};
-    --hp-rv-btn-radius: {{ s.button_radius | default: 50 }}px;
   "
   {{ section.shopify_attributes }}
 >
@@ -387,7 +378,15 @@
         <p class="hp-rv__text">{{ s.after_text | escape | newline_to_br }}</p>
       {%- endif -%}
       {%- if s.button_label != blank -%}
-        <a class="hp-rv__cta" href="{{ s.button_link | default: '#' }}">
+        <a
+          class="hp-btn hp-rv__cta"
+          href="{{ s.button_link | default: '#' }}"
+          style="
+            --hp-btn-bg: {{ s.btn_fill | default: '#ECA883' }};
+            --hp-btn-ink: {{ s.btn_ink | default: '#2F3326' }};
+            --hp-btn-line: {{ s.btn_line | default: '#2F3326' }};
+          "
+        >
           {{- s.button_label | escape -}}
         </a>
       {%- endif -%}
@@ -594,17 +593,14 @@
       "label": "Link",
       "info": "Point it at the Hankie Pals product or collection. This is the last thing on the page, so it is the last chance to ask."
     },
-    { "type": "color", "id": "button_background", "label": "Background", "default": "#D88B6D" },
-    { "type": "color", "id": "button_text_color", "label": "Text", "default": "#2F3326" },
+    { "type": "color", "id": "btn_fill", "label": "Button fill", "default": "#ECA883" },
+    { "type": "color", "id": "btn_ink", "label": "Button text", "default": "#2F3326" },
     {
-      "type": "range",
-      "id": "button_radius",
-      "label": "Corner radius",
-      "unit": "px",
-      "min": 0,
-      "max": 60,
-      "step": 2,
-      "default": 50
+      "type": "color",
+      "id": "btn_line",
+      "label": "Button outline and shadow",
+      "default": "#2F3326",
+      "info": "Both are the one colour. Keep it dark and keep it the same on every section — it is what makes the button read as the same object all over the site."
     },
     { "type": "header", "content": "The Pal" },
     { "type": "color", "id": "pal_color", "label": "Body", "default": "#CFE1B9" },

@@ -1,0 +1,140 @@
+/* ---------------------------------------------------------------------------
+   Totterful / Hankie Pals — the button
+   ---------------------------------------------------------------------------
+   One file, loaded once, so there is exactly one button on this site. Every
+   section that has a button renders a link to this stylesheet and sets the two
+   colours it needs; nothing else about the button is a per-section decision,
+   which is what stopped the four of them drifting into four different shapes.
+
+   The look: a pill with a heavy ink outline and a hard shadow sitting straight
+   underneath it — no blur, so it reads as a raised sticker rather than a glow.
+   Pressing it sinks the button onto its own shadow, which is the whole trick.
+
+   Sizes are px. Dawn sets html { font-size: 62.5% }, so 1rem renders at 10px
+   and any rem here would come out at 62.5% of what it says.
+
+   Colours in: --hp-btn-bg (the fill) and --hp-btn-ink (text, outline, shadow).
+   Everything else has a default and only needs setting to break the rules.
+--------------------------------------------------------------------------- */
+
+.hp-btn {
+  --hp-btn-bg: #ECA883;
+  --hp-btn-ink: #2F3326;
+  /* The outline and the shadow are the same colour by default. They are
+     separate properties so a button on a dark panel can keep a pale outline. */
+  --hp-btn-line: var(--hp-btn-ink);
+  --hp-btn-edge: 2px;
+  --hp-btn-drop: 4px;
+  --hp-btn-pad-y: 15px;
+  --hp-btn-pad-x: 32px;
+  --hp-btn-size: 16px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  box-sizing: border-box;
+  padding: var(--hp-btn-pad-y) var(--hp-btn-pad-x);
+  border: var(--hp-btn-edge) solid var(--hp-btn-line);
+  border-radius: 999px;
+  background: var(--hp-btn-bg);
+  color: var(--hp-btn-ink);
+  font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+  font-weight: var(--font-heading-weight, 700);
+  font-size: calc(var(--hp-btn-size) * var(--font-heading-scale, 1));
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  /* Hard: no blur, no spread, straight down. A blurred shadow reads as depth
+     under glass; this one reads as a thing sitting on the page. */
+  box-shadow: 0 var(--hp-btn-drop) 0 0 var(--hp-btn-line);
+  transition: transform 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.hp-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 calc(var(--hp-btn-drop) + 2px) 0 0 var(--hp-btn-line);
+}
+
+/* Pressed: the button travels exactly the height of its shadow and the shadow
+   goes to nothing, so it lands flush with the page. Any other pairing looks
+   like the button and its shadow came apart. */
+.hp-btn:active {
+  transform: translateY(var(--hp-btn-drop));
+  box-shadow: 0 0 0 0 var(--hp-btn-line);
+}
+
+.hp-btn:focus-visible {
+  outline: 3px solid var(--hp-btn-line);
+  outline-offset: 4px;
+}
+
+/* --- Sizes --------------------------------------------------------------- */
+.hp-btn--lg {
+  --hp-btn-pad-y: 18px;
+  --hp-btn-pad-x: 40px;
+  --hp-btn-size: 17px;
+  --hp-btn-drop: 5px;
+}
+
+.hp-btn--sm {
+  --hp-btn-pad-y: 11px;
+  --hp-btn-pad-x: 22px;
+  --hp-btn-size: 14px;
+  --hp-btn-drop: 3px;
+  --hp-btn-edge: 2px;
+}
+
+/* --- Fills ---------------------------------------------------------------
+   Every one of these is measured against #2F3326: peach 6.47:1, sage 9.32:1,
+   cream 12.49:1, terracotta 4.83:1. Terracotta is the only one without room to
+   spare, which is why it is not the default. */
+.hp-btn--peach { --hp-btn-bg: #ECA883; }
+.hp-btn--sage { --hp-btn-bg: #CFE1B9; }
+.hp-btn--cream { --hp-btn-bg: #FCFBF6; }
+.hp-btn--terracotta { --hp-btn-bg: #D88B6D; }
+
+/* The quiet one: no fill, same outline and shadow. For the second action in a
+   pair, where two filled pills would compete. */
+.hp-btn--ghost {
+  --hp-btn-bg: transparent;
+  background: transparent;
+}
+
+.hp-btn--ghost:hover { background: rgba(47, 51, 38, 0.06); }
+
+/* --- Sold out, submitting ------------------------------------------------ */
+.hp-btn[disabled],
+.hp-btn[aria-busy="true"] {
+  cursor: not-allowed;
+}
+
+.hp-btn[disabled] {
+  --hp-btn-bg: #E4E7DC;
+  --hp-btn-line: #9AA08C;
+  color: #5C6150;
+  box-shadow: none;
+}
+
+.hp-btn[aria-busy="true"] { opacity: 0.7; }
+
+.hp-btn[disabled]:hover,
+.hp-btn[aria-busy="true"]:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.hp-btn[aria-busy="true"]:hover {
+  box-shadow: 0 var(--hp-btn-drop) 0 0 var(--hp-btn-line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hp-btn { transition: none; }
+  .hp-btn:hover,
+  .hp-btn:active { transform: none; }
+}

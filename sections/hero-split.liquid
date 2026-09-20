@@ -198,36 +198,9 @@
     margin-inline-start: var(--hp-cta-offset);
   }
 
-  .hp-hero__cta {
-    display: inline-block;
-    padding: 18px 40px;
-    border: var(--hp-btn-border-width) solid var(--hp-btn-border);
-    border-radius: var(--hp-btn-radius);
-    background: var(--hp-btn-bg);
-    color: var(--hp-btn-ink);
-    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
-    font-weight: var(--font-heading-weight, 700);
-    font-size: calc(clamp(14px, 1.05vw, 17px) * var(--hp-heading-scale));
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    line-height: 1;
-    text-decoration: none;
-    transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
-  }
-
-  .hp-hero__cta:hover {
-    transform: translateY(-2px);
-    filter: brightness(0.96);
-    box-shadow: 0 12px 24px -14px rgba(47, 51, 38, 0.55);
-  }
-
-  /* Underline as well as movement, so the state does not rest on colour. */
-  .hp-hero__cta:focus-visible {
-    outline: 3px solid var(--hp-heading-color);
-    outline-offset: 4px;
-    text-decoration: underline;
-    text-underline-offset: 4px;
-  }
+  /* The button itself comes from assets/hp-button.css — shape, weight, shadow
+     and states are the same everywhere on the site and are not this section's
+     to change. What is left here is where it sits and how big it is. */
 
   /* --- Right panel ------------------------------------------------------- */
   /* The photo is the panel. No padding, no inset frame — the image fills the
@@ -287,7 +260,10 @@
       gap: 0;
     }
 
-    .hp-hero--mstack .hp-hero__cta { padding: 16px 32px; }
+    .hp-hero--mstack .hp-hero__cta {
+      --hp-btn-pad-y: 16px;
+      --hp-btn-pad-x: 32px;
+    }
 
     /* Stacked, the image has no row height to fill, so its shape gives it one. */
     .hp-hero--mstack .hp-hero__figure { height: auto; }
@@ -349,18 +325,19 @@
 
     .hp-hero--msplit .hp-hero__cta-row { margin-block-start: 18px; }
 
+    /* Half a phone screen wide: the pill has to give up padding and tracking
+       before it gives up the label. */
     .hp-hero--msplit .hp-hero__cta {
+      --hp-btn-pad-y: 13px;
+      --hp-btn-pad-x: 18px;
+      --hp-btn-size: clamp(11px, 3vw, 14px);
+      --hp-btn-drop: 3px;
       max-width: 100%;
-      padding: 13px 18px;
-      font-size: calc(clamp(11px, 3vw, 14px) * var(--hp-heading-scale));
       letter-spacing: 0.04em;
-      text-align: center;
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .hp-hero__cta { transition: none; }
-    .hp-hero__cta:hover { transform: none; }
     .hp-hero__eyebrow-inner { animation: none; }
   }
 
@@ -371,6 +348,13 @@
     }
   {%- endif -%}
 {% endstyle %}
+
+{%- comment -%}
+  The button lives in assets/hp-button.css so there is one of it on the site.
+  A duplicate link on a page that already loaded it costs nothing: the browser
+  fetches the file once and applies it once.
+{%- endcomment -%}
+{{ 'hp-button.css' | asset_url | stylesheet_tag }}
 
 <section
   class="hp-hero hp-hero--m{{ mobile_layout }}{% if s.eyebrow_font == 'body' %} hp-hero--eyebrow-body{% endif %}"
@@ -420,11 +404,6 @@
     --hp-sub-size: {{ s.subheading_size | default: 22 }}px;
     --hp-sub-size-mobile: {{ s.subheading_size_mobile | default: 14 }}px;
     --hp-cta-offset: {{ s.button_offset | default: 180 }}px;
-    --hp-btn-bg: {{ s.button_background | default: '#D88B6D' }};
-    --hp-btn-ink: {{ s.button_text_color | default: '#2F3326' }};
-    --hp-btn-border: {{ s.button_border_color | default: '#D88B6D' }};
-    --hp-btn-border-width: {{ s.button_border_width | default: 0 }}px;
-    --hp-btn-radius: {{ s.button_radius | default: 999 }}px;
     --hp-img-ratio-mobile: {{ s.image_ratio_mobile | default: '4 / 5' }};
     --hp-img-position: {{ s.image_position | default: 'center' }};
     --hp-img-radius: {{ s.image_radius | default: 0 }}px;
@@ -460,7 +439,15 @@
 
       {%- if s.button_label != blank -%}
         <div class="hp-hero__cta-row">
-          <a class="hp-hero__cta" href="{{ s.button_link | default: '#' }}">
+          <a
+            class="hp-btn hp-btn--lg hp-hero__cta"
+            href="{{ s.button_link | default: '#' }}"
+            style="
+              --hp-btn-bg: {{ s.btn_fill | default: '#ECA883' }};
+              --hp-btn-ink: {{ s.btn_ink | default: '#2F3326' }};
+              --hp-btn-line: {{ s.btn_line | default: '#2F3326' }};
+            "
+          >
             {{- s.button_label | escape -}}
           </a>
         </div>
@@ -685,29 +672,14 @@
       "default": 180,
       "info": "The deliberate step to the right. Eased off on tablet and removed once the panels stack."
     },
-    { "type": "color", "id": "button_background", "label": "Background", "default": "#D88B6D" },
-    { "type": "color", "id": "button_text_color", "label": "Text", "default": "#2F3326" },
-    { "type": "color", "id": "button_border_color", "label": "Border", "default": "#D88B6D" },
+    { "type": "color", "id": "btn_fill", "label": "Button fill", "default": "#ECA883" },
+    { "type": "color", "id": "btn_ink", "label": "Button text", "default": "#2F3326" },
     {
-      "type": "range",
-      "id": "button_border_width",
-      "label": "Border width",
-      "unit": "px",
-      "min": 0,
-      "max": 6,
-      "step": 1,
-      "default": 0
-    },
-    {
-      "type": "range",
-      "id": "button_radius",
-      "label": "Corner radius",
-      "unit": "px",
-      "min": 0,
-      "max": 60,
-      "step": 2,
-      "default": 50,
-      "info": "Anything past about half the button's height gives a pill."
+      "type": "color",
+      "id": "btn_line",
+      "label": "Button outline and shadow",
+      "default": "#2F3326",
+      "info": "Both are the one colour. Keep it dark and keep it the same on every section — it is what makes the button read as the same object all over the site."
     },
     { "type": "header", "content": "Left panel" },
     {

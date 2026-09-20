@@ -46,6 +46,53 @@ token expires. Use the copy icon instead.
 Section settings live in the theme, not in these files, so re-pasting an updated
 file keeps the images, copy and colours already set in the editor.
 
+## Installing the button
+
+Four sections draw a button, and they all use the same one. It lives in
+[`assets/hp-button.css`](assets/hp-button.css) rather than inside any of them,
+so it is installed once:
+
+1. **⋯ → Edit code** → **Assets → Add a new asset → Create a blank file**, name
+   it `hp-button.css`, paste the file from this repo, **Save**.
+2. That is enough for the custom sections: each one links the stylesheet itself.
+
+To get the same button on the pages Shopify draws — the product page, the cart
+drawer, checkout, the newsletter sign-up — also add
+[`assets/hp-button-dawn.css`](assets/hp-button-dawn.css) as a second asset, and
+load it from **Layout → theme.liquid** with this line as the last thing before
+`</head>`:
+
+    {{ 'hp-button-dawn.css' | asset_url | stylesheet_tag }}
+
+It has to come last, because it is overriding Dawn's own rules. That file is
+separate on purpose: Dawn builds its buttons out of pseudo elements and its own
+custom properties, and those change between Dawn versions, so if anything looks
+wrong afterwards, delete that one line and nothing else on the site changes.
+
+## Changing the button
+
+Change `assets/hp-button.css` and every button on the site changes with it —
+that is the whole point of it being one file. What each section is allowed to
+set is the fill, the text colour, and the colour of the outline and shadow;
+shape, weight, size steps, shadow behaviour and states are not per-section
+decisions and are not exposed in the editor.
+
+`scripts/test-button.py` renders all four sections against the real stylesheet
+and compares the computed style of every button to every other one, so a
+section that starts drawing its own button again fails the build rather than
+quietly shipping. Its first assertion is that the stylesheet actually loaded:
+without it, every button matches every other one at the browser's defaults and
+every comparison afterwards passes for nothing.
+
+    python3 scripts/test-button.py
+
+Twenty-one cases: radius, outline, capitalisation, tracking, weight and typeface
+identical across every section; every shadow hard, unblurred and straight down
+in the outline's colour; the label clearing 4.5:1 on every fill in use; the
+press travelling exactly the height of the shadow it lands on; the three sizes
+stepping in the right direction with shadows to match; the ghost and sold-out
+states; and reduced motion.
+
 ## Two things to know before editing these files
 
 **Dawn sets `html { font-size: calc(var(--font-body-scale) * 62.5%) }.** One rem

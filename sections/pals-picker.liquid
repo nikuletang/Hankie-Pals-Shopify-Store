@@ -30,6 +30,19 @@
 {%- liquid
   assign s = section.settings
   assign pal_product = s.product
+
+  assign btn_fill = s.btn_fill | default: '#ECA883'
+  assign btn_ink = s.btn_ink | default: '#2F3326'
+  assign btn_line = s.btn_line | default: '#2F3326'
+  capture btn_vars
+    echo '--hp-btn-bg: '
+    echo btn_fill
+    echo '; --hp-btn-ink: '
+    echo btn_ink
+    echo '; --hp-btn-line: '
+    echo btn_line
+    echo ';'
+  endcapture
 -%}
 
 {% style %}
@@ -330,56 +343,12 @@
 
   .hp-pals__form { margin: 0; }
 
-  .hp-pals__button {
-    display: inline-block;
-    padding: 15px 34px;
-    border: 0;
-    border-radius: 999px;
-    background: var(--hp-btn-bg);
-    color: var(--hp-btn-ink);
-    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
-    font-weight: var(--font-heading-weight, 700);
-    font-size: calc(clamp(15px, 1.1vw, 17px) * var(--hp-heading-scale));
-    line-height: 1;
-    text-decoration: none;
-    cursor: pointer;
-    transition: transform 160ms ease, filter 160ms ease;
-  }
-
-  .hp-pals__button:hover {
-    transform: translateY(-2px);
-    filter: brightness(0.96);
-  }
-
-  .hp-pals__button[disabled],
-  .hp-pals__button[aria-busy="true"] {
-    cursor: not-allowed;
-  }
-
-  .hp-pals__button[disabled] {
-    background: var(--hp-pal-tint);
-    color: var(--hp-muted);
-  }
-
-  .hp-pals__button[disabled]:hover,
-  .hp-pals__button[aria-busy="true"]:hover {
-    transform: none;
-    filter: none;
-  }
-
-  .hp-pals__button[aria-busy="true"] { opacity: 0.75; }
-
+  /* The buttons come from assets/hp-button.css — shape, weight, shadow, the
+     sold-out and submitting states, all of it. Nothing about the button is
+     this section's to decide; only the colours it hands over are. */
   .hp-pals__price {
     font-weight: 400;
     opacity: 0.85;
-  }
-
-  .hp-pals__link {
-    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
-    font-weight: 600;
-    font-size: calc(clamp(15px, 1.1vw, 17px) * var(--hp-body-scale));
-    color: var(--hp-ink);
-    text-underline-offset: 4px;
   }
 
   /* --- Closing line ------------------------------------------------------ */
@@ -562,6 +531,13 @@
   }
 {% endstyle %}
 
+{%- comment -%}
+  The button lives in assets/hp-button.css so there is one of it on the site.
+  A duplicate link on a page that already loaded it costs nothing: the browser
+  fetches the file once and applies it once.
+{%- endcomment -%}
+{{ 'hp-button.css' | asset_url | stylesheet_tag }}
+
 <section
   id="hp-pals-{{ section.id }}"
   data-hp-pals="{{ section.id }}"
@@ -574,8 +550,6 @@
     --hp-dot: {{ s.pill_dot_color | default: '#B5C99A' }};
     --hp-pill-bg: {{ s.pill_background | default: '#FCFBF6' }};
     --hp-pill-border: {{ s.pill_border_color | default: '#ECA883' }};
-    --hp-btn-bg: {{ s.button_background | default: '#D88B6D' }};
-    --hp-btn-ink: {{ s.button_text_color | default: '#2F3326' }};
     --hp-width: {{ s.content_width | default: 1320 }}px;
     --hp-heading-size: {{ s.heading_size | default: 52 }}px;
     --hp-chip-size: {{ s.chip_size | default: 92 }}px;
@@ -731,7 +705,7 @@
                       {%- form 'product', pal_product, id: form_id, class: 'hp-pals__form' -%}
                         <input type="hidden" name="id" value="{{ pal_variant.id }}">
                         <input type="hidden" name="quantity" value="1">
-                        <button type="submit" class="hp-pals__button">
+                        <button type="submit" class="hp-btn hp-pals__button" style="{{ btn_vars }}">
                           {{ s.buy_label | default: 'Buy now' | escape  }}
                           {%- if s.show_price %}
                             <span class="hp-pals__price">· {{ pal_variant.price | money }}</span>
@@ -739,16 +713,16 @@
                         </button>
                       {%- endform -%}
                     {%- else -%}
-                      <button type="button" class="hp-pals__button" disabled>
+                      <button type="button" class="hp-btn hp-pals__button" style="{{ btn_vars }}" disabled>
                         {{ s.sold_out_label | default: 'Back soon' | escape  }}
                       </button>
                     {%- endif -%}
 
                     {%- if b.link != blank and b.link_label != blank -%}
-                      <a class="hp-pals__link" href="{{ b.link }}">{{ b.link_label | escape }}</a>
+                      <a class="hp-btn hp-btn--ghost hp-btn--sm hp-pals__link" href="{{ b.link }}" style="{{ btn_vars }}">{{ b.link_label | escape }}</a>
                     {%- endif -%}
                   {%- elsif b.link != blank and b.link_label != blank -%}
-                    <a class="hp-pals__button" href="{{ b.link }}">{{ b.link_label | escape }}</a>
+                    <a class="hp-btn hp-pals__button" href="{{ b.link }}" style="{{ btn_vars }}">{{ b.link_label | escape }}</a>
                   {%- endif -%}
                 </div>
               </div>
@@ -1046,8 +1020,15 @@
     { "type": "color", "id": "pill_background", "label": "Eyebrow pill background", "default": "#FCFBF6" },
     { "type": "color", "id": "pill_border_color", "label": "Eyebrow pill outline", "default": "#ECA883" },
     { "type": "color", "id": "pill_dot_color", "label": "Eyebrow dot", "default": "#B5C99A" },
-    { "type": "color", "id": "button_background", "label": "Button background", "default": "#D88B6D" },
-    { "type": "color", "id": "button_text_color", "label": "Button text", "default": "#2F3326" },
+    { "type": "color", "id": "btn_fill", "label": "Button fill", "default": "#ECA883" },
+    { "type": "color", "id": "btn_ink", "label": "Button text", "default": "#2F3326" },
+    {
+      "type": "color",
+      "id": "btn_line",
+      "label": "Button outline and shadow",
+      "default": "#2F3326",
+      "info": "Both are the one colour. Keep it dark and keep it the same on every section — it is what makes the button read as the same object all over the site."
+    },
     { "type": "header", "content": "Spacing" },
     { "type": "range", "id": "padding_top", "label": "Top padding (desktop)", "unit": "px", "min": 0, "max": 180, "step": 4, "default": 96 },
     { "type": "range", "id": "padding_bottom", "label": "Bottom padding (desktop)", "unit": "px", "min": 0, "max": 180, "step": 4, "default": 96 },

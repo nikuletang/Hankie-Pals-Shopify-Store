@@ -23,8 +23,46 @@ def defaults(rows):
     return {r['id']: r.get('default', '') for r in rows if r.get('type') != 'header'}
 
 
+def types(rows):
+    return {r['id']: r.get('type') for r in rows if r.get('type') != 'header'}
+
+
+# Globals a section can reach for. Enough shape to render, not enough to be
+# mistaken for the real thing: a menu with two links, a couple of policies.
+def _link(title, url, links=()):
+    return {'title': title, 'url': url, 'links': list(links), 'active': False,
+            'child_active': False}
+
+
+SHOP = {
+    'name': 'Totterful',
+    'policies': [{'title': 'Refund policy', 'url': '/policies/refund-policy'},
+                 {'title': 'Privacy policy', 'url': '/policies/privacy-policy'},
+                 {'title': 'Terms of service', 'url': '/policies/terms-of-service'}],
+    'enabled_payment_types': [],
+}
+
+def resolve_menus(bag, kinds):
+    """A link_list setting holds a handle in the theme's JSON, but Liquid is
+    handed the menu itself. Without this, block.settings.menu.links is nil and
+    a footer full of menus renders as a footer full of nothing — while still
+    looking like a footer."""
+    for key, kind in kinds.items():
+        if kind == 'link_list':
+            bag[key] = LINKLISTS.get(bag.get(key), '')
+
+
+LINKLISTS = {
+    'main-menu': {'title': 'Shop', 'links': [_link('Home', '/'), _link('Catalog', '/collections/all'),
+                                             _link('Contact', '/pages/contact')]},
+    'footer': {'title': 'Help', 'links': [_link('Shipping', '/pages/shipping'),
+                                          _link('Care', '/pages/care')]},
+}
+
+
 settings = defaults(schema.get('settings', []))
 settings.update(overrides.get('settings', {}))
+resolve_menus(settings, types(schema.get('settings', [])))
 
 block_schema = {b['type']: b for b in schema.get('blocks', [])}
 blocks = []
@@ -32,8 +70,10 @@ preset_blocks = overrides.get('blocks')
 if preset_blocks is None:
     preset_blocks = (schema.get('presets') or [{}])[0].get('blocks', [])
 for i, pb in enumerate(preset_blocks):
-    bs = defaults(block_schema[pb['type']].get('settings', []))
+    rows = block_schema[pb['type']].get('settings', [])
+    bs = defaults(rows)
     bs.update(pb.get('settings', {}))
+    resolve_menus(bs, types(rows))
     # Shopify gives every block an id, and sections key their per-block CSS off
     # it. Stable and short here, so a failure names a block you can find.
     blocks.append({'settings': bs, 'type': pb['type'], 'id': f'block{i + 1}',
@@ -70,7 +110,12 @@ def image_tag(url, **kw):
 
 env.add_filter('image_tag', image_tag)
 
-html = env.from_string(body).render(section={
+html = env.from_string(body).render(shop=SHOP, linklists=LINKLISTS,
+                                    routes={'root_url': '/', 'cart_url': '/cart',
+                                            'cart_add_url': '/cart/add',
+                                            'search_url': '/search'},
+                                    settings={},
+                                    section={
     'settings': settings,
     'blocks': blocks,
     'id': 'test-section',

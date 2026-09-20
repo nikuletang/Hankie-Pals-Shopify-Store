@@ -1,0 +1,408 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — footer
+  ---------------------------------------------------------------------------
+  Quiet on purpose. The Pal reveal is the last loud thing on the page; this is
+  the part that comes after it, and its job is to be findable rather than
+  memorable.
+
+  It belongs in the footer SECTION GROUP, not on a template. "enabled_on" below
+  restricts it to that group, so it can only be added where it renders on every
+  page — the consistency is structural rather than something to remember. In
+  Customize, scroll to the Footer area, Add section, then hide Dawn's own footer
+  with the eye icon rather than deleting it.
+
+  Links come from Shopify menus, so they are edited in Content → Menus and never
+  here. Policy links come from shop.policies, so they appear on their own as
+  soon as each policy has content in Settings → Policies; a policy with nothing
+  in it is not in that array, so there are no links to empty pages.
+
+  Sizes are px: Dawn's root font-size is 62.5%, so rem renders at 62.5% of its
+  intended value. Theme type sliders arrive via --font-body-scale and
+  --font-heading-scale instead.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+-%}
+
+{% style %}
+  .hp-ft {
+    --hp-ft-body-scale: var(--font-body-scale, 1);
+    --hp-ft-heading-scale: var(--font-heading-scale, 1);
+    background: var(--hp-ft-bg);
+    padding-block: var(--hp-ft-pt) var(--hp-ft-pb);
+    color: var(--hp-ft-ink);
+  }
+
+  .hp-ft__inner {
+    max-width: var(--hp-ft-width);
+    margin-inline: auto;
+    padding-inline: clamp(16px, 3.5vw, 48px);
+  }
+
+  /* Brand on the left, as many link columns as there are blocks on the right.
+     max-content on the columns keeps them tight to their longest link rather
+     than spreading to fill, which is what makes a three-column footer and a
+     one-column footer both look deliberate. */
+  .hp-ft__top {
+    display: grid;
+    grid-template-columns: minmax(200px, 1fr) auto;
+    align-items: start;
+    gap: clamp(32px, 5vw, 96px);
+  }
+
+  .hp-ft__brand { max-width: 34ch; }
+
+  .hp-ft__logo {
+    display: block;
+    width: var(--hp-ft-logo);
+    height: auto;
+  }
+
+  .hp-ft__wordmark {
+    margin: 0;
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(26px * var(--hp-ft-heading-scale));
+    line-height: 1;
+    color: var(--hp-ft-ink);
+  }
+
+  .hp-ft__tagline {
+    margin: 14px 0 0;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-size: calc(15px * var(--hp-ft-body-scale));
+    line-height: 1.55;
+    color: var(--hp-ft-muted);
+  }
+
+  .hp-ft__cols {
+    display: grid;
+    grid-template-columns: repeat(var(--hp-ft-count, 3), max-content);
+    gap: clamp(28px, 4vw, 72px);
+  }
+
+  .hp-ft__col-title {
+    margin: 0 0 14px;
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(12px * var(--hp-ft-heading-scale));
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--hp-ft-ink);
+  }
+
+  .hp-ft__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    /* The links carry their own padding, so the visible rhythm is this plus
+       theirs — 2 and 4 reads the same as 10 did with none. */
+    gap: 2px;
+  }
+
+  .hp-ft__link {
+    /* inline-block, because an inline link's box is the height of its text and
+       nothing else: a 15px link is an 18px target however much line-height it
+       is given. With the padding it clears the 24px minimum. */
+    display: inline-block;
+    padding-block: 4px;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-size: calc(15px * var(--hp-ft-body-scale));
+    line-height: 1.6;
+    color: var(--hp-ft-muted);
+    text-decoration: none;
+    transition: color 140ms ease;
+  }
+
+  .hp-ft__link:hover {
+    color: var(--hp-ft-ink);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  .hp-ft__link:focus-visible {
+    outline: 2px solid var(--hp-ft-ink);
+    outline-offset: 3px;
+    border-radius: 3px;
+  }
+
+  .hp-ft__note {
+    margin: 0;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-size: calc(15px * var(--hp-ft-body-scale));
+    line-height: 1.6;
+    color: var(--hp-ft-muted);
+  }
+
+  .hp-ft__note > p { margin: 0; }
+  .hp-ft__note > p + p { margin-block-start: 0.6em; }
+  .hp-ft__note a { color: var(--hp-ft-ink); text-underline-offset: 3px; }
+
+  /* --- The line at the bottom -------------------------------------------- */
+  .hp-ft__bottom {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 28px;
+    margin-block-start: clamp(36px, 4.5vw, 64px);
+    padding-block-start: clamp(20px, 2.4vw, 30px);
+    border-block-start: 1px solid var(--hp-ft-rule);
+  }
+
+  .hp-ft__legal {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 20px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .hp-ft__copy {
+    margin: 0;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-size: calc(14px * var(--hp-ft-body-scale));
+    color: var(--hp-ft-muted);
+  }
+
+  .hp-ft__pay {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .hp-ft__pay svg { width: 38px; height: 24px; display: block; }
+
+  @media screen and (max-width: 989px) {
+    .hp-ft__top {
+      grid-template-columns: minmax(0, 1fr);
+      gap: clamp(28px, 5vw, 44px);
+    }
+
+    /* Two up rather than however many blocks there are: three columns of links
+       on a phone leaves each one a word wide. */
+    .hp-ft__cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  @media screen and (max-width: 749px) {
+    .hp-ft { padding-block: var(--hp-ft-pt-mobile) var(--hp-ft-pb-mobile); }
+    .hp-ft__bottom { justify-content: flex-start; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hp-ft__link { transition: none; }
+  }
+{% endstyle %}
+
+<footer
+  class="hp-ft"
+  data-hp-ft="{{ section.id }}"
+  style="
+    --hp-ft-bg: {{ s.background | default: '#FCFBF6' }};
+    --hp-ft-ink: {{ s.heading_color | default: '#2F3326' }};
+    --hp-ft-muted: {{ s.body_color | default: '#5C6150' }};
+    --hp-ft-rule: {{ s.rule_color | default: '#E4E7DC' }};
+    --hp-ft-width: {{ s.content_width | default: 1320 }}px;
+    --hp-ft-logo: {{ s.logo_width | default: 150 }}px;
+    --hp-ft-count: {% if section.blocks.size > 0 %}{{ section.blocks.size }}{% else %}1{% endif %};
+    --hp-ft-pt: {{ s.padding_top | default: 72 }}px;
+    --hp-ft-pb: {{ s.padding_bottom | default: 48 }}px;
+    --hp-ft-pt-mobile: {{ s.padding_top_mobile | default: 52 }}px;
+    --hp-ft-pb-mobile: {{ s.padding_bottom_mobile | default: 36 }}px;
+  "
+>
+  <div class="hp-ft__inner">
+    <div class="hp-ft__top">
+      <div class="hp-ft__brand">
+        {%- if s.logo != blank -%}
+          {{
+            s.logo
+            | image_url: width: 400
+            | image_tag:
+              loading: 'lazy',
+              class: 'hp-ft__logo',
+              widths: '150, 300, 400',
+              sizes: '150px',
+              alt: shop.name
+          }}
+        {%- else -%}
+          <p class="hp-ft__wordmark">{{ shop.name }}</p>
+        {%- endif -%}
+
+        {%- if s.tagline != blank -%}
+          <p class="hp-ft__tagline">{{ s.tagline | escape }}</p>
+        {%- endif -%}
+
+        {%- if s.note != blank -%}
+          <div class="hp-ft__note" style="margin-block-start: 14px;">{{ s.note }}</div>
+        {%- endif -%}
+      </div>
+
+      {%- if section.blocks.size > 0 -%}
+        <div class="hp-ft__cols">
+          {%- for block in section.blocks -%}
+            <div {{ block.shopify_attributes }}>
+              {%- if block.settings.title != blank -%}
+                <h2 class="hp-ft__col-title">{{ block.settings.title | escape }}</h2>
+              {%- endif -%}
+
+              {%- if block.settings.menu != blank -%}
+                <ul class="hp-ft__list">
+                  {%- for link in block.settings.menu.links -%}
+                    <li>
+                      <a class="hp-ft__link" href="{{ link.url }}">{{ link.title | escape }}</a>
+                    </li>
+                  {%- endfor -%}
+                </ul>
+              {%- endif -%}
+            </div>
+          {%- endfor -%}
+        </div>
+      {%- endif -%}
+    </div>
+
+    <div class="hp-ft__bottom">
+      <p class="hp-ft__copy">
+        &copy; {{ 'now' | date: '%Y' }} {{ shop.name }}
+        {%- if s.copyright_extra != blank %} · {{ s.copyright_extra | escape }}{% endif -%}
+      </p>
+
+      {%- if s.show_policies != false -%}
+        <ul class="hp-ft__legal">
+          {%- for policy in shop.policies -%}
+            <li>
+              <a class="hp-ft__link" href="{{ policy.url }}">{{ policy.title | escape }}</a>
+            </li>
+          {%- endfor -%}
+        </ul>
+      {%- endif -%}
+
+      {%- if s.show_payment_icons -%}
+        <ul class="hp-ft__pay">
+          {%- for type in shop.enabled_payment_types -%}
+            <li>{{ type | payment_type_svg_tag: class: 'hp-ft__pay-icon' }}</li>
+          {%- endfor -%}
+        </ul>
+      {%- endif -%}
+    </div>
+  </div>
+</footer>
+
+{% schema %}
+{
+  "name": "Totterful footer",
+  "tag": "div",
+  "class": "hp-footer-section",
+  "max_blocks": 4,
+  "enabled_on": { "groups": ["footer"] },
+  "settings": [
+    { "type": "header", "content": "Brand" },
+    {
+      "type": "image_picker",
+      "id": "logo",
+      "label": "Logo",
+      "info": "Leave empty to use the store name set in Settings → Store details."
+    },
+    {
+      "type": "range",
+      "id": "logo_width",
+      "label": "Logo width",
+      "unit": "px",
+      "min": 80,
+      "max": 320,
+      "step": 10,
+      "default": 150
+    },
+    {
+      "type": "text",
+      "id": "tagline",
+      "label": "Tagline",
+      "info": "One line. The footer is the quiet part of the page, so this is not the place for the pitch."
+    },
+    {
+      "type": "richtext",
+      "id": "note",
+      "label": "Note",
+      "info": "Optional. An address, opening hours, or where to write in."
+    },
+    { "type": "header", "content": "The line at the bottom" },
+    {
+      "type": "checkbox",
+      "id": "show_policies",
+      "label": "Show policy links",
+      "default": true,
+      "info": "Refund, privacy, terms and shipping, straight from Settings → Policies. A policy with nothing written in it does not appear, so this never links to an empty page."
+    },
+    {
+      "type": "checkbox",
+      "id": "show_payment_icons",
+      "label": "Show payment icons",
+      "default": false,
+      "info": "The cards and wallets accepted at checkout."
+    },
+    {
+      "type": "text",
+      "id": "copyright_extra",
+      "label": "After the copyright",
+      "info": "Optional. A company number, or where the Pals are made."
+    },
+    { "type": "header", "content": "Colours" },
+    { "type": "color", "id": "background", "label": "Background", "default": "#FCFBF6" },
+    { "type": "color", "id": "heading_color", "label": "Headings and store name", "default": "#2F3326" },
+    { "type": "color", "id": "body_color", "label": "Links and body", "default": "#5C6150" },
+    { "type": "color", "id": "rule_color", "label": "The line above the bottom row", "default": "#E4E7DC" },
+    { "type": "header", "content": "Layout" },
+    {
+      "type": "range",
+      "id": "content_width",
+      "label": "Maximum content width",
+      "unit": "px",
+      "min": 1000,
+      "max": 1800,
+      "step": 20,
+      "default": 1320
+    },
+    { "type": "header", "content": "Spacing" },
+    { "type": "range", "id": "padding_top", "label": "Top padding (desktop)", "unit": "px", "min": 0, "max": 180, "step": 4, "default": 72 },
+    { "type": "range", "id": "padding_bottom", "label": "Bottom padding (desktop)", "unit": "px", "min": 0, "max": 180, "step": 4, "default": 48 },
+    { "type": "range", "id": "padding_top_mobile", "label": "Top padding (mobile)", "unit": "px", "min": 0, "max": 140, "step": 4, "default": 52 },
+    { "type": "range", "id": "padding_bottom_mobile", "label": "Bottom padding (mobile)", "unit": "px", "min": 0, "max": 140, "step": 4, "default": 36 }
+  ],
+  "blocks": [
+    {
+      "type": "menu",
+      "name": "Link column",
+      "settings": [
+        { "type": "text", "id": "title", "label": "Heading", "default": "Shop" },
+        {
+          "type": "link_list",
+          "id": "menu",
+          "label": "Menu",
+          "info": "Edited in Content → Menus, so the links here stay in step with the rest of the site."
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Totterful footer",
+      "settings": { "tagline": "Everyday things a small person can manage on their own." },
+      "blocks": [
+        { "type": "menu", "settings": { "title": "Shop" } },
+        { "type": "menu", "settings": { "title": "Help" } },
+        { "type": "menu", "settings": { "title": "About" } }
+      ]
+    }
+  ]
+}
+{% endschema %}

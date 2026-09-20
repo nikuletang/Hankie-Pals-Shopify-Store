@@ -22,6 +22,7 @@ anything moving.
 | [`sections/marquee.liquid`](sections/marquee.liquid) | **Scrolling marquee** | A band of text and images sliding past, with filled or outlined lettering |
 | [`sections/pal-reveal.liquid`](sections/pal-reveal.liquid) | **Pal reveal** | A Pal that grows on scroll until its body becomes the next section |
 | [`sections/pal-panel.liquid`](sections/pal-panel.liquid) | **Pal panel** | A domed Pal-shaped panel that rises over the pinned section above and holds the copy |
+| [`sections/hp-footer.liquid`](sections/hp-footer.liquid) | **Totterful footer** | Brand, menu columns, policies. Goes in the footer section group, so it is on every page |
 
 Click a filename above, then use the **copy icon** in the toolbar over the code
 to take the whole file.
@@ -45,6 +46,49 @@ token expires. Use the copy icon instead.
 
 Section settings live in the theme, not in these files, so re-pasting an updated
 file keeps the images, copy and colours already set in the editor.
+
+## Installing the footer
+
+The footer is not installed like the others, and the difference is the point.
+
+Dawn renders it through a **section group**: `layout/theme.liquid` contains
+`{% sections 'footer-group' %}`, and `sections/footer-group.json` lists what is
+inside. A section group renders on *every* page — home, product, collection,
+cart, search, 404, policy pages — so anything in it is site-wide with no
+per-template work and nothing to keep in step.
+
+1. **⋯ → Edit code** → **Sections → Add a new section**, name it `hp-footer`,
+   paste the file, **Save**.
+2. **Customize**, scroll to the **Footer** area at the bottom of the left panel,
+   **Add section**, pick *Totterful footer*.
+3. Hide Dawn's own footer with the eye icon rather than deleting it, so it is
+   one click to get back.
+
+The schema carries `"enabled_on": { "groups": ["footer"] }`, which is what makes
+this structural rather than a thing to remember: the section is offered *only*
+in the footer group, so it cannot be added to a single template by accident and
+it does not clutter the home page's section list. `scripts/test-footer.py`
+asserts that line is there, because a footer that looks right but was installed
+on one page is invisible from the page itself.
+
+If Customize shows no Footer area to add sections to, the theme predates section
+groups (Dawn before 2021) and `sections/footer.liquid` is edited directly
+instead — same design, different install.
+
+Links come from Shopify menus, edited in **Content → Menus**. Policy links come
+from `shop.policies`, so each appears as soon as that policy has content in
+**Settings → Policies** — a policy with nothing in it is not in the array, so
+the footer never links to an empty page.
+
+    python3 scripts/test-footer.py
+
+Twenty-three cases: the `enabled_on` restriction and the preset; menu and policy
+links rendering with real hrefs; an unset menu drawing no empty list; the column
+count following the blocks; no overflow at five widths; two-up columns on a
+phone; contrast on links, headings and the copyright line; and a 24px minimum
+tap target — an inline link's box is the height of its text, so a 15px link is
+an 18px target however much line-height it is given, which is what the first
+run of this suite caught.
 
 ## Installing the button
 
@@ -340,7 +384,10 @@ and another to fix. The checker catches what can be caught locally:
 - duplicate setting ids
 - settings read in the body that no setting declares
 - settings interpolated into CSS without a `| default:` fallback, per the note
-  below
+  below. **In CSS only** — inside `{% style %}` or a `style="…"` attribute,
+  where a nil leaves `--x: ;` and voids the declaration. In text a nil renders
+  as nothing, which is what an optional setting is for, and demanding
+  `| default: ''` for that just teaches you to ignore the warning
 
 ## Adding a setting to a section that is already on a page
 

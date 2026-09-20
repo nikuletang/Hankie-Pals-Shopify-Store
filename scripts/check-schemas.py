@@ -80,9 +80,15 @@ def check(path):
         if used not in declared:
             problems.append(f"{path.name}: body reads s.{used}, which no setting declares")
 
-    # a setting interpolated into CSS without a fallback breaks on any section
-    # instance that predates it — see the README
-    for bare in sorted(set(re.findall(r"\{\{ s\.([a-z_]+)\s*\}\}", body))):
+    # A setting interpolated into CSS without a fallback breaks on any section
+    # instance that predates it — see the README. Only CSS: a nil there leaves
+    # `--x: ;`, which voids the declaration and sometimes the rule around it.
+    # In text a nil renders as nothing, which is what an optional setting is
+    # supposed to do, and demanding `| default: ''` for that trains you to
+    # ignore the warning.
+    css = ''.join(re.findall(r"\{%\s*style\s*%\}(.*?)\{%\s*endstyle\s*%\}", body, re.S))
+    css += ''.join(re.findall(r'style="(.*?)"', body, re.S))
+    for bare in sorted(set(re.findall(r"\{\{ s\.([a-z_]+)\s*\}\}", css))):
         problems.append(f"{path.name}: {{{{ s.{bare} }}}} has no `| default:` fallback")
 
     return problems

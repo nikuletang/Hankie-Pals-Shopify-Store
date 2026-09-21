@@ -123,8 +123,13 @@
        12deg reaches about w*sin(12)/2 past its own row, and at a small gap the
        corners would sit on top of the neighbour. The floor scales with the
        tilt so the tightest settings the editor offers still cannot stack
-       them, and a small tilt is left alone. */
-    gap: max(var(--hp-pill-gap), calc(var(--hp-pill-tilt-n) * 8px));
+       them, and a small tilt is left alone. The outline is added on top of
+       whichever floor applies, because it is painted outside the box and two
+       neighbours each grow towards each other by its width. */
+    gap: max(
+      calc(var(--hp-pill-gap) + var(--hp-pill-ring) * 2),
+      calc(var(--hp-pill-tilt-n) * 8px + var(--hp-pill-ring) * 2)
+    );
     margin: var(--hp-pill-stack-gap) 0 0;
     padding: 0;
     list-style: none;
@@ -153,13 +158,21 @@
     line-height: 1.08;
     letter-spacing: -0.01em;
     text-align: center;
-    /* Soft, and offset rather than spread evenly: a pill that has just landed
-       should look like it is resting on the page, not floating over it. The
-       negative spread keeps the shadow tucked under the pill instead of
-       haloing out past its ends. */
-    box-shadow: 0 var(--hp-pill-sh-y) var(--hp-pill-sh-blur)
-                calc(var(--hp-pill-sh-blur) * -0.4)
-                rgba(47, 51, 38, var(--hp-pill-sh));
+    /* Two rings in one property. The outline is a spread-only shadow rather
+       than a border, because a border is in the box: 3px of it would add 6px
+       to every pill's height and eat the clearance the stack is tuned to. This
+       is painted outside the box and changes no geometry at all. It is listed
+       first so it paints over the soft shadow rather than under it.
+
+       The shadow itself is soft, and offset rather than spread evenly: a pill
+       that has just landed should look like it is resting on the page, not
+       floating over it. The negative spread keeps it tucked under the pill
+       instead of haloing past its ends. */
+    box-shadow:
+      0 0 0 var(--hp-pill-ring) var(--hp-pill-ring-c),
+      0 var(--hp-pill-sh-y) var(--hp-pill-sh-blur)
+        calc(var(--hp-pill-sh-blur) * -0.4)
+        rgba(47, 51, 38, var(--hp-pill-sh));
     /* The tilt lives here and in every frame of the fall. A keyframe sets the
        whole transform, so leaving it out of one would unwind the tilt as the
        pill lands. */
@@ -271,6 +284,8 @@
     --hp-pill-fluid: {{ s.pill_size | default: 46 | times: 0.11 }}vw;
     --hp-pill-pad-y: {{ s.pill_padding_y | default: 22 }}px;
     --hp-pill-pad-x: {{ s.pill_padding_x | default: 44 }}px;
+    --hp-pill-ring: {{ s.ring_width | default: 0 }}px;
+    --hp-pill-ring-c: {{ s.ring_color | default: '#FCFBF6' }};
     --hp-pill-sh: {{ s.shadow_strength | default: 30 | divided_by: 100.0 }};
     --hp-pill-sh-y: {{ s.shadow_offset | default: 14 }}px;
     --hp-pill-sh-blur: {{ s.shadow_blur | default: 34 }}px;
@@ -555,6 +570,18 @@
       "info": "Alternates with the side, so the stack reads as one arrangement rather than a crooked list. A bigger tilt needs more room, and takes it: the gap above has a floor that rises with this."
     },
     { "type": "range", "id": "stack_gap", "label": "Space above the pills", "unit": "px", "min": 0, "max": 140, "step": 4, "default": 48 },
+    {
+      "type": "range",
+      "id": "ring_width",
+      "label": "Outline around each pill",
+      "unit": "px",
+      "min": 0,
+      "max": 10,
+      "step": 1,
+      "default": 0,
+      "info": "0 is none. Drawn outside the pill rather than as a border, so turning it up never changes where anything sits — the space between the pills opens up to make room for it."
+    },
+    { "type": "color", "id": "ring_color", "label": "Outline colour", "default": "#FCFBF6" },
     {
       "type": "range",
       "id": "shadow_strength",

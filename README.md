@@ -113,9 +113,20 @@ nothing off the edge, the size control, the per-pill tilt override, the picture
 appearing only when both the toggle and an image are set and sitting centred
 between the headline and the pills, the stagger, each of the four motions, the
 tilt surviving the landing, contrast on every pill in the preset, and the three
-bail-outs, and the shadow — soft, offset, tucked under with a negative spread,
-in the ink colour, off at 0, and laid out identically either way, since a
-box-shadow is painted rather than laid out.
+bail-outs, the shadow, and the outline.
+
+The outline is a spread-only `box-shadow` rather than a `border`, and that is
+not a style preference: a border is in the box, so 5px of it would add 10px to
+every pill's height and eat the clearance the stack is tuned to. A spread-only
+shadow is painted outside the box, follows the `border-radius` exactly, and
+changes no geometry — the suite asserts every pill is the same size with the
+outline on and off. It is listed before the soft shadow so it paints over it,
+and the gap between pills opens by twice its width, because two neighbours each
+grow towards each other by it.
+
+Both live in the one `box-shadow`, which is also why the suite cannot split the
+computed value on commas: the colours inside it have commas of their own. Each
+layer begins with its colour, and that is what the parser anchors on.
 
 ## Animating something that is not a rectangle
 

@@ -32,11 +32,12 @@ function capsule(el) {
   var deg = parseFloat(getComputedStyle(el).getPropertyValue('--rot')) || 0;
   var t = deg * Math.PI / 180;
   var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-  var rad = r.height / 2;
+  var ring = parseFloat(getComputedStyle(el).getPropertyValue('--hp-pill-ring')) || 0;
+  var rad = r.height / 2 + ring;
   // The segment runs between the centres of the two end caps.
   var half = Math.max(r.width / 2 - rad, 0);
   return {
-    deg: deg, rad: rad, w: Math.round(r.width), h: Math.round(r.height),
+    deg: deg, rad: rad, ring: ring, w: Math.round(r.width), h: Math.round(r.height),
     cx: cx, cy: cy,
     a: { x: cx - half * Math.cos(t), y: cy - half * Math.sin(t) },
     b: { x: cx + half * Math.cos(t), y: cy + half * Math.sin(t) },
@@ -270,14 +271,63 @@ over = run({'blocks': [{'type': 'pill', 'settings': {'label': 'Straight', 'tilt_
 check('a single pill can be tilted on its own',
       over['pills'][0]['cap']['deg'] == 9, f"{over['pills'][0]['cap']['deg']}deg")
 
+# ------------------------------------------------------------ the outline ---
+# A computed box-shadow is one string holding every layer, and the colours in
+# it have commas of their own — so the layers cannot be split on commas. Each
+# one begins with its colour, which is what this anchors on.
+LAYER = re.compile(r'rgba?\([^)]*\)[^,]*')
+
+
+def layers(v):
+    return [m.group(0).strip() for m in LAYER.finditer(v)]
+
+
+def parts(layer):
+    """(colour, [offset-x, offset-y, blur, spread]) for one layer."""
+    colour = re.match(r'rgba?\([^)]*\)', layer)
+    return (colour.group(0) if colour else '',
+            [float(n) for n in re.findall(r'(-?[\d.]+)px', layer)])
+
+
+def ring_of(v):
+    """The outline: the first layer, spread only."""
+    return parts(layers(v)[0])
+
+
+check('no outline unless it is asked for',
+      ring_of(d['pills'][0]['shadow'])[1][:3] == [0.0, 0.0, 0.0],
+      f"first shadow: {d['pills'][0]['shadow'].split('px,')[0]}px")
+
+ring = run({'settings': {'ring_width': 5}}, 'ring')
+rc, rn = ring_of(ring['pills'][0]['shadow'])
+check('with a width it draws a ring of exactly that width',
+      rn[:4] == [0.0, 0.0, 0.0, 5.0],
+      f"offset {rn[0]},{rn[1]} blur {rn[2]} spread {rn[3]}")
+check('in the colour chosen, white by default',
+      rc == 'rgb(252, 251, 246)', f"{rc}")
+check('and it is not a border: the pills do not move or change size',
+      [p['cap']['w'] for p in ring['pills']] == [p['cap']['w'] for p in d['pills']]
+      and [p['cap']['h'] for p in ring['pills']] == [p['cap']['h'] for p in d['pills']],
+      f"widths {[p['cap']['w'] for p in ring['pills']][:3]} either way")
+check('the soft shadow is still there behind it',
+      'px,' in ring['pills'][0]['shadow']
+      and ring['pills'][0]['shadow'].count('rgba(47, 51, 38') == 1,
+      f"{ring['pills'][0]['shadow']}")
+
+# The ring grows each pill towards its neighbour, so the stack has to open up.
+for w in (1600, 1280, 990, 750, 500):
+    n = run({'settings': {'ring_width': 10}}, f'ring-max-{w}', width=w)
+    pr = [(i, j) for i in range(len(n['pills'])) for j in range(i + 1, len(n['pills']))]
+    worst_r = min(clearance(n['pills'][i]['cap'], n['pills'][j]['cap']) for i, j in pr)
+    check(f'the widest outline still does not let them touch at {w}px',
+          worst_r >= 0, f"tightest {round(worst_r, 1)}px with a 10px ring")
+
 # ------------------------------------------------------------- the shadow ---
 def shadow_parts(v):
-    """(colour, offset-x, offset-y, blur, spread) from a computed box-shadow."""
+    """The soft shadow: the last layer, behind the outline."""
     if v == 'none':
         return None
-    nums = re.findall(r'(-?[\d.]+)px', v)
-    colour = re.match(r'rgba?\([^)]*\)', v)
-    return (colour.group(0) if colour else '', [float(n) for n in nums])
+    return parts(layers(v)[-1])
 
 
 sh = shadow_parts(d['pills'][0]['shadow'])
@@ -294,15 +344,16 @@ check('and it is the ink colour, not black',
 
 nosh = run({'settings': {'shadow_strength': 0}}, 'noshadow')
 check('0 makes it invisible',
-      shadow_parts(nosh['pills'][0]['shadow'])[0].endswith(', 0)'),
+      shadow_parts(nosh['pills'][0]['shadow'])[0].endswith(' 0)'),
       f"{nosh['pills'][0]['shadow']}")
 check('and changes nothing about where the pills are',
       [p['cap']['box'] for p in nosh['pills']] == [p['cap']['box'] for p in d['pills']],
       'a box-shadow is painted, not laid out, so the arrangement is untouched')
 
 def alpha(v):
-    """The alpha out of a computed box-shadow's colour. rgb() means 1."""
-    m = re.match(r'rgba\(\s*[\d.]+,\s*[\d.]+,\s*[\d.]+,\s*([\d.]+)\)', v)
+    """The soft shadow's alpha. rgb() with no alpha means 1."""
+    m = re.match(r'rgba\(\s*[\d.]+,\s*[\d.]+,\s*[\d.]+,\s*([\d.]+)\)',
+                 shadow_parts(v)[0])
     return float(m.group(1)) if m else 1.0
 
 

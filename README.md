@@ -12,7 +12,7 @@ anything moving.
 
 | File | Shows up in the editor as | What it is |
 | --- | --- | --- |
-| [`sections/problem-cards.liquid`](sections/problem-cards.liquid) | **Problem blobs** | Eyebrow pill, display heading, three organic blob cards |
+| [`sections/problem-cards.liquid`](sections/problem-cards.liquid) | **Problem blobs** | Eyebrow pill, display heading, three organic blob cards that pop, wobble or squish in as the section arrives |
 | [`sections/pals-picker.liquid`](sections/pals-picker.liquid) | **Meet the Pals** | Character picker: choosing a Pal swaps the photo, tint, copy and buy button |
 | [`sections/solution-tabs.liquid`](sections/solution-tabs.liquid) | **Solution tabs** | Three feature cards; picking one crossfades the large image beside them |
 | [`sections/hero-split.liquid`](sections/hero-split.liquid) | **Split hero** | Two panels with independent backgrounds: copy and an offset CTA left, a portrait right. Stays side by side on a phone unless set to stack |
@@ -46,6 +46,53 @@ token expires. Use the copy icon instead.
 
 Section settings live in the theme, not in these files, so re-pasting an updated
 file keeps the images, copy and colours already set in the editor.
+
+## Animating something that is not a rectangle
+
+The blobs arrive on keyframes rather than a transition, because every entrance
+worth having overshoots and a transition only goes from one value to another.
+The wobble is the one with a trick in it: it sets `border-radius` at 0% and 40%
+and **leaves it out of the last frame**, so the browser builds the missing 100%
+from the underlying rule and each blob morphs back to whichever of the three
+lopsided shapes its `nth-child` gave it. Add a fourth shape up in the CSS and
+the animation needs no change at all.
+
+That is also the thing that would fail silently — every blob ending up the same
+shape looks deliberate — so `scripts/test-blob-reveal.py` checks both halves of
+it: that the last keyframe declares no radius, read out of the CSSOM, and that
+the three blobs still hold three distinct shapes once settled.
+
+### Three ways a headless browser lies about animation
+
+All of these cost a wrong answer here before they were pinned down:
+
+- **Animation timelines do not advance under `--virtual-time-budget`.** An
+  animation sits on its first frame however long the budget is, and a `finished`
+  promise never settles. Waiting for one hangs the run.
+- **Shortening it to `animation-duration: 0s` does not settle it either.** With
+  no animation frames the animation never starts, so its fill never applies and
+  the element stays at the hidden underlying value. Taking the animation away
+  entirely is what settles it — every last keyframe here is `opacity: 1;
+  transform: none`, so what the cascade resolves to with no animation is where
+  the animation lands.
+- **IntersectionObserver delivery is lifecycle-dependent**, and on a page with
+  nothing to do the lifecycle may never run: about one run in five it never
+  fired, and every assertion downstream read as a broken animation rather than
+  a flaky harness. Reading a layout property (`document.body.offsetHeight`) on
+  each poll forces the style and layout pass it needs. The checks that are about
+  the animation call `play()` on the element directly, and whether the observer
+  fires at all is one check of its own.
+
+To *see* a frame rather than measure one, a negative `animation-delay` with
+`animation-play-state: paused` holds the animation at that point in its run,
+which works even with the clock frozen.
+
+    python3 scripts/test-blob-reveal.py
+
+Nineteen cases: the observer firing, the stagger and its tidying-up, each of the
+five styles, the wobble's shapes, and the four ways it can bail — none, reduced
+motion, no IntersectionObserver, and the theme editor tearing the section out
+and putting it back.
 
 ## The mailing list
 

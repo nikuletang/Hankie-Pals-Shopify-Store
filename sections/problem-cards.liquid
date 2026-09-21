@@ -16,6 +16,7 @@
 
 {%- liquid
   assign s = section.settings
+  assign motion = s.motion | default: 'pop'
 -%}
 
 {% style %}
@@ -121,6 +122,81 @@
     border-radius: 52% 48% 62% 38% / 44% 58% 42% 56%;
   }
 
+  /* --- Arriving on scroll -------------------------------------------------
+     Keyframes rather than a transition, because every option worth having here
+     overshoots: a bubble that stops dead at full size is not a bubble. A
+     transition can only go from one value to another.
+
+     The hidden start state exists only while the section carries
+     hp-problem--reveal, and the script drops that class the moment it cannot
+     animate — no IntersectionObserver, reduced motion, or anything thrown. The
+     failure mode is the blobs simply being there, never invisible.
+
+     The stagger is not in here: the script sets animation-delay per card. */
+  hp-problem-reveal { display: block; }
+
+  .hp-problem--reveal .hp-problem__card { opacity: 0; }
+
+  .hp-problem--reveal .hp-problem__card.is-in {
+    opacity: 1;
+    /* both, so the first frame holds through the stagger delay rather than the
+       card sitting at full size waiting for its turn. */
+    animation: var(--hp-reveal-name) var(--hp-reveal-dur) cubic-bezier(0.22, 0.7, 0.3, 1) both;
+  }
+
+  .hp-problem--fade .hp-problem__card.is-in { --hp-reveal-name: hp-problem-fade; }
+  .hp-problem--rise .hp-problem__card.is-in { --hp-reveal-name: hp-problem-rise; }
+  .hp-problem--pop .hp-problem__card.is-in { --hp-reveal-name: hp-problem-pop; }
+  .hp-problem--squish .hp-problem__card.is-in { --hp-reveal-name: hp-problem-squish; }
+  .hp-problem--wobble .hp-problem__card.is-in { --hp-reveal-name: hp-problem-wobble; }
+
+  @keyframes hp-problem-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes hp-problem-rise {
+    from { opacity: 0; transform: translateY(var(--hp-reveal-dist)); }
+    to { opacity: 1; transform: none; }
+  }
+
+  /* A bubble arriving: under size, a little past full, then settled. */
+  @keyframes hp-problem-pop {
+    0% { opacity: 0; transform: scale(0.72); }
+    55% { opacity: 1; transform: scale(1.06); }
+    78% { transform: scale(0.98); }
+    100% { opacity: 1; transform: none; }
+  }
+
+  /* Squash and stretch: wide and flat on the way in, tall on the rebound. */
+  @keyframes hp-problem-squish {
+    0% { opacity: 0; transform: translateY(var(--hp-reveal-dist)) scale(0.58, 1.16); }
+    45% { opacity: 1; transform: translateY(0) scale(1.14, 0.88); }
+    68% { transform: scale(0.94, 1.07); }
+    85% { transform: scale(1.03, 0.98); }
+    100% { opacity: 1; transform: none; }
+  }
+
+  /* The blob finds its own shape as it lands. border-radius is deliberately
+     absent from the last frame: with no 100% value of its own, the browser
+     builds one from the underlying rule — so each card morphs to whichever of
+     the three lopsided shapes its nth-child gave it, and adding a fourth shape
+     up there needs no change down here. */
+  @keyframes hp-problem-wobble {
+    0% {
+      opacity: 0;
+      transform: scale(0.6) rotate(-9deg);
+      border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+    }
+    40% {
+      opacity: 1;
+      transform: scale(1.09) rotate(4deg);
+      border-radius: 70% 30% 34% 66% / 64% 60% 40% 36%;
+    }
+    70% { transform: scale(0.95) rotate(-2deg); }
+    100% { opacity: 1; transform: none; }
+  }
+
   /* --- Circular image ---------------------------------------------------- */
   .hp-problem__media {
     width: calc(clamp(120px, var(--hp-image-size), 340px) * var(--hp-card-scale));
@@ -211,10 +287,18 @@
       width: calc(min(210px, var(--hp-image-size)) * var(--hp-card-scale));
     }
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hp-problem--reveal .hp-problem__card,
+    .hp-problem--reveal .hp-problem__card.is-in {
+      opacity: 1;
+      animation: none;
+    }
+  }
 {% endstyle %}
 
 <section
-  class="hp-problem"
+  class="hp-problem{% if motion != 'none' %} hp-problem--reveal hp-problem--{{ motion }}{% endif %}"
   style="
     --hp-bg: {{ s.background | default: '#FCFBF6' }};
     --hp-ink: {{ s.heading_color | default: '#2F3326' }};
@@ -231,6 +315,8 @@
     --hp-pb: {{ s.padding_bottom | default: 96 }}px;
     --hp-pt-mobile: {{ s.padding_top_mobile | default: 60 }}px;
     --hp-pb-mobile: {{ s.padding_bottom_mobile | default: 60 }}px;
+    --hp-reveal-dur: {{ s.reveal_duration | default: 700 }}ms;
+    --hp-reveal-dist: {{ s.reveal_distance | default: 26 }}px;
   "
 >
   <div class="hp-problem__inner">
@@ -248,6 +334,11 @@
     {%- endif -%}
 
     {%- if section.blocks.size > 0 -%}
+      <hp-problem-reveal
+        data-stagger="{{ s.reveal_stagger | default: 130 }}"
+        data-duration="{{ s.reveal_duration | default: 700 }}"
+        data-replay="{% if s.reveal_replay %}true{% else %}false{% endif %}"
+      >
       <ul class="hp-problem__grid" role="list">
         {%- for block in section.blocks -%}
           {%- liquid
@@ -255,6 +346,7 @@
           -%}
           <li
             class="hp-problem__card"
+            data-reveal
             style="--hp-card-bg: {{ block.settings.background }}; --hp-card-ink: {{ block.settings.text_color }};"
             {{ block.shopify_attributes }}
           >
@@ -284,9 +376,112 @@
           </li>
         {%- endfor -%}
       </ul>
+      </hp-problem-reveal>
     {%- endif -%}
   </div>
 </section>
+
+<noscript>
+  <style>
+    .hp-problem--reveal .hp-problem__card { opacity: 1; }
+  </style>
+</noscript>
+
+<script>
+  (function () {
+    if (customElements.get('hp-problem-reveal')) return;
+
+    customElements.define('hp-problem-reveal', class extends HTMLElement {
+      connectedCallback() {
+        // Anything unexpected in here ends with the blobs on screen, never with
+        // a section stuck at opacity 0.
+        try {
+          this.root = this.closest('.hp-problem');
+          this.items = this.querySelectorAll('[data-reveal]');
+
+          if (!this.root || !this.root.classList.contains('hp-problem--reveal')) return;
+          if (!this.items.length) return this.revealAll();
+          if (!('IntersectionObserver' in window)) return this.revealAll();
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            return this.revealAll();
+          }
+
+          this.stagger = parseInt(this.dataset.stagger, 10) || 0;
+          this.duration = parseInt(this.dataset.duration, 10) || 0;
+          this.replay = this.dataset.replay === 'true';
+          this.timers = [];
+
+          this.observer = new IntersectionObserver(this.onIntersect.bind(this), {
+            // Once the block is a little way in, rather than the instant its
+            // first pixel appears.
+            rootMargin: '0px 0px -12% 0px',
+            threshold: 0
+          });
+          this.observer.observe(this);
+        } catch (e) {
+          this.revealAll();
+        }
+      }
+
+      // The theme editor tears a section down and rebuilds it on every change,
+      // so the observer has to go with it.
+      disconnectedCallback() {
+        if (this.observer) this.observer.disconnect();
+        this.clearTimers();
+      }
+
+      onIntersect(entries) {
+        var self = this;
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            self.play();
+            if (!self.replay && self.observer) self.observer.unobserve(self);
+          } else if (self.replay) {
+            self.reset();
+          }
+        });
+      }
+
+      play() {
+        var self = this;
+        this.clearTimers();
+
+        Array.prototype.forEach.call(this.items, function (el, i) {
+          var delay = i * self.stagger;
+          el.style.animationDelay = delay + 'ms';
+          el.classList.add('is-in');
+
+          // Once this blob has arrived its delay has done its job. Left set, it
+          // would hold back anything else that animates this card later.
+          self.timers.push(window.setTimeout(function () {
+            if (el.classList.contains('is-in')) el.style.animationDelay = '';
+          }, delay + self.duration + 80));
+        });
+      }
+
+      reset() {
+        this.clearTimers();
+        Array.prototype.forEach.call(this.items, function (el) {
+          el.style.animationDelay = '';
+          el.classList.remove('is-in');
+        });
+      }
+
+      clearTimers() {
+        if (!this.timers) return;
+        this.timers.forEach(window.clearTimeout);
+        this.timers = [];
+      }
+
+      // The class the hidden start state hangs off, so dropping it cannot leave
+      // anything invisible.
+      revealAll() {
+        if (this.root) this.root.classList.remove('hp-problem--reveal');
+      }
+    });
+  })();
+</script>
+
 
 {% schema %}
 {
@@ -374,6 +569,62 @@
       "step": 5,
       "default": 100,
       "info": "Scales the photo, text and padding inside each blob. Raising it makes the blobs taller and more substantial."
+    },
+    { "type": "header", "content": "Motion" },
+    {
+      "type": "select",
+      "id": "motion",
+      "label": "How the blobs arrive",
+      "options": [
+        { "value": "pop", "label": "Pop — like a bubble" },
+        { "value": "wobble", "label": "Wobble — the blob finds its shape" },
+        { "value": "squish", "label": "Squish — squash and stretch" },
+        { "value": "rise", "label": "Rise — up and in" },
+        { "value": "fade", "label": "Fade" },
+        { "value": "none", "label": "None" }
+      ],
+      "default": "pop",
+      "info": "Plays when the section scrolls into view, one blob after the next. Skipped for anyone whose device asks for reduced motion."
+    },
+    {
+      "type": "range",
+      "id": "reveal_stagger",
+      "label": "Gap between blobs",
+      "unit": "ms",
+      "min": 0,
+      "max": 400,
+      "step": 10,
+      "default": 130,
+      "info": "0 brings them all at once."
+    },
+    {
+      "type": "range",
+      "id": "reveal_duration",
+      "label": "How long each takes",
+      "unit": "ms",
+      "min": 200,
+      "max": 1600,
+      "step": 50,
+      "default": 700,
+      "info": "Wobble and Squish have more to get through than Pop, so they want the longer end."
+    },
+    {
+      "type": "range",
+      "id": "reveal_distance",
+      "label": "How far they travel",
+      "unit": "px",
+      "min": 0,
+      "max": 80,
+      "step": 2,
+      "default": 26,
+      "info": "Rise and Squish only."
+    },
+    {
+      "type": "checkbox",
+      "id": "reveal_replay",
+      "label": "Play again on the way back",
+      "default": false,
+      "info": "Off plays once. On replays every time the section leaves and re-enters the screen."
     },
     { "type": "header", "content": "Colors" },
     {

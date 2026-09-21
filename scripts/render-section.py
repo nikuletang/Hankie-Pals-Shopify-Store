@@ -95,6 +95,22 @@ env.add_filter('placeholder_svg_tag',
 env.add_filter('money', lambda v: f'${int(v)/100:,.2f}')
 env.add_filter('default_errors', lambda v: '; '.join(v) if v else '')
 
+
+def color_modify(value, prop, amount):
+    """Shopify's colour filter, far enough for layout. Only alpha is used in
+    these sections, and only on a hex colour."""
+    v = str(value).strip()
+    if prop != 'alpha' or not v.startswith('#'):
+        return v
+    h = v.lstrip('#')
+    if len(h) == 3:
+        h = ''.join(c * 2 for c in h)
+    r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+    return f'rgba({r}, {g}, {b}, {amount})'
+
+
+env.add_filter('color_modify', color_modify)
+
 # Sections link the shared button stylesheet through the assets folder. Pointing
 # it at the real file is what lets the suite measure the button a visitor gets
 # rather than a copy of it.

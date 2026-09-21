@@ -214,6 +214,42 @@
     transition: width 200ms ease;
   }
 
+  /* --- Arriving on scroll -------------------------------------------------
+     A transition rather than keyframes, and the class comes off once the last
+     tab has landed. Both because this element already owns its transform: the
+     hover lift is .hp-sol__tab:hover, and a reveal rule scoped under the
+     section class outranks it — so anything left in place afterwards would
+     kill the hover for good. When the reveal is done the section is exactly
+     what it was before it started.
+
+     The hidden start state hangs off hp-sol--reveal, so the script dropping
+     that class is also how it bails: the failure mode is the tabs simply being
+     there, never a column stuck at opacity 0. */
+  .hp-sol--reveal .hp-sol__tab {
+    opacity: 0;
+    transform: translateX(var(--hp-sol-rev-dist));
+    transition:
+      opacity var(--hp-sol-rev-dur) ease,
+      transform var(--hp-sol-rev-dur) cubic-bezier(0.22, 0.7, 0.3, 1);
+  }
+
+  .hp-sol--reveal.hp-sol--rev-left .hp-sol__tab {
+    transform: translateX(calc(var(--hp-sol-rev-dist) * -1));
+  }
+
+  .hp-sol--reveal.hp-sol--rev-up .hp-sol__tab {
+    transform: translateY(var(--hp-sol-rev-dist));
+  }
+
+  .hp-sol--reveal.hp-sol--rev-fade .hp-sol__tab { transform: none; }
+
+  .hp-sol--reveal .hp-sol__tab.is-in {
+    opacity: 1;
+    transform: none;
+  }
+
+  hp-sol-reveal { display: none; }
+
   .hp-sol__tab:hover {
     background: var(--hp-tab-hover);
     transform: translateY(-2px);
@@ -343,13 +379,24 @@
     .hp-sol__panel > svg { transform: none; }
 
     .hp-sol__tab:hover { transform: none; }
+
+    .hp-sol--reveal .hp-sol__tab,
+    .hp-sol--reveal .hp-sol__tab.is-in {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
   }
 {% endstyle %}
 
+{%- assign tab_motion = s.motion | default: 'right' -%}
+
 <section
-  class="hp-sol{% if s.image_frame == 'blob' %} hp-sol--blob{% endif %}"
+  class="hp-sol{% if s.image_frame == 'blob' %} hp-sol--blob{% endif %}{% if tab_motion != 'none' %} hp-sol--reveal hp-sol--rev-{{ tab_motion }}{% endif %}"
   style="
     --hp-bg: {{ s.background | default: '#FCFBF6' }};
+    --hp-sol-rev-dist: {{ s.reveal_distance | default: 56 }}px;
+    --hp-sol-rev-dur: {{ s.reveal_duration | default: 560 }}ms;
     --hp-ink: {{ s.text_color | default: '#2F3326' }};
     --hp-muted: {{ s.body_color | default: '#5C6150' }};
     --hp-accent: {{ s.accent_color | default: '#3F4630' }};
@@ -491,9 +538,131 @@
           {%- endfor -%}
         </div>
       </hp-solution-tabs>
+
+      {%- comment -%}
+        Its own element rather than more work inside hp-solution-tabs: the tab
+        behaviour is already written and tested by hand, and a reveal has no
+        business anywhere near it. Nothing is drawn here — it finds the tabs
+        itself and watches the list they sit in.
+      {%- endcomment -%}
+      {%- if tab_motion != 'none' -%}
+        <hp-sol-reveal
+          data-stagger="{{ s.reveal_stagger | default: 110 }}"
+          data-duration="{{ s.reveal_duration | default: 560 }}"
+          data-replay="{% if s.reveal_replay %}true{% else %}false{% endif %}"
+        ></hp-sol-reveal>
+      {%- endif -%}
     {%- endif -%}
   </div>
 </section>
+
+<noscript>
+  <style>
+    .hp-sol--reveal .hp-sol__tab { opacity: 1; transform: none; }
+  </style>
+</noscript>
+
+<script>
+  (function () {
+    if (customElements.get('hp-sol-reveal')) return;
+
+    customElements.define('hp-sol-reveal', class extends HTMLElement {
+      connectedCallback() {
+        // Anything unexpected in here ends with the tabs on screen, never with
+        // a column stuck at opacity 0.
+        try {
+          this.root = this.closest('.hp-sol');
+          if (!this.root || !this.root.classList.contains('hp-sol--reveal')) return;
+
+          this.list = this.root.querySelector('.hp-sol__tabs');
+          this.items = this.root.querySelectorAll('.hp-sol__tab');
+
+          if (!this.list || !this.items.length) return this.revealAll();
+          if (!('IntersectionObserver' in window)) return this.revealAll();
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            return this.revealAll();
+          }
+
+          this.stagger = parseInt(this.dataset.stagger, 10) || 0;
+          this.duration = parseInt(this.dataset.duration, 10) || 0;
+          this.replay = this.dataset.replay === 'true';
+          this.timers = [];
+
+          this.observer = new IntersectionObserver(this.onIntersect.bind(this), {
+            rootMargin: '0px 0px -12% 0px',
+            threshold: 0
+          });
+          // The list, not this element: this one is display:none and would
+          // never intersect anything.
+          this.observer.observe(this.list);
+        } catch (e) {
+          this.revealAll();
+        }
+      }
+
+      // The theme editor tears a section down and rebuilds it on every change.
+      disconnectedCallback() {
+        if (this.observer) this.observer.disconnect();
+        this.clearTimers();
+      }
+
+      onIntersect(entries) {
+        var self = this;
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            self.play();
+            if (!self.replay && self.observer) self.observer.unobserve(self.list);
+          } else if (self.replay) {
+            self.reset();
+          }
+        });
+      }
+
+      play() {
+        var self = this;
+        this.clearTimers();
+
+        Array.prototype.forEach.call(this.items, function (el, i) {
+          el.style.transitionDelay = i * self.stagger + 'ms';
+          el.classList.add('is-in');
+        });
+
+        // Once the last tab has landed the reveal is over, and the class that
+        // carries it comes off — otherwise its transform would outrank the
+        // hover lift for the rest of the page's life.
+        var total = (this.items.length - 1) * this.stagger + this.duration + 80;
+        this.timers.push(window.setTimeout(function () { self.finish(); }, total));
+      }
+
+      finish() {
+        Array.prototype.forEach.call(this.items, function (el) {
+          el.style.transitionDelay = '';
+          el.classList.remove('is-in');
+        });
+        if (this.root) this.root.classList.remove('hp-sol--reveal');
+      }
+
+      reset() {
+        this.clearTimers();
+        if (this.root) this.root.classList.add('hp-sol--reveal');
+        Array.prototype.forEach.call(this.items, function (el) {
+          el.style.transitionDelay = '';
+          el.classList.remove('is-in');
+        });
+      }
+
+      clearTimers() {
+        if (!this.timers) return;
+        this.timers.forEach(window.clearTimeout);
+        this.timers = [];
+      }
+
+      revealAll() {
+        if (this.root) this.root.classList.remove('hp-sol--reveal');
+      }
+    });
+  })();
+</script>
 
 <script>
   (function () {
@@ -773,6 +942,25 @@
       "default": 56,
       "info": "0 hides the thumbnails."
     },
+    { "type": "header", "content": "Motion" },
+    {
+      "type": "select",
+      "id": "motion",
+      "label": "How the tabs arrive",
+      "options": [
+        { "value": "right", "label": "Slide in from the right" },
+        { "value": "left", "label": "Slide in from the left" },
+        { "value": "up", "label": "Rise up" },
+        { "value": "fade", "label": "Fade" },
+        { "value": "none", "label": "None" }
+      ],
+      "default": "right",
+      "info": "Plays when the tabs scroll into view, one after the next. Skipped for anyone whose device asks for reduced motion."
+    },
+    { "type": "range", "id": "reveal_distance", "label": "How far they travel", "unit": "px", "min": 0, "max": 200, "step": 4, "default": 56 },
+    { "type": "range", "id": "reveal_duration", "label": "How long each takes", "unit": "ms", "min": 200, "max": 1400, "step": 20, "default": 560 },
+    { "type": "range", "id": "reveal_stagger", "label": "Gap between tabs", "unit": "ms", "min": 0, "max": 400, "step": 10, "default": 110 },
+    { "type": "checkbox", "id": "reveal_replay", "label": "Play again on the way back", "default": false },
     { "type": "header", "content": "Text size" },
     {
       "type": "range",

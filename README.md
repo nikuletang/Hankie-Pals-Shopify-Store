@@ -48,6 +48,37 @@ token expires. Use the copy icon instead.
 Section settings live in the theme, not in these files, so re-pasting an updated
 file keeps the images, copy and colours already set in the editor.
 
+## A reveal that takes itself away
+
+The tabs in **Solution tabs** slide in from the right, staggered. What makes
+this one different from the other reveals is that the element already owns its
+`transform`: the hover lift is `.hp-sol__tab:hover`, and a reveal rule scoped
+under the section class outranks it. Left in place, the reveal would kill the
+hover for the rest of the page's life — not at the moment it is written, but
+quietly, the first time someone moves a mouse over a tab.
+
+So the reveal is a transition rather than keyframes, and the class that carries
+it comes off as soon as the last tab lands. The section afterwards is exactly
+what it was before: no `is-in`, no inline delays, no reveal class.
+`scripts/test-solution-tabs.py` asserts that by comparing the settled
+`transition-property` against the same section rendered with motion set to
+None, which is the closest thing to "prove nothing is left behind".
+
+The reveal lives in its own `<hp-sol-reveal>`, not in the `<hp-solution-tabs>`
+element beside it. The tab behaviour — roles, keyboard, selection — is already
+written and a reveal has no business anywhere near it. The element draws
+nothing (`display: none`), finds the tabs itself, and observes the list they sit
+in rather than itself, since a `display: none` element never intersects
+anything. The suite checks the tablist is still a tablist of buttons and the
+first tab is still selected, because breaking that is the cost of getting this
+wrong.
+
+    python3 scripts/test-solution-tabs.py
+
+Seventeen cases: the start state and its direction on each of the four motions,
+the stagger, the landing, the class removing itself, the distance setting, the
+roles and selection surviving, and the three bail-outs.
+
 ## Falling into place without a physics engine
 
 The pills in **Why choose — pills** land packed against each other, one after

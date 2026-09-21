@@ -18,6 +18,7 @@ anything moving.
 | [`sections/hero-split.liquid`](sections/hero-split.liquid) | **Split hero** | Two panels with independent backgrounds: copy and an offset CTA left, a portrait right. Stays side by side on a phone unless set to stack |
 | [`sections/variant-grid.liquid`](sections/variant-grid.liquid) | **Variant grid** | Full-width cards, one per variant of a single product, with a hover image swap |
 | [`sections/why-choose.liquid`](sections/why-choose.liquid) | **Why choose us** | A heading over a row of value props, each with an icon drawn in SVG rather than uploaded |
+| [`sections/why-pills.liquid`](sections/why-pills.liquid) | **Why choose — pills** | The same headline, with each reason as a big colourful pill that falls into place. An alternative to the icon version, not a replacement |
 | [`sections/section-divider.liquid`](sections/section-divider.liquid) | **Section divider** | A shaped edge — torn, zigzag, wave, scallop, slant, arch — to sit between two sections |
 | [`sections/marquee.liquid`](sections/marquee.liquid) | **Scrolling marquee** | A band of text and images sliding past, with filled or outlined lettering |
 | [`sections/pal-reveal.liquid`](sections/pal-reveal.liquid) | **Pal reveal** | A Pal that grows on scroll until its body becomes the next section |
@@ -46,6 +47,73 @@ token expires. Use the copy icon instead.
 
 Section settings live in the theme, not in these files, so re-pasting an updated
 file keeps the images, copy and colours already set in the editor.
+
+## Falling into place without a physics engine
+
+The pills in **Why choose — pills** land packed against each other, one after
+the next. They are not simulated. A real engine settles differently on every
+screen width and every reload, adds a dependency, and cannot be checked — so
+the arrangement is laid out deliberately, alternating sides with a set tilt,
+and each pill is animated falling into the place it already has. Same feeling,
+same result for every visitor, and the claim is testable.
+
+Which matters, because the claim is geometric and the layout box cannot answer
+it: the tilt is a `transform`, so it is not in the box. Each pill is a capsule
+— `border-radius: 999px` on a box of height H is a rectangle with semicircular
+ends of radius H/2, which is a line segment thickened by H/2 — and two capsules
+intersect exactly when the distance between their segments is less than the sum
+of their radii. `scripts/test-why-pills.py` measures that for every pair at five
+widths.
+
+Two things that fell out of measuring rather than looking:
+
+- **The usual segment-distance formula is wrong here.** Clamping its two
+  parameters independently overestimates whenever the unclamped solution lands
+  outside the segments; it put two pills 109px apart that a drawing put 41px
+  apart, which quietly hid an overlap. Either the segments cross, or the closest
+  point is one of the four endpoints against the other segment.
+- **A tilted pill reaches past its own row**, by about `w·sin(θ)/2`, and the
+  pills get wider relative to the page as the page narrows — so a gap that looks
+  generous at 1600px overlaps at 750px. The gap has a floor that rises with the
+  tilt, and the defaults (3deg, 26px, 150px inset) were picked by sweeping both
+  and reading the closest approach at each width: 23px at 1600, 3px at 750,
+  never below zero.
+
+### Three ways a headless browser lies about animation
+
+All of these cost a wrong answer before they were pinned down, and both reveal
+suites are built around them:
+
+- **Animation timelines do not advance under `--virtual-time-budget`.** An
+  animation sits on its first frame however long the budget is, and a `finished`
+  promise never settles. Waiting for one hangs the run.
+- **Shortening it to `animation-duration: 0s` does not settle it either.** With
+  no animation frames the animation never starts, so its fill never applies.
+  Removing the animation is what settles it, and asks the same question: every
+  last keyframe here is `opacity: 1; transform: none`, so what the cascade
+  resolves to with no animation is where the animation lands.
+- **IntersectionObserver delivery needs "update the rendering"**, a step a page
+  with nothing to draw never schedules — so the observer may simply never fire,
+  and every assertion downstream reads as a broken animation rather than a flaky
+  harness. Three nudges together fixed it: forcing layout on each poll, asking
+  for a frame (`requestAnimationFrame` never *fires* under a virtual budget, so
+  it is raced against a timer rather than waited on), and putting an endless
+  1px animation on `body::after` to keep the rendering loop turning while the
+  observer is being waited for.
+
+To *see* a frame rather than measure one, a negative `animation-delay` with
+`animation-play-state: paused` holds an animation at that point in its run,
+which works even with the clock frozen.
+
+    python3 scripts/test-why-pills.py
+
+Thirty-one cases: the arrangement and its alternating sides and tilt, no pair of
+pills overlapping at five widths or at the tightest settings the editor allows,
+nothing off the edge, the size control, the per-pill tilt override, the picture
+appearing only when both the toggle and an image are set and sitting centred
+between the headline and the pills, the stagger, each of the four motions, the
+tilt surviving the landing, contrast on every pill in the preset, and the three
+bail-outs.
 
 ## Animating something that is not a rectangle
 

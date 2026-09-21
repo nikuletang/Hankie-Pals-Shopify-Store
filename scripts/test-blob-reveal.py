@@ -50,6 +50,23 @@ function snap() {
 # leaves the cascade to answer, which is the same question — every last
 # keyframe here is opacity 1 and transform none, so what the rules resolve to
 # with no animation is where the animation lands.
+# A page with nothing to draw never runs "update the rendering", and an
+# intersection is computed in that step — so the observer may simply never
+# deliver. An animation that never ends keeps the loop turning. It is on a
+# pseudo element of the body, so it touches nothing being measured.
+TICK = """<style>
+  @keyframes hp-test-tick { from { opacity: 0.99; } to { opacity: 1; } }
+  body::after {
+    content: '';
+    position: fixed;
+    width: 1px;
+    height: 1px;
+    top: 0;
+    left: 0;
+    animation: hp-test-tick 50ms linear infinite;
+  }
+</style>"""
+
 SETTLE = """<style>
   .hp-problem__card.is-in { animation: none !important; }
 </style>"""
@@ -63,12 +80,22 @@ SETTLE = """<style>
 POLL = """
 function when(test, done, tries) {
   if (tries === undefined) tries = 200;
-  // Reading a layout property forces style and layout, which is what an
-  // IntersectionObserver needs before it will deliver anything. Left to
-  // itself a page with no work to do never gives it one.
   void document.body.offsetHeight;
   if (test() || tries <= 0) return done();
-  setTimeout(function () { when(test, done, tries - 1); }, 40);
+  // Two nudges, because neither is reliable alone. Reading a layout property
+  // forces style and layout. Asking for a frame is what actually schedules
+  // "update the rendering", the step an intersection is computed in — but
+  // requestAnimationFrame never fires at all under a virtual time budget, so
+  // it cannot be waited on: whichever of the two arrives first continues, and
+  // the timer guarantees one of them does.
+  var moved = false;
+  function step() {
+    if (moved) return;
+    moved = true;
+    when(test, done, tries - 1);
+  }
+  try { requestAnimationFrame(step); } catch (e) {}
+  setTimeout(step, 40);
 }
 function report() { document.title = 'RESULT' + JSON.stringify(snap()); }
 function arrived() { return !!document.querySelector('.hp-problem__card.is-in'); }
@@ -97,7 +124,7 @@ def probe(mode):
     if mode == 'plain':
         return "<script>" + SNAP + POLL + "setTimeout(report, 400);</script>"
     wait = {'wired': 'arrived', 'tidied': 'tidied'}[mode]
-    return "<script>" + SNAP + POLL + f"when({wait}, report);</script>"
+    return TICK + "<script>" + SNAP + POLL + f"when({wait}, report);</script>"
 
 
 def run(overrides, name, mode='play', settle=False, flags=(), extra_head='',

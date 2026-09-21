@@ -1,0 +1,615 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — "Why choose us", as falling pills
+  ---------------------------------------------------------------------------
+  The same headline as the icon version, and then one big colourful pill per
+  reason instead of an icon, a subhead and a paragraph. A separate file rather
+  than a mode inside why-choose: the two share nothing below the header, and
+  keeping them apart means adding this one cannot disturb the one already on
+  the site.
+
+  The pills drop in one after the next and land packed against each other. They
+  are NOT a physics simulation: a real one needs an engine, settles differently
+  on every screen width and every reload, and cannot be checked. The
+  arrangement here is laid out deliberately — alternating sides, a set tilt —
+  and each pill is animated falling into the place it already has. Same
+  feeling, same result for every visitor, and the suite can prove no two of
+  them end up on top of each other.
+
+  Sizes are px. Dawn sets html { font-size: 62.5% }, so 1rem renders at 62.5%
+  of its intended value; the theme's type sliders still reach this section
+  through --font-body-scale and --font-heading-scale.
+
+  Every selector is prefixed .hp-pill and every per-instance value arrives as an
+  inline custom property, so nothing here can reach another section.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+  assign motion = s.motion | default: 'drop'
+-%}
+
+{% style %}
+  .hp-pill {
+    --hp-pill-body-scale: var(--font-body-scale, 1);
+    --hp-pill-heading-scale: var(--font-heading-scale, 1);
+    background: var(--hp-pill-bg);
+    padding-block: var(--hp-pill-pt) var(--hp-pill-pb);
+    /* A pill tilted at the edge of the row would otherwise widen the page. */
+    overflow: hidden;
+  }
+
+  @supports (overflow: clip) {
+    .hp-pill { overflow: clip; }
+  }
+
+  .hp-pill__inner {
+    max-width: var(--hp-pill-width);
+    margin-inline: auto;
+    padding-inline: clamp(16px, 3.5vw, 48px);
+  }
+
+  /* --- Header ------------------------------------------------------------- */
+  .hp-pill__header {
+    max-width: var(--hp-pill-header-w);
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .hp-pill__eyebrow {
+    margin: 0 0 12px;
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(var(--hp-pill-eyebrow-size) * var(--hp-pill-heading-scale));
+    letter-spacing: var(--hp-pill-eyebrow-tracking);
+    text-transform: uppercase;
+    color: var(--hp-pill-eyebrow-c);
+  }
+
+  .hp-pill__heading {
+    margin: 0;
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(
+      clamp(calc(var(--hp-pill-heading-size) * 0.55), 5vw, var(--hp-pill-heading-size))
+      * var(--hp-pill-heading-scale)
+    );
+    line-height: 1.1;
+    letter-spacing: var(--hp-pill-heading-tracking);
+    text-transform: var(--hp-pill-heading-case);
+    color: var(--hp-pill-heading-c);
+  }
+
+  .hp-pill__intro {
+    margin: 14px auto 0;
+    max-width: 52ch;
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-size: calc(var(--hp-pill-intro-size) * var(--hp-pill-body-scale));
+    line-height: 1.55;
+    color: var(--hp-pill-intro-c);
+  }
+
+  .hp-pill__intro > p { margin: 0; }
+  .hp-pill__intro > p + p { margin-block-start: 0.6em; }
+
+  /* --- The badge between the headline and the pills ----------------------- */
+  .hp-pill__badge {
+    display: grid;
+    place-items: center;
+    margin-block-start: var(--hp-pill-badge-gap);
+  }
+
+  .hp-pill__badge img,
+  .hp-pill__badge svg {
+    display: block;
+    width: var(--hp-pill-badge-w);
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* --- The stack ----------------------------------------------------------
+     Alternating sides and a gap, not a pile: each pill is its own row, so two
+     of them can never occupy the same space however far they are pushed out.
+     The offset is a margin rather than a transform, which leaves the transform
+     free for the tilt and the fall. */
+  hp-pill-drop { display: block; }
+
+  .hp-pill__stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* The tilt is a transform, so it is not in the layout: a wide pill turned
+       12deg reaches about w*sin(12)/2 past its own row, and at a small gap the
+       corners would sit on top of the neighbour. The floor scales with the
+       tilt so the tightest settings the editor offers still cannot stack
+       them, and a small tilt is left alone. */
+    gap: max(var(--hp-pill-gap), calc(var(--hp-pill-tilt-n) * 8px));
+    margin: var(--hp-pill-stack-gap) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .hp-pill__row {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .hp-pill__row--l { justify-content: flex-start; padding-inline-start: var(--hp-pill-scatter); }
+  .hp-pill__row--r { justify-content: flex-end; padding-inline-end: var(--hp-pill-scatter); }
+
+  .hp-pill__pill {
+    display: inline-block;
+    max-width: 100%;
+    padding: var(--hp-pill-pad-y) var(--hp-pill-pad-x);
+    border-radius: 999px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(clamp(18px, var(--hp-pill-fluid), var(--hp-pill-size))
+                    * var(--hp-pill-heading-scale));
+    line-height: 1.08;
+    letter-spacing: -0.01em;
+    text-align: center;
+    /* The tilt lives here and in every frame of the fall. A keyframe sets the
+       whole transform, so leaving it out of one would unwind the tilt as the
+       pill lands. */
+    transform: rotate(var(--rot, 0deg));
+  }
+
+  /* --- Falling into place -------------------------------------------------
+     The hidden start state exists only while the section carries
+     hp-pill--reveal, and the script drops that class the moment it cannot
+     animate. The failure mode is the pills simply being there, never a section
+     stuck at opacity 0. */
+  .hp-pill--reveal .hp-pill__pill { opacity: 0; }
+
+  .hp-pill--reveal .hp-pill__pill.is-in {
+    opacity: 1;
+    animation: var(--hp-pill-anim) var(--hp-pill-dur) cubic-bezier(0.3, 0.8, 0.4, 1) both;
+  }
+
+  .hp-pill--drop .hp-pill__pill.is-in { --hp-pill-anim: hp-pill-drop; }
+  .hp-pill--bounce .hp-pill__pill.is-in { --hp-pill-anim: hp-pill-bounce; }
+  .hp-pill--swing .hp-pill__pill.is-in { --hp-pill-anim: hp-pill-swing; }
+  .hp-pill--fade .hp-pill__pill.is-in { --hp-pill-anim: hp-pill-fade; }
+
+  @keyframes hp-pill-fade {
+    from { opacity: 0; transform: rotate(var(--rot, 0deg)); }
+    to { opacity: 1; transform: rotate(var(--rot, 0deg)); }
+  }
+
+  /* Falls, lands a little heavy, settles. */
+  @keyframes hp-pill-drop {
+    0% {
+      opacity: 0;
+      transform: translateY(calc(var(--hp-pill-fall) * -1)) rotate(var(--rot, 0deg));
+    }
+    60% { opacity: 1; transform: translateY(8px) rotate(var(--rot, 0deg)); }
+    78% { transform: translateY(-4px) rotate(var(--rot, 0deg)); }
+    92% { transform: translateY(2px) rotate(var(--rot, 0deg)); }
+    100% { opacity: 1; transform: translateY(0) rotate(var(--rot, 0deg)); }
+  }
+
+  /* Squashes on impact, the way something soft would. */
+  @keyframes hp-pill-bounce {
+    0% {
+      opacity: 0;
+      transform: translateY(calc(var(--hp-pill-fall) * -1)) rotate(var(--rot, 0deg));
+    }
+    55% {
+      opacity: 1;
+      transform: translateY(10px) rotate(var(--rot, 0deg)) scale(1.06, 0.9);
+    }
+    72% { transform: translateY(-6px) rotate(var(--rot, 0deg)) scale(0.97, 1.04); }
+    88% { transform: translateY(2px) rotate(var(--rot, 0deg)) scale(1.01, 0.99); }
+    100% { opacity: 1; transform: translateY(0) rotate(var(--rot, 0deg)); }
+  }
+
+  /* Drops in turned the wrong way and rights itself. */
+  @keyframes hp-pill-swing {
+    0% {
+      opacity: 0;
+      transform: translateY(calc(var(--hp-pill-fall) * -1))
+                 rotate(calc(var(--rot, 0deg) * -4));
+    }
+    62% { opacity: 1; transform: translateY(6px) rotate(calc(var(--rot, 0deg) * 1.7)); }
+    82% { transform: translateY(-3px) rotate(calc(var(--rot, 0deg) * 0.7)); }
+    100% { opacity: 1; transform: translateY(0) rotate(var(--rot, 0deg)); }
+  }
+
+  @media screen and (max-width: 749px) {
+    .hp-pill { padding-block: var(--hp-pill-pt-mobile) var(--hp-pill-pb-mobile); }
+
+    /* Half a phone is not enough for a pill to lean out of, so the scatter and
+       the tilt both come in rather than the type getting smaller still. */
+    .hp-pill__row--l { padding-inline-start: min(var(--hp-pill-scatter), 5vw); }
+    .hp-pill__row--r { padding-inline-end: min(var(--hp-pill-scatter), 5vw); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hp-pill--reveal .hp-pill__pill,
+    .hp-pill--reveal .hp-pill__pill.is-in {
+      opacity: 1;
+      animation: none;
+    }
+  }
+{% endstyle %}
+
+<section
+  class="hp-pill{% if motion != 'none' %} hp-pill--reveal hp-pill--{{ motion }}{% endif %}"
+  data-hp-pill="{{ section.id }}"
+  style="
+    --hp-pill-bg: {{ s.background | default: '#FCFBF6' }};
+    --hp-pill-width: {{ s.max_width | default: 1280 }}px;
+    --hp-pill-header-w: {{ s.header_width | default: 900 }}px;
+    --hp-pill-eyebrow-size: {{ s.eyebrow_size | default: 13 }}px;
+    --hp-pill-eyebrow-tracking: {{ s.eyebrow_tracking | default: 14 | divided_by: 100.0 }}em;
+    --hp-pill-eyebrow-c: {{ s.eyebrow_color | default: '#6B7056' }};
+    --hp-pill-heading-size: {{ s.heading_size | default: 40 }}px;
+    --hp-pill-heading-tracking: {{ s.heading_tracking | default: 10 | divided_by: 100.0 }}em;
+    --hp-pill-heading-case: {{ s.heading_case | default: 'uppercase' }};
+    --hp-pill-heading-c: {{ s.heading_color | default: '#2F3326' }};
+    --hp-pill-intro-size: {{ s.intro_size | default: 18 }}px;
+    --hp-pill-intro-c: {{ s.intro_color | default: '#5C6150' }};
+    --hp-pill-badge-gap: {{ s.badge_gap | default: 40 }}px;
+    --hp-pill-badge-w: {{ s.image_width | default: 220 }}px;
+    --hp-pill-stack-gap: {{ s.stack_gap | default: 48 }}px;
+    --hp-pill-gap: {{ s.pill_gap | default: 26 }}px;
+    --hp-pill-scatter: {{ s.scatter | default: 150 }}px;
+    --hp-pill-tilt-n: {{ s.tilt | default: 3 }};
+    --hp-pill-size: {{ s.pill_size | default: 46 }}px;
+    --hp-pill-fluid: {{ s.pill_size | default: 46 | times: 0.11 }}vw;
+    --hp-pill-pad-y: {{ s.pill_padding_y | default: 22 }}px;
+    --hp-pill-pad-x: {{ s.pill_padding_x | default: 44 }}px;
+    --hp-pill-fall: {{ s.fall_distance | default: 180 }}px;
+    --hp-pill-dur: {{ s.fall_duration | default: 760 }}ms;
+    --hp-pill-pt: {{ s.padding_top | default: 96 }}px;
+    --hp-pill-pb: {{ s.padding_bottom | default: 96 }}px;
+    --hp-pill-pt-mobile: {{ s.padding_top_mobile | default: 60 }}px;
+    --hp-pill-pb-mobile: {{ s.padding_bottom_mobile | default: 60 }}px;
+  "
+>
+  <div class="hp-pill__inner">
+    <header class="hp-pill__header">
+      {%- if s.eyebrow != blank -%}
+        <p class="hp-pill__eyebrow">{{ s.eyebrow | escape }}</p>
+      {%- endif -%}
+
+      {%- if s.heading != blank -%}
+        <{{ s.heading_tag | default: 'h2' }} class="hp-pill__heading">
+          {{- s.heading | escape -}}
+        </{{ s.heading_tag | default: 'h2' }}>
+      {%- endif -%}
+
+      {%- if s.intro != blank -%}
+        <div class="hp-pill__intro">{{ s.intro }}</div>
+      {%- endif -%}
+    </header>
+
+    {%- if s.show_image and s.image != blank -%}
+      <div class="hp-pill__badge">
+        {{
+          s.image
+          | image_url: width: 900
+          | image_tag:
+            loading: 'lazy',
+            widths: '160, 240, 340, 480, 900',
+            sizes: '240px',
+            alt: s.image_alt
+        }}
+      </div>
+    {%- endif -%}
+
+    {%- if section.blocks.size > 0 -%}
+      <hp-pill-drop
+        data-stagger="{{ s.fall_stagger | default: 150 }}"
+        data-duration="{{ s.fall_duration | default: 760 }}"
+        data-replay="{% if s.reveal_replay %}true{% else %}false{% endif %}"
+      >
+        <ul class="hp-pill__stack" role="list">
+          {%- for block in section.blocks -%}
+            {%- liquid
+              # Sides alternate and the tilt alternates with them, so the stack
+              # reads as one arrangement rather than a list that happens to be
+              # crooked. Both come off the index, so adding a pill needs no
+              # decisions.
+              assign side = 'r'
+              assign tilt = s.tilt | default: 3 | times: -1
+              assign rest = forloop.index0 | modulo: 2
+              if rest == 0
+                assign side = 'l'
+                assign tilt = s.tilt | default: 3
+              endif
+              if block.settings.tilt_override != 0
+                assign tilt = block.settings.tilt_override
+              endif
+            -%}
+            <li class="hp-pill__row hp-pill__row--{{ side }}">
+              <span
+                class="hp-pill__pill"
+                data-reveal
+                style="
+                  --bg: {{ block.settings.color | default: '#D88B6D' }};
+                  --ink: {{ block.settings.text_color | default: '#2F3326' }};
+                  --rot: {{ tilt }}deg;
+                "
+                {{ block.shopify_attributes }}
+              >
+                {{- block.settings.label | escape -}}
+              </span>
+            </li>
+          {%- endfor -%}
+        </ul>
+      </hp-pill-drop>
+    {%- endif -%}
+  </div>
+</section>
+
+<noscript>
+  <style>
+    .hp-pill--reveal .hp-pill__pill { opacity: 1; }
+  </style>
+</noscript>
+
+<script>
+  (function () {
+    if (customElements.get('hp-pill-drop')) return;
+
+    customElements.define('hp-pill-drop', class extends HTMLElement {
+      connectedCallback() {
+        // Anything unexpected in here ends with the pills on screen, never with
+        // a section stuck at opacity 0.
+        try {
+          this.root = this.closest('.hp-pill');
+          this.items = this.querySelectorAll('[data-reveal]');
+
+          if (!this.root || !this.root.classList.contains('hp-pill--reveal')) return;
+          if (!this.items.length) return this.revealAll();
+          if (!('IntersectionObserver' in window)) return this.revealAll();
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            return this.revealAll();
+          }
+
+          this.stagger = parseInt(this.dataset.stagger, 10) || 0;
+          this.duration = parseInt(this.dataset.duration, 10) || 0;
+          this.replay = this.dataset.replay === 'true';
+          this.timers = [];
+
+          this.observer = new IntersectionObserver(this.onIntersect.bind(this), {
+            rootMargin: '0px 0px -12% 0px',
+            threshold: 0
+          });
+          this.observer.observe(this);
+        } catch (e) {
+          this.revealAll();
+        }
+      }
+
+      // The theme editor tears a section down and rebuilds it on every change,
+      // so the observer has to go with it.
+      disconnectedCallback() {
+        if (this.observer) this.observer.disconnect();
+        this.clearTimers();
+      }
+
+      onIntersect(entries) {
+        var self = this;
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            self.play();
+            if (!self.replay && self.observer) self.observer.unobserve(self);
+          } else if (self.replay) {
+            self.reset();
+          }
+        });
+      }
+
+      play() {
+        var self = this;
+        this.clearTimers();
+
+        Array.prototype.forEach.call(this.items, function (el, i) {
+          var delay = i * self.stagger;
+          el.style.animationDelay = delay + 'ms';
+          el.classList.add('is-in');
+
+          // Once this pill has landed its delay has done its job. Left set, it
+          // would hold back anything that animates the pill later.
+          self.timers.push(window.setTimeout(function () {
+            if (el.classList.contains('is-in')) el.style.animationDelay = '';
+          }, delay + self.duration + 80));
+        });
+      }
+
+      reset() {
+        this.clearTimers();
+        Array.prototype.forEach.call(this.items, function (el) {
+          el.style.animationDelay = '';
+          el.classList.remove('is-in');
+        });
+      }
+
+      clearTimers() {
+        if (!this.timers) return;
+        this.timers.forEach(window.clearTimeout);
+        this.timers = [];
+      }
+
+      // The class the hidden start state hangs off, so dropping it cannot leave
+      // anything invisible.
+      revealAll() {
+        if (this.root) this.root.classList.remove('hp-pill--reveal');
+      }
+    });
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Why choose — pills",
+  "tag": "div",
+  "class": "hp-pills-section",
+  "max_blocks": 8,
+  "settings": [
+    { "type": "header", "content": "Headline" },
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow", "default": "Why Totterful" },
+    { "type": "text", "id": "heading", "label": "Heading", "default": "Why choose Hankie Pals?" },
+    {
+      "type": "select",
+      "id": "heading_tag",
+      "label": "Heading level",
+      "options": [
+        { "value": "h2", "label": "h2" },
+        { "value": "h3", "label": "h3" },
+        { "value": "p", "label": "Not a heading" }
+      ],
+      "default": "h2"
+    },
+    { "type": "richtext", "id": "intro", "label": "Intro" },
+    {
+      "type": "select",
+      "id": "heading_case",
+      "label": "Heading case",
+      "options": [
+        { "value": "none", "label": "As typed" },
+        { "value": "uppercase", "label": "UPPERCASE" }
+      ],
+      "default": "uppercase"
+    },
+    { "type": "range", "id": "heading_size", "label": "Heading size", "unit": "px", "min": 20, "max": 80, "step": 2, "default": 40 },
+    { "type": "range", "id": "heading_tracking", "label": "Heading letter spacing", "unit": "%", "min": -4, "max": 30, "step": 1, "default": 10 },
+    { "type": "range", "id": "eyebrow_size", "label": "Eyebrow size", "unit": "px", "min": 10, "max": 22, "step": 1, "default": 13 },
+    { "type": "range", "id": "eyebrow_tracking", "label": "Eyebrow letter spacing", "unit": "%", "min": 0, "max": 30, "step": 1, "default": 14 },
+    { "type": "range", "id": "intro_size", "label": "Intro size", "unit": "px", "min": 13, "max": 26, "step": 1, "default": 18 },
+    { "type": "range", "id": "header_width", "label": "Headline width", "unit": "px", "min": 400, "max": 1200, "step": 20, "default": 900 },
+    { "type": "header", "content": "Picture in the middle" },
+    {
+      "type": "checkbox",
+      "id": "show_image",
+      "label": "Show a picture under the headline",
+      "default": false,
+      "info": "Sits centred between the headline and the pills. Nothing is shown until an image is chosen."
+    },
+    { "type": "image_picker", "id": "image", "label": "Picture" },
+    { "type": "text", "id": "image_alt", "label": "Picture alt text" },
+    { "type": "range", "id": "image_width", "label": "Picture width", "unit": "px", "min": 80, "max": 520, "step": 10, "default": 220 },
+    { "type": "range", "id": "badge_gap", "label": "Space above the picture", "unit": "px", "min": 0, "max": 120, "step": 4, "default": 40 },
+    { "type": "header", "content": "Pills" },
+    {
+      "type": "range",
+      "id": "pill_size",
+      "label": "Pill text size",
+      "unit": "px",
+      "min": 20,
+      "max": 96,
+      "step": 2,
+      "default": 46,
+      "info": "The ceiling on a wide screen. Narrower screens scale below it so a pill never runs off the side."
+    },
+    { "type": "range", "id": "pill_padding_y", "label": "Pill height", "unit": "px", "min": 8, "max": 60, "step": 2, "default": 22 },
+    { "type": "range", "id": "pill_padding_x", "label": "Pill width", "unit": "px", "min": 16, "max": 110, "step": 2, "default": 44 },
+    {
+      "type": "range",
+      "id": "pill_gap",
+      "label": "Space between pills",
+      "unit": "px",
+      "min": 0,
+      "max": 60,
+      "step": 2,
+      "default": 26,
+      "info": "The floor rises with the tilt, because a turned pill reaches past its own row — so the gap you set here is a minimum, not a maximum."
+    },
+    {
+      "type": "range",
+      "id": "scatter",
+      "label": "Inset from the edges",
+      "unit": "px",
+      "min": 0,
+      "max": 300,
+      "step": 10,
+      "default": 150,
+      "info": "How far in from its own side each pill sits, alternating left and right. Higher pulls them towards the middle, which makes them interlock more; 0 pushes them out to the edges."
+    },
+    {
+      "type": "range",
+      "id": "tilt",
+      "label": "Tilt",
+      "unit": "deg",
+      "min": 0,
+      "max": 12,
+      "step": 1,
+      "default": 3,
+      "info": "Alternates with the side, so the stack reads as one arrangement rather than a crooked list. A bigger tilt needs more room, and takes it: the gap above has a floor that rises with this."
+    },
+    { "type": "range", "id": "stack_gap", "label": "Space above the pills", "unit": "px", "min": 0, "max": 140, "step": 4, "default": 48 },
+    { "type": "header", "content": "Motion" },
+    {
+      "type": "select",
+      "id": "motion",
+      "label": "How the pills arrive",
+      "options": [
+        { "value": "drop", "label": "Drop — falls and settles" },
+        { "value": "bounce", "label": "Bounce — squashes on impact" },
+        { "value": "swing", "label": "Swing — lands and rights itself" },
+        { "value": "fade", "label": "Fade" },
+        { "value": "none", "label": "None" }
+      ],
+      "default": "drop",
+      "info": "Plays when the section scrolls into view, one pill after the next. Skipped for anyone whose device asks for reduced motion."
+    },
+    { "type": "range", "id": "fall_distance", "label": "How far they fall", "unit": "px", "min": 40, "max": 400, "step": 10, "default": 180 },
+    { "type": "range", "id": "fall_duration", "label": "How long each takes", "unit": "ms", "min": 200, "max": 1600, "step": 20, "default": 760 },
+    { "type": "range", "id": "fall_stagger", "label": "Gap between pills", "unit": "ms", "min": 0, "max": 500, "step": 10, "default": 150 },
+    { "type": "checkbox", "id": "reveal_replay", "label": "Play again on the way back", "default": false },
+    { "type": "header", "content": "Colours" },
+    { "type": "color", "id": "background", "label": "Section background", "default": "#FCFBF6" },
+    { "type": "color", "id": "heading_color", "label": "Heading", "default": "#2F3326" },
+    { "type": "color", "id": "eyebrow_color", "label": "Eyebrow", "default": "#6B7056" },
+    { "type": "color", "id": "intro_color", "label": "Intro", "default": "#5C6150" },
+    { "type": "header", "content": "Layout" },
+    { "type": "range", "id": "max_width", "label": "Maximum content width", "unit": "px", "min": 800, "max": 1800, "step": 20, "default": 1280 },
+    { "type": "header", "content": "Spacing" },
+    { "type": "range", "id": "padding_top", "label": "Top padding (desktop)", "unit": "px", "min": 0, "max": 200, "step": 4, "default": 96 },
+    { "type": "range", "id": "padding_bottom", "label": "Bottom padding (desktop)", "unit": "px", "min": 0, "max": 200, "step": 4, "default": 96 },
+    { "type": "range", "id": "padding_top_mobile", "label": "Top padding (mobile)", "unit": "px", "min": 0, "max": 160, "step": 4, "default": 60 },
+    { "type": "range", "id": "padding_bottom_mobile", "label": "Bottom padding (mobile)", "unit": "px", "min": 0, "max": 160, "step": 4, "default": 60 }
+  ],
+  "blocks": [
+    {
+      "type": "pill",
+      "name": "Pill",
+      "settings": [
+        { "type": "text", "id": "label", "label": "Words on the pill", "default": "A reason" },
+        { "type": "color", "id": "color", "label": "Pill colour", "default": "#D88B6D" },
+        { "type": "color", "id": "text_color", "label": "Words", "default": "#2F3326" },
+        {
+          "type": "range",
+          "id": "tilt_override",
+          "label": "Tilt, just this one",
+          "unit": "deg",
+          "min": -14,
+          "max": 14,
+          "step": 1,
+          "default": 0,
+          "info": "0 follows the section's own tilt, which alternates with the side. Anything else overrides it."
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Why choose — pills",
+      "blocks": [
+        { "type": "pill", "settings": { "label": "Soft on little noses", "color": "#D88B6D", "text_color": "#2F3326" } },
+        { "type": "pill", "settings": { "label": "Clips on, stays on", "color": "#B5C99A", "text_color": "#2F3326" } },
+        { "type": "pill", "settings": { "label": "Washable forever", "color": "#ECA883", "text_color": "#2F3326" } },
+        { "type": "pill", "settings": { "label": "Made in small batches", "color": "#6B7056", "text_color": "#FCFBF6" } },
+        { "type": "pill", "settings": { "label": "Theirs to look after", "color": "#2F3326", "text_color": "#FCFBF6" } }
+      ]
+    }
+  ]
+}
+{% endschema %}

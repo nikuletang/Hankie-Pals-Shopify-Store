@@ -75,6 +75,7 @@ function snap() {
         delay: c.animationDelay,
         inlineDelay: el.style.animationDelay,
         fontSize: c.fontSize,
+        shadow: c.boxShadow,
         bg: c.backgroundColor,
         ink: c.color,
         cap: capsule(el)
@@ -268,6 +269,48 @@ over = run({'blocks': [{'type': 'pill', 'settings': {'label': 'Straight', 'tilt_
            'override')
 check('a single pill can be tilted on its own',
       over['pills'][0]['cap']['deg'] == 9, f"{over['pills'][0]['cap']['deg']}deg")
+
+# ------------------------------------------------------------- the shadow ---
+def shadow_parts(v):
+    """(colour, offset-x, offset-y, blur, spread) from a computed box-shadow."""
+    if v == 'none':
+        return None
+    nums = re.findall(r'(-?[\d.]+)px', v)
+    colour = re.match(r'rgba?\([^)]*\)', v)
+    return (colour.group(0) if colour else '', [float(n) for n in nums])
+
+
+sh = shadow_parts(d['pills'][0]['shadow'])
+check('the pills carry a shadow by default',
+      sh is not None and sh[1][2] > 0,
+      f"{d['pills'][0]['shadow']}")
+check('it is soft rather than the buttons\' hard edge',
+      sh and sh[1][2] >= 20, f"{sh[1][2]}px of blur")
+check('it sits below the pill and is tucked under it',
+      sh and sh[1][1] > 0 and sh[1][3] < 0,
+      f"offset {sh[1][1]}px down, spread {sh[1][3]}px")
+check('and it is the ink colour, not black',
+      sh and sh[0].startswith('rgba(47, 51, 38'), f"{sh[0]}")
+
+nosh = run({'settings': {'shadow_strength': 0}}, 'noshadow')
+check('0 makes it invisible',
+      shadow_parts(nosh['pills'][0]['shadow'])[0].endswith(', 0)'),
+      f"{nosh['pills'][0]['shadow']}")
+check('and changes nothing about where the pills are',
+      [p['cap']['box'] for p in nosh['pills']] == [p['cap']['box'] for p in d['pills']],
+      'a box-shadow is painted, not laid out, so the arrangement is untouched')
+
+def alpha(v):
+    """The alpha out of a computed box-shadow's colour. rgb() means 1."""
+    m = re.match(r'rgba\(\s*[\d.]+,\s*[\d.]+,\s*[\d.]+,\s*([\d.]+)\)', v)
+    return float(m.group(1)) if m else 1.0
+
+
+deep = run({'settings': {'shadow_strength': 70}}, 'deepshadow')
+deep_a = alpha(deep['pills'][0]['shadow'])
+base_a = alpha(d['pills'][0]['shadow'])
+check('turning it up makes it stronger',
+      deep_a > base_a, f"alpha {base_a} at the default, {deep_a} at 70%")
 
 # ------------------------------------------------------------- the badge ----
 check('no picture until one is chosen',

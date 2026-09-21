@@ -153,6 +153,13 @@
     line-height: 1.08;
     letter-spacing: -0.01em;
     text-align: center;
+    /* Soft, and offset rather than spread evenly: a pill that has just landed
+       should look like it is resting on the page, not floating over it. The
+       negative spread keeps the shadow tucked under the pill instead of
+       haloing out past its ends. */
+    box-shadow: 0 var(--hp-pill-sh-y) var(--hp-pill-sh-blur)
+                calc(var(--hp-pill-sh-blur) * -0.4)
+                rgba(47, 51, 38, var(--hp-pill-sh));
     /* The tilt lives here and in every frame of the fall. A keyframe sets the
        whole transform, so leaving it out of one would unwind the tilt as the
        pill lands. */
@@ -264,6 +271,9 @@
     --hp-pill-fluid: {{ s.pill_size | default: 46 | times: 0.11 }}vw;
     --hp-pill-pad-y: {{ s.pill_padding_y | default: 22 }}px;
     --hp-pill-pad-x: {{ s.pill_padding_x | default: 44 }}px;
+    --hp-pill-sh: {{ s.shadow_strength | default: 30 | divided_by: 100.0 }};
+    --hp-pill-sh-y: {{ s.shadow_offset | default: 14 }}px;
+    --hp-pill-sh-blur: {{ s.shadow_blur | default: 34 }}px;
     --hp-pill-fall: {{ s.fall_distance | default: 180 }}px;
     --hp-pill-dur: {{ s.fall_duration | default: 760 }}ms;
     --hp-pill-pt: {{ s.padding_top | default: 96 }}px;
@@ -545,6 +555,19 @@
       "info": "Alternates with the side, so the stack reads as one arrangement rather than a crooked list. A bigger tilt needs more room, and takes it: the gap above has a floor that rises with this."
     },
     { "type": "range", "id": "stack_gap", "label": "Space above the pills", "unit": "px", "min": 0, "max": 140, "step": 4, "default": 48 },
+    {
+      "type": "range",
+      "id": "shadow_strength",
+      "label": "Shadow",
+      "unit": "%",
+      "min": 0,
+      "max": 70,
+      "step": 5,
+      "default": 30,
+      "info": "0 removes it. The shadow is painted with the pill, so it tilts and falls with it."
+    },
+    { "type": "range", "id": "shadow_offset", "label": "How far the shadow sits below", "unit": "px", "min": 0, "max": 40, "step": 2, "default": 14 },
+    { "type": "range", "id": "shadow_blur", "label": "How soft the shadow is", "unit": "px", "min": 0, "max": 80, "step": 2, "default": 34 },
     { "type": "header", "content": "Motion" },
     {
       "type": "select",

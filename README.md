@@ -107,13 +107,15 @@ which works even with the clock frozen.
 
     python3 scripts/test-why-pills.py
 
-Thirty-one cases: the arrangement and its alternating sides and tilt, no pair of
+Thirty-eight cases: the arrangement and its alternating sides and tilt, no pair of
 pills overlapping at five widths or at the tightest settings the editor allows,
 nothing off the edge, the size control, the per-pill tilt override, the picture
 appearing only when both the toggle and an image are set and sitting centred
 between the headline and the pills, the stagger, each of the four motions, the
 tilt surviving the landing, contrast on every pill in the preset, and the three
-bail-outs.
+bail-outs, and the shadow — soft, offset, tucked under with a negative spread,
+in the ink colour, off at 0, and laid out identically either way, since a
+box-shadow is painted rather than laid out.
 
 ## Animating something that is not a rectangle
 

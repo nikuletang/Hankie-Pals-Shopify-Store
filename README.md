@@ -915,3 +915,33 @@ The wider caution: that script is a reimplementation of Shopify's validator
 from the outside, so it is only as complete as the rules that have bitten so
 far. A clean run means nothing known is wrong, not that Shopify will accept
 the file.
+
+## A filter inside a filter argument does not bind where it looks
+
+```liquid
+{{ b.image | image_url: width: 400 | image_tag: sizes: '110px',
+   alt: b.image.alt | default: '' }}
+```
+
+That reads as "use the image's alt, or an empty string". It is not what it
+does. The `|` **ends `image_tag`'s argument list**, and `default` then applies
+to `image_tag`'s own output — the whole `<img>` tag. The alt is passed raw.
+
+Hoist the value instead:
+
+```liquid
+{%- assign alt = b.image.alt | default: '' -%}
+{{ b.image | image_url: width: 400 | image_tag: sizes: '110px', alt: alt }}
+```
+
+`check-schemas.py` now refuses any filter argument carrying a filter, because
+the mistake reads as correct and the evidence for it is indirect: the how-to
+steps drew placeholder circles on a store where the photos were plainly set,
+while `hp-header` — same multi-line `image_tag`, plain `alt` — rendered its
+logo perfectly. The form appeared in exactly the sections that misbehaved and
+none of the ones that worked.
+
+**That is a correlation, not a proof.** Nothing here can execute Shopify's
+Liquid, so the reasoning is: the logic is right in this repo's own engine, the
+form is wrong by Shopify's own parsing rules, and it is the only difference
+between the sections that work and the one that did not.

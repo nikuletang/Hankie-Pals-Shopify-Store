@@ -13,6 +13,40 @@ import sys
 SECTIONS = pathlib.Path(__file__).resolve().parent.parent / "sections"
 
 
+def filtered_filter_args(path, src):
+    """A filter inside a filter argument does not bind the way it reads.
+
+        {{ img | image_tag: alt: b.image.alt | default: '' }}
+
+    The `|` ends image_tag's argument list; `default` then applies to
+    image_tag's OUTPUT, not to the alt. It looks like a fallback for one
+    attribute and is actually a filter on the whole tag. Hoist the value into
+    an `assign` above and pass the variable.
+    """
+    problems = []
+    for m in re.finditer(r"\{\{(.*?)\}\}", src, re.S):
+        body = m.group(1)
+        if "|" not in body:
+            continue
+        # Only the argument lines: `name: value`, after a filter has started.
+        started = False
+        for raw in body.splitlines():
+            line = raw.strip()
+            if line.startswith("|"):
+                started = True
+                continue
+            if not started or not line:
+                continue
+            am = re.match(r"^(\w+):\s*[^|]*\|\s*(\w+)", line)
+            if am:
+                problems.append(
+                    f"{path.name}: filter argument '{am.group(1)}' carries a "
+                    f"'{am.group(2)}' filter; it binds to the whole tag, not to "
+                    f"that argument. Assign it to a variable first"
+                )
+    return problems
+
+
 def check(path):
     text = path.read_text()
     match = re.search(r"\{% schema %\}(.*?)\{% endschema %\}", text, re.S)
@@ -24,7 +58,7 @@ def check(path):
     except json.JSONDecodeError as exc:
         return [f"{path.name}: schema is not valid JSON — {exc}"]
 
-    problems = []
+    problems = filtered_filter_args(path, text)
     groups = [("", schema.get("settings", []))]
     for block in schema.get("blocks", []):
         groups.append((f"blocks/{block.get('type', '?')}: ", block.get("settings", [])))

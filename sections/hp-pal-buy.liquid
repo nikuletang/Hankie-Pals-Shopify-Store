@@ -230,6 +230,7 @@
     <div class="hp-pb__stage" data-hp-pb-stage>
       {%- for block in section.blocks -%}
         {%- assign b = block.settings -%}
+        {%- assign alt = b.image.alt | default: b.label -%}
         <div
           class="hp-pb__shot"
           data-hp-pb-shot="{{ forloop.index0 }}"
@@ -243,7 +244,7 @@
                 loading: 'lazy',
                 widths: '300, 500, 700, 900, 1200',
                 sizes: '(max-width: 830px) 90vw, 46vw',
-                alt: b.image.alt | default: b.label
+                alt: alt
             }}
           {%- else -%}
             <p class="hp-pb__ph">{{ b.label | default: 'Add a photo' | escape }}</p>

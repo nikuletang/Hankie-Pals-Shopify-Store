@@ -284,6 +284,7 @@
       {%- for block in section.blocks -%}
         {%- liquid
           assign b = block.settings
+          assign alt = b.image.alt | default: ''
 
           assign n = forloop.index
           assign label = b.number | strip
@@ -316,7 +317,7 @@
                   loading: 'lazy',
                   widths: '110, 160, 220, 320, 400',
                   sizes: '110px',
-                  alt: b.image.alt | default: ''
+                  alt: alt
               }}
             {%- else -%}
               <span class="hp-hts__ph">{{ label | escape }}</span>

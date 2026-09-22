@@ -433,6 +433,7 @@
             {%- if block.type != 'photo' -%}{% continue %}{%- endif -%}
             {%- assign b = block.settings -%}
             {%- assign zi = zi | plus: 1 -%}
+            {%- assign alt = b.image.alt | default: '' -%}
             <div
               class="hp-fc__photo"
               style="
@@ -453,7 +454,7 @@
                       loading: 'lazy',
                       widths: '200, 320, 480, 660, 900',
                       sizes: '(max-width: 900px) 45vw, 26vw',
-                      alt: b.image.alt | default: ''
+                      alt: alt
                   }}
                 {%- else -%}
                   <div class="hp-fc__ph">Photo {{ zi }}</div>

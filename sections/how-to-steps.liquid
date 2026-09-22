@@ -1,0 +1,444 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — How-to steps
+  ---------------------------------------------------------------------------
+  An eyebrow pill, a heading, and a column of capsule rows: a round photo, a
+  short title, a line or two of copy, and a very pale numeral behind it all.
+
+  The numeral is decoration. The list is an <ol>, so the order is already in
+  the markup for a screen reader, and the big number is aria-hidden rather
+  than read out twice. It is absolutely positioned and the row clips it, which
+  is what lets it sit hard against the rounded end without changing the row's
+  height or width.
+
+  Sizes are px: Dawn's root font-size is 62.5%, so rem renders at 62.5% of its
+  intended value. Every setting carries a `| default:`, because a setting
+  added after a section was saved reads nil.
+
+  richtext settings sit in a <div>, never a <p>: richtext brings its own <p>,
+  and a <p> inside a <p> is closed early by the parser, which drops the words
+  out of the styled element and back to the theme's size.
+
+  Every selector is prefixed .hp-hts and every per-instance value arrives as
+  an inline custom property, so nothing here can reach another section.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+  assign ring = s.photo_ring | default: 0
+  assign card_shadow = s.card_shadow | default: 18
+  assign shadow_alpha = card_shadow | divided_by: 200.0
+  assign shape = s.card_shape | default: 'capsule'
+  if shape == 'capsule'
+    assign radius = '999px'
+  else
+    assign radius = s.card_radius | default: 28 | append: 'px'
+  endif
+-%}
+
+{% style %}
+  .hp-hts {
+    --hp-hts-ink: {{ s.text_color | default: '#2F3326' }};
+    --hp-hts-muted: {{ s.muted_color | default: '#5C6150' }};
+    --hp-hts-card: {{ s.card_color | default: '#FFFFFF' }};
+    --hp-hts-num: {{ s.number_color | default: '#EFEBE4' }};
+    --hp-hts-pill-bg: {{ s.pill_background | default: '#FCFBF6' }};
+    --hp-hts-pill-line: {{ s.pill_line_color | default: '#E4BFA4' }};
+    --hp-hts-pill-ink: {{ s.pill_text_color | default: '#2F3326' }};
+    --hp-hts-dot: {{ s.pill_dot_color | default: '#B5C99A' }};
+
+    background-color: {{ s.background | default: '#FCFBF6' }};
+    padding-block: {{ s.padding_top | default: 88 }}px {{ s.padding_bottom | default: 88 }}px;
+    color: var(--hp-hts-ink);
+    /* Nothing here may widen the page: the numeral is oversized on purpose
+       and the rows are clipped, but a clip on the section is the guarantee. */
+    overflow-x: clip;
+  }
+
+  .hp-hts__inner {
+    max-width: {{ s.max_width | default: 1180 }}px;
+    margin-inline: auto;
+    padding-inline: clamp(16px, 4vw, 40px);
+  }
+
+  /* --- the top ------------------------------------------------------------- */
+  .hp-hts__head { text-align: center; margin-bottom: clamp(32px, 4vw, 56px); }
+
+  .hp-hts__eyebrow { display: flex; justify-content: center; margin: 0 0 22px; }
+
+  /* The soft eyebrow pill used across the site: hairline outline, quiet
+     shadow, a coloured dot -- not the heavy button. */
+  .hp-hts__eyebrow-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6em;
+    padding: 0.62em 1.3em;
+    border: 1px solid var(--hp-hts-pill-line);
+    border-radius: 999px;
+    background: var(--hp-hts-pill-bg);
+    box-shadow: 0 2px 8px rgba(47, 51, 38, 0.05);
+    color: var(--hp-hts-pill-ink);
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: {{ s.eyebrow_size | default: 13 }}px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    line-height: 1.2;
+  }
+
+  .hp-hts__dot {
+    flex: none;
+    width: 0.52em;
+    height: 0.52em;
+    border-radius: 50%;
+    background: var(--hp-hts-dot);
+  }
+
+  .hp-hts__heading {
+    margin: 0 0 14px;
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: {{ s.heading_size | default: 52 }}px;
+    line-height: 1.06;
+    letter-spacing: -0.015em;
+  }
+
+  .hp-hts__sub {
+    margin-inline: auto;
+    max-width: 56ch;
+    font-size: {{ s.sub_size | default: 19 }}px;
+    line-height: 1.5;
+    color: var(--hp-hts-muted);
+  }
+
+  .hp-hts__sub > :first-child { margin-top: 0; }
+  .hp-hts__sub > :last-child { margin-bottom: 0; }
+
+  /* --- the rows ------------------------------------------------------------ */
+  .hp-hts__list {
+    display: flex;
+    flex-direction: column;
+    gap: {{ s.row_gap | default: 26 }}px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: hp-hts;
+  }
+
+  .hp-hts__step {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: {{ s.row_gap_inner | default: 26 }}px;
+    padding: {{ s.card_pad_y | default: 26 }}px {{ s.card_pad_x | default: 40 }}px;
+    border-radius: {{ radius }};
+    background: var(--hp-hts-card);
+    {%- if card_shadow > 0 %}
+    box-shadow: 0 {{ card_shadow | times: 0.6 | round }}px
+                {{ card_shadow | times: 1.6 | round }}px
+                -{{ card_shadow | times: 0.5 | round }}px
+                rgba(47, 51, 38, {{ shadow_alpha }});
+    {%- endif %}
+    /* Clips the numeral against the rounded end, so it can be as large as it
+       likes without reaching outside the row or changing its size. */
+    overflow: hidden;
+  }
+
+  /* --- the numeral --------------------------------------------------------- */
+  .hp-hts__num {
+    position: absolute;
+    right: {{ s.number_inset | default: 44 }}px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 0;
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: {{ s.number_size | default: 120 }}px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--hp-hts-num);
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* Everything real rides above the numeral. */
+  .hp-hts__figure,
+  .hp-hts__text { position: relative; z-index: 1; }
+
+  /* --- the photo ----------------------------------------------------------- */
+  .hp-hts__figure {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: {{ s.photo_size | default: 110 }}px;
+    height: {{ s.photo_size | default: 110 }}px;
+    border-radius: 50%;
+    background: var(--hp-hts-tint, #F6E4E4);
+    overflow: hidden;
+    {%- if ring > 0 %}
+    border: {{ ring }}px solid var(--hp-hts-ring, #2F3326);
+    {%- endif %}
+  }
+
+  .hp-hts__figure img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: {{ s.photo_fit | default: 'cover' }};
+  }
+
+  .hp-hts__ph {
+    font: 600 11px/1.2 system-ui, sans-serif;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--hp-hts-muted);
+    text-align: center;
+  }
+
+  /* --- the words ----------------------------------------------------------- */
+  /* Fills the row rather than shrinking to its words, so a long line runs on
+     over the numeral the way it does in the reference instead of stopping
+     politely short of it. */
+  .hp-hts__text {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .hp-hts__title {
+    margin: 0 0 6px;
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: {{ s.title_size | default: 19 }}px;
+    line-height: 1.2;
+    letter-spacing: 0.02em;
+    {%- if s.title_case != 'as-typed' %}
+    text-transform: uppercase;
+    {%- endif %}
+  }
+
+  .hp-hts__body {
+    /* The words sit over the numeral, which is why the numeral is barely
+       there: this is line length, not clearance. */
+    max-width: {{ s.body_width | default: 78 }}ch;
+    font-size: {{ s.body_size | default: 17 }}px;
+    line-height: 1.5;
+    color: var(--hp-hts-muted);
+  }
+
+  .hp-hts__body > :first-child { margin-top: 0; }
+  .hp-hts__body > :last-child { margin-bottom: 0; }
+
+  /* --- the phone ------------------------------------------------------------ */
+  @media screen and (max-width: {{ s.tighten_below | default: 749 }}px) {
+    .hp-hts__step {
+      gap: {{ s.row_gap_inner | default: 26 | times: 0.55 | round }}px;
+      padding: {{ s.card_pad_y | default: 26 | times: 0.7 | round }}px
+               {{ s.card_pad_x | default: 40 | times: 0.5 | round }}px;
+    }
+
+    .hp-hts__figure {
+      width: {{ s.photo_size | default: 110 | times: 0.6 | round }}px;
+      height: {{ s.photo_size | default: 110 | times: 0.6 | round }}px;
+    }
+
+    .hp-hts__num {
+      right: {{ s.number_inset | default: 44 | times: 0.4 | round }}px;
+      font-size: {{ s.number_size | default: 120 | times: 0.6 | round }}px;
+    }
+
+    .hp-hts__heading { font-size: {{ s.heading_size | default: 52 | times: 0.62 | round }}px; }
+    .hp-hts__sub { font-size: {{ s.sub_size | default: 19 | times: 0.85 | round }}px; }
+    .hp-hts__title { font-size: {{ s.title_size | default: 19 | times: 0.9 | round }}px; }
+    .hp-hts__body { font-size: {{ s.body_size | default: 17 | times: 0.88 | round }}px; }
+  }
+{% endstyle %}
+
+<section class="hp-hts" {{ section.shopify_attributes }}>
+  <div class="hp-hts__inner">
+    {%- if s.eyebrow != blank or s.heading != blank or s.subheading != blank -%}
+      <div class="hp-hts__head">
+        {%- if s.eyebrow != blank -%}
+          <p class="hp-hts__eyebrow">
+            <span class="hp-hts__eyebrow-inner">
+              <span class="hp-hts__dot" aria-hidden="true"></span>
+              {{- s.eyebrow | escape -}}
+            </span>
+          </p>
+        {%- endif -%}
+        {%- if s.heading != blank -%}
+          <h2 class="hp-hts__heading">{{ s.heading | escape }}</h2>
+        {%- endif -%}
+        {%- if s.subheading != blank -%}
+          <div class="hp-hts__sub">{{ s.subheading }}</div>
+        {%- endif -%}
+      </div>
+    {%- endif -%}
+
+    {%- comment -%}
+      An <ol>, so the order is in the markup rather than only in the pictures
+      of numbers. The big numeral is decoration on top of that and is hidden
+      from a screen reader, which would otherwise hear "01" and "one".
+    {%- endcomment -%}
+    <ol class="hp-hts__list" role="list">
+      {%- for block in section.blocks -%}
+        {%- liquid
+          assign b = block.settings
+
+          assign n = forloop.index
+          assign label = b.number | strip
+          if label == blank
+            if n < 10
+              assign label = '0' | append: n
+            else
+              assign label = n | append: ''
+            endif
+          endif
+        -%}
+        <li
+          class="hp-hts__step"
+          style="
+            --hp-hts-tint: {{ b.tint | default: '#F6E4E4' }};
+            --hp-hts-ring: {{ b.ring_color | default: '#2F3326' }};
+          "
+          {{ block.shopify_attributes }}
+        >
+          {%- if s.show_numbers != false -%}
+            <span class="hp-hts__num" aria-hidden="true">{{ label | escape }}</span>
+          {%- endif -%}
+
+          <span class="hp-hts__figure">
+            {%- if b.image != blank -%}
+              {{
+                b.image
+                | image_url: width: 400
+                | image_tag:
+                  loading: 'lazy',
+                  widths: '110, 160, 220, 320, 400',
+                  sizes: '110px',
+                  alt: b.image.alt | default: ''
+              }}
+            {%- else -%}
+              <span class="hp-hts__ph">{{ label | escape }}</span>
+            {%- endif -%}
+          </span>
+
+          <div class="hp-hts__text">
+            {%- if b.title != blank -%}
+              <h3 class="hp-hts__title">{{ b.title | escape }}</h3>
+            {%- endif -%}
+            {%- if b.body != blank -%}
+              <div class="hp-hts__body">{{ b.body }}</div>
+            {%- endif -%}
+          </div>
+        </li>
+      {%- endfor -%}
+    </ol>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "How-to steps",
+  "tag": "section",
+  "class": "hp-hts-section",
+  "settings": [
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow label", "default": "How it works" },
+    { "type": "text", "id": "heading", "label": "Heading", "default": "How to Use & Care for Your Hankie Pal" },
+    { "type": "richtext", "id": "subheading", "label": "Subheading", "default": "<p>A simple little routine for everyday sniffles.</p>" },
+    { "type": "header", "content": "The numerals" },
+    { "type": "checkbox", "id": "show_numbers", "label": "Show the big numbers", "default": true },
+    { "type": "range", "id": "number_size", "label": "Number size", "unit": "px", "min": 40, "max": 200, "step": 4, "default": 120 },
+    { "type": "range", "id": "number_inset", "label": "Number inset from the right", "unit": "px", "min": 0, "max": 120, "step": 2, "default": 44 },
+    { "type": "color", "id": "number_color", "label": "Number colour", "default": "#EFEBE4", "info": "Meant to sit just off the card, barely there. The words run over it." },
+    { "type": "header", "content": "The rows" },
+    {
+      "type": "select",
+      "id": "card_shape",
+      "label": "Row shape",
+      "options": [
+        { "value": "capsule", "label": "Capsule" },
+        { "value": "rounded", "label": "Rounded corners" }
+      ],
+      "default": "capsule"
+    },
+    { "type": "range", "id": "card_radius", "label": "Corner rounding", "unit": "px", "min": 0, "max": 60, "step": 2, "default": 28, "info": "Used when the shape is rounded corners." },
+    { "type": "color", "id": "card_color", "label": "Row fill", "default": "#FFFFFF" },
+    { "type": "range", "id": "card_shadow", "label": "Row shadow", "unit": "px", "min": 0, "max": 40, "step": 2, "default": 18 },
+    { "type": "range", "id": "card_pad_y", "label": "Row padding, top and bottom", "unit": "px", "min": 8, "max": 60, "step": 2, "default": 26 },
+    { "type": "range", "id": "card_pad_x", "label": "Row padding, left and right", "unit": "px", "min": 8, "max": 80, "step": 2, "default": 40 },
+    { "type": "range", "id": "row_gap", "label": "Gap between rows", "unit": "px", "min": 0, "max": 60, "step": 2, "default": 26 },
+    { "type": "range", "id": "row_gap_inner", "label": "Gap between photo and words", "unit": "px", "min": 8, "max": 60, "step": 2, "default": 26 },
+    { "type": "header", "content": "The photos" },
+    { "type": "range", "id": "photo_size", "label": "Photo size", "unit": "px", "min": 48, "max": 200, "step": 2, "default": 110 },
+    {
+      "type": "select",
+      "id": "photo_fit",
+      "label": "How the photo sits in the circle",
+      "options": [
+        { "value": "cover", "label": "Fill the circle, cropping if it must" },
+        { "value": "contain", "label": "Fit the whole photo inside" }
+      ],
+      "default": "cover",
+      "info": "Fit the whole photo suits a cut-out on a transparent background."
+    },
+    { "type": "range", "id": "photo_ring", "label": "Ring around the photo", "unit": "px", "min": 0, "max": 6, "step": 1, "default": 0 },
+    { "type": "header", "content": "Type" },
+    { "type": "range", "id": "heading_size", "label": "Heading size", "unit": "px", "min": 24, "max": 72, "step": 2, "default": 52 },
+    { "type": "range", "id": "sub_size", "label": "Subheading size", "unit": "px", "min": 13, "max": 26, "step": 1, "default": 19 },
+    { "type": "range", "id": "eyebrow_size", "label": "Eyebrow size", "unit": "px", "min": 10, "max": 20, "step": 1, "default": 13 },
+    { "type": "range", "id": "title_size", "label": "Step title size", "unit": "px", "min": 13, "max": 30, "step": 1, "default": 19 },
+    {
+      "type": "select",
+      "id": "title_case",
+      "label": "Step title case",
+      "options": [
+        { "value": "upper", "label": "UPPERCASE" },
+        { "value": "as-typed", "label": "As typed" }
+      ],
+      "default": "upper"
+    },
+    { "type": "range", "id": "body_size", "label": "Step text size", "unit": "px", "min": 12, "max": 22, "step": 1, "default": 17 },
+    { "type": "range", "id": "body_width", "label": "Step text width", "unit": "ch", "min": 30, "max": 90, "step": 1, "default": 78, "info": "The words ride over the numeral rather than stopping short of it, so this is about line length, not clearance. Lower it if the lines run too long to read." },
+    { "type": "header", "content": "Colours" },
+    { "type": "color", "id": "background", "label": "Section background", "default": "#FCFBF6" },
+    { "type": "color", "id": "text_color", "label": "Text", "default": "#2F3326" },
+    { "type": "color", "id": "muted_color", "label": "Quiet text", "default": "#5C6150" },
+    { "type": "color", "id": "pill_background", "label": "Eyebrow fill", "default": "#FCFBF6" },
+    { "type": "color", "id": "pill_line_color", "label": "Eyebrow outline", "default": "#E4BFA4" },
+    { "type": "color", "id": "pill_text_color", "label": "Eyebrow text", "default": "#2F3326" },
+    { "type": "color", "id": "pill_dot_color", "label": "Eyebrow dot", "default": "#B5C99A" },
+    { "type": "header", "content": "Layout" },
+    { "type": "range", "id": "max_width", "label": "Maximum width", "unit": "px", "min": 700, "max": 1500, "step": 20, "default": 1180 },
+    { "type": "range", "id": "tighten_below", "label": "Tighten below", "unit": "px", "min": 500, "max": 1000, "step": 10, "default": 749 },
+    { "type": "range", "id": "padding_top", "label": "Space above", "unit": "px", "min": 0, "max": 180, "step": 4, "default": 88 },
+    { "type": "range", "id": "padding_bottom", "label": "Space below", "unit": "px", "min": 0, "max": 180, "step": 4, "default": 88 }
+  ],
+  "blocks": [
+    {
+      "type": "step",
+      "name": "Step",
+      "limit": 10,
+      "settings": [
+        { "type": "image_picker", "id": "image", "label": "Photo" },
+        { "type": "color", "id": "tint", "label": "Circle behind the photo", "default": "#F6E4E4" },
+        { "type": "color", "id": "ring_color", "label": "Ring colour", "default": "#2F3326", "info": "Only drawn when the ring has a width, in the section's photo settings." },
+        { "type": "text", "id": "title", "label": "Title", "default": "Clip it" },
+        { "type": "richtext", "id": "body", "label": "Text", "default": "<p>A line or two about this step.</p>" },
+        { "type": "text", "id": "number", "label": "Number", "info": "Leave empty to count from the top: 01, 02, 03." }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "How-to steps",
+      "blocks": [
+        { "type": "step", "settings": { "tint": "#F6D8D8", "title": "Clip it", "body": "<p>Attach your Hankie Pal to your toddler's shirt so it stays close when sniffles show up.</p>" } },
+        { "type": "step", "settings": { "tint": "#FBE7E7", "title": "Wipe it", "body": "<p>Your little one can reach for their soft cotton companion whenever their nose needs attention.</p>" } },
+        { "type": "step", "settings": { "tint": "#E9F5DB", "title": "Detach it", "body": "<p>Remove the clip before washing to help keep the clip and snap in good condition.</p>" } },
+        { "type": "step", "settings": { "tint": "#F6D8D8", "title": "Wash it", "body": "<p>Toss the cloth in the wash, let it dry, and use it again for the next sniffly day.</p>" } }
+      ]
+    }
+  ]
+}
+{% endschema %}

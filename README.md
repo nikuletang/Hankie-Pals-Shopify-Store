@@ -24,6 +24,7 @@ anything moving.
 | [`sections/pal-reveal.liquid`](sections/pal-reveal.liquid) | **Pal reveal** | A Pal that grows on scroll until its body becomes the next section |
 | [`sections/pal-panel.liquid`](sections/pal-panel.liquid) | **Pal panel** | A domed Pal-shaped panel that rises over the pinned section above and holds the copy |
 | [`sections/hp-header.liquid`](sections/hp-header.liquid) | **Totterful header** | Logo, the site's buttons as navigation, search, account and cart. Transparent over the hero. Goes in the header section group |
+| [`sections/how-to-steps.liquid`](sections/how-to-steps.liquid) | **How-to steps** | Numbered capsule rows: a round tinted photo, a title, a line of copy, and a very pale numeral behind the words |
 | [`sections/feature-collage.liquid`](sections/feature-collage.liquid) | **Feature collage** | Overlapping photographs in the middle with pills placed on them by hand, feature cards either side. Hovering a photo lifts it over the rest |
 | [`sections/hp-pal-buy.liquid`](sections/hp-pal-buy.liquid) | **Choose your Pal** | The product page's picking moment. One pill per Pal; choosing one swaps the photo, the name, the blurb and the accent, and selects that variant in Dawn's own buy box below |
 | [`sections/hp-footer.liquid`](sections/hp-footer.liquid) | **Totterful footer** | Brand, menu columns, policies. Goes in the footer section group, so it is on every page |
@@ -869,3 +870,25 @@ under `content-box` and nowhere else. A test page that differs from the store
 invents bugs as readily as it hides them, and a false one costs more than a
 missed one — it sends you rewriting code that was correct. The reset now
 matches Dawn's.
+
+## The numeral in the how-to steps
+
+It is far larger than the row that holds it, which makes it three problems at
+once and each is handled somewhere different:
+
+- **It must not change the row.** It is absolutely positioned and the row is
+  `overflow: hidden`, so it is clipped against the capsule's rounded end
+  instead of stretching the row or reaching outside it. Remove the clip and
+  the check names the numeral's right edge against the row's.
+- **It must sit behind the words.** The numeral is `z-index: 0`, the photo and
+  the words are `z-index: 1`. The text block is `flex: 1`, so a long line runs
+  on over the numeral rather than stopping short of it — which is what the
+  reference does, and the reason the ordering matters at all. The suite checks
+  the ordering with copy long enough to actually cross it; with short copy the
+  two never meet and the check would prove nothing.
+- **It must not be read aloud.** The list is an `<ol>`, so the order is in the
+  markup already. The numeral is `aria-hidden`, or a screen reader announces
+  every step twice — "one" from the list, "01" from the decoration.
+
+Where the words cross the numeral the contrast is **5.39:1** against the quiet
+text colour, so the overlap stays readable rather than merely faint.

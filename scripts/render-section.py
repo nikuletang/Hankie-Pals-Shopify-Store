@@ -201,6 +201,12 @@ html = env.from_string(body).render(shop=SHOP, linklists=LINKLISTS, form=FORM,
 page = f"""<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
+  /* Dawn's own reset, so a section lays out here the way it will there.
+     Without the border-box line, `width: 100%` plus padding overflows in this
+     page and nowhere else -- inventing overflow bugs that do not exist on the
+     store, which is worse than missing one. */
+  *, *::before, *::after {{ box-sizing: border-box; }}
+
   /* Dawn's root: 1rem renders at 10px, so any stray rem shows up here the way
      it would on the real store. */
   html {{ font-size: calc(var(--font-body-scale, 1) * 62.5%); }}

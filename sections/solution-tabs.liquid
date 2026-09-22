@@ -40,6 +40,13 @@
     --hp-heading-scale: var(--font-heading-scale, 1);
     background-color: var(--hp-bg);
     padding-block: var(--hp-pt) var(--hp-pb);
+    /* The tabs slide in FROM the right, which means that for the length of the
+       animation they are standing outside the section's right edge. Unclipped
+       that widens the document, and the whole page gains a sideways scroll --
+       on a phone the reader is left dragging the page around to find a strip
+       of empty background. clip, not hidden: hidden on one axis forces the
+       other to scroll, which would break the sticky behaviour around it. */
+    overflow-x: clip;
   }
 
   .hp-sol__inner {

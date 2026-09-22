@@ -837,3 +837,35 @@ This was found in a screenshot at 390px, with "Crinkle ears" cut off by the
 left edge. The suite measures every pill's box against the viewport at five
 widths plus a real 390px phone in an iframe; removing the anchoring turns that
 check red and names the pill.
+
+## Sideways scroll on a phone
+
+`scripts/check-overflow.py` renders every section on its own at 390px and
+360px and names any element that reaches past the edge. Run it alongside
+`check-schemas.py`.
+
+It exists because this has now shipped three times:
+
+- **the header** — its icon pills grew from 44px to 68px when `hp-button.css`
+  loaded after the section, pushing the hamburger to x=392 on a 390px phone;
+- **the feature collage** — pills anchored by their middles hung off the screen
+  when their anchor sat near an edge;
+- **the solution tabs** — they slide in *from the right*, so for the length of
+  the animation they stand outside the section. At rest nothing is wrong, which
+  is why it went unnoticed.
+
+The lesson each time: **horizontal overflow is a property of the document, not
+of the section that causes it.** Empty space beside the header when you drag
+the page sideways says nothing about the header — the culprit was a section
+several screens below. Scan everything rather than reading the symptom's
+location as evidence.
+
+### The harness has to share Dawn's box model
+
+The first run of that scan reported two overflowing sections. One was real. The
+other was an artifact: `render-section.py` did not set
+`box-sizing: border-box`, Dawn does, and `width: 100%` plus padding overflows
+under `content-box` and nowhere else. A test page that differs from the store
+invents bugs as readily as it hides them, and a false one costs more than a
+missed one — it sends you rewriting code that was correct. The reset now
+matches Dawn's.

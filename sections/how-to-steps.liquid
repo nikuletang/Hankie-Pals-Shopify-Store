@@ -30,6 +30,9 @@
   assign card_shadow = s.card_shadow | default: 18
   assign shadow_alpha = card_shadow | divided_by: 200.0
   assign shape = s.card_shape | default: 'capsule'
+  assign fit = s.photo_fit | default: 'contain'
+  assign inset = s.photo_inset | default: 10
+  assign num_op = s.number_opacity | default: 100 | divided_by: 100.0
   if shape == 'capsule'
     assign radius = '999px'
   else
@@ -158,6 +161,7 @@
     line-height: 1;
     letter-spacing: -0.02em;
     color: var(--hp-hts-num);
+    opacity: {{ num_op }};
     pointer-events: none;
     user-select: none;
   }
@@ -175,6 +179,7 @@
     height: {{ s.photo_size | default: 110 }}px;
     border-radius: 50%;
     background: var(--hp-hts-tint, #F6E4E4);
+    padding: {{ inset }}px;
     overflow: hidden;
     {%- if ring > 0 %}
     border: {{ ring }}px solid var(--hp-hts-ring, #2F3326);
@@ -184,8 +189,13 @@
   .hp-hts__figure img {
     display: block;
     width: 100%;
-    height: 100%;
-    object-fit: {{ s.photo_fit | default: 'cover' }};
+    /* A square box from the width, rather than `height: 100%`. The percentage
+       would resolve against an auto-sized grid row, which it cannot, so the
+       image kept its own height, overflowed the circle and was clipped --
+       object-fit never got a constrained box to work in. */
+    aspect-ratio: 1;
+    height: auto;
+    object-fit: {{ fit }};
   }
 
   .hp-hts__ph {
@@ -352,6 +362,7 @@
     { "type": "range", "id": "number_size", "label": "Number size", "unit": "px", "min": 40, "max": 200, "step": 4, "default": 120 },
     { "type": "range", "id": "number_inset", "label": "Number inset from the right", "unit": "px", "min": 0, "max": 120, "step": 2, "default": 44 },
     { "type": "color", "id": "number_color", "label": "Number colour", "default": "#EFEBE4", "info": "Meant to sit just off the card, barely there. The words run over it." },
+    { "type": "range", "id": "number_opacity", "label": "Number opacity", "unit": "%", "min": 0, "max": 100, "step": 5, "default": 100, "info": "Lower it to fade the numeral further, or pick a strong colour above and dial it back here." },
     { "type": "header", "content": "The rows" },
     {
       "type": "select",
@@ -380,9 +391,10 @@
         { "value": "cover", "label": "Fill the circle, cropping if it must" },
         { "value": "contain", "label": "Fit the whole photo inside" }
       ],
-      "default": "cover",
-      "info": "Fit the whole photo suits a cut-out on a transparent background."
+      "default": "contain",
+      "info": "Fit the whole photo suits a cut-out or an illustration. Fill the circle suits a photograph, and crops whatever will not fit."
     },
+    { "type": "range", "id": "photo_inset", "label": "Space inside the circle", "unit": "px", "min": 0, "max": 40, "step": 2, "default": 10, "info": "Keeps a fitted photo off the edge of the circle. Set it to 0 when the photo fills the circle." },
     { "type": "range", "id": "photo_ring", "label": "Ring around the photo", "unit": "px", "min": 0, "max": 6, "step": 1, "default": 0 },
     { "type": "header", "content": "Type" },
     { "type": "range", "id": "heading_size", "label": "Heading size", "unit": "px", "min": 24, "max": 72, "step": 2, "default": 52 },

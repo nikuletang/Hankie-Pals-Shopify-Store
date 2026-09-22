@@ -945,3 +945,32 @@ none of the ones that worked.
 Liquid, so the reasoning is: the logic is right in this repo's own engine, the
 form is wrong by Shopify's own parsing rules, and it is the only difference
 between the sections that work and the one that did not.
+
+## object-fit needs a box it cannot escape
+
+The how-to steps' photos were clipped by their circles whatever `object-fit`
+said, because the image never had a constrained box to fit into:
+
+```css
+.hp-hts__figure img { width: 100%; height: 100%; object-fit: contain; }
+```
+
+`.hp-hts__figure` is a grid with `place-items: center`, so its row is
+auto-sized — and a percentage height against an auto row cannot resolve. The
+height fell back to the image's own, a 200x360 source drew 144x259 inside a
+160px circle, `overflow: hidden` cut the rest, and `object-fit` had nothing to
+do because the box was never smaller than the picture.
+
+`aspect-ratio: 1` with `height: auto` takes the height from the width instead,
+which is definite. Then `contain` fits the whole image and `cover` crops it,
+both on purpose.
+
+`contain` is the default here: these are cut-out illustrations, and a cut-out
+that loses its feet to a crop is worse than one with tint showing around it.
+**Space inside the circle** keeps a fitted image off the edge.
+
+The check is in pixels, not geometry. A test image carries a band at its very
+top and another at its very bottom; the screenshot is sampled inside the
+circle's own box and both bands have to be there. Geometry alone would have
+passed the broken version — the box was the right size, it was the *image*
+that overflowed it.

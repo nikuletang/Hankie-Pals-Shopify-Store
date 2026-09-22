@@ -7,6 +7,7 @@ over them, and it must not be read out to anyone using a screen reader -- the
 list is already an <ol>, so the order is in the markup once without it.
 """
 import json, re, subprocess, sys, pathlib
+from PIL import Image, ImageDraw
 
 CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -34,9 +35,13 @@ function snap(d,w){
                         bg:w.getComputedStyle(fig).backgroundColor} : null,
             txt: txt ? {box:bx(txt), z:w.getComputedStyle(txt).zIndex} : null};
   });
+  var img=d.querySelector('.hp-hts__figure img');
+  var num1=d.querySelector('.hp-hts__num');
   var body=d.querySelector('.hp-hts__body p')||d.querySelector('.hp-hts__body');
   return {steps:steps,
     listTag:(d.querySelector('.hp-hts__list')||{}).tagName,
+    imgBox: img ? bx(img) : null,
+    numOpacity: num1 ? w.getComputedStyle(num1).opacity : null,
     bodySize: body ? w.getComputedStyle(body).fontSize : null,
     bodyText: body ? body.textContent.trim().slice(0,22) : null,
     docW:d.documentElement.scrollWidth, winW:w.innerWidth};
@@ -211,6 +216,82 @@ check('and the photo gives up room to do it',
       ph['steps'][0]['fig']['box']['w'] < d['steps'][0]['fig']['box']['w'],
       f"{d['steps'][0]['fig']['box']['w']}px on a desktop, "
       f"{ph['steps'][0]['fig']['box']['w']}px on a phone")
+
+# ------------------------------------------------ the photo in its circle ----
+# A test image with a band at its very top and another at its very bottom. If
+# both show inside the circle, nothing has been cut off; that is a claim about
+# pixels, so it is settled in pixels rather than in geometry.
+def banded(path):
+    im = Image.new('RGB', (200, 360), (250, 250, 250))
+    d = ImageDraw.Draw(im)
+    d.rectangle([0, 0, 199, 24], fill=(220, 40, 40))
+    d.rectangle([0, 335, 199, 359], fill=(30, 90, 220))
+    im.save(path)
+    return path
+
+
+BANDS = banded(TMP / 'hts-bands.png')
+
+
+def bands_in_circle(fit):
+    ov = {'settings': {'photo_fit': fit, 'photo_size': 160, 'photo_inset': 8},
+          'blocks': [{'type': 'step', 'settings': {'title': 'x', 'image': str(BANDS),
+                                                   'body': '<p>x</p>'}}]}
+    page = TMP / f'hts-bands-{fit}.html'
+    subprocess.run([sys.executable, str(HERE / 'render-section.py'), str(SECTION),
+                    json.dumps(ov), str(page)], check=True, capture_output=True)
+    page.write_text(page.read_text(encoding='utf-8').replace('</body>',
+        "<script>setTimeout(function(){var f=document.querySelector"
+        "('.hp-hts__figure').getBoundingClientRect();document.title='RESULT'+"
+        "JSON.stringify({l:Math.round(f.left),t:Math.round(f.top),"
+        "r:Math.round(f.right),b:Math.round(f.bottom)});},500);</script></body>"),
+        encoding='utf-8')
+    shot = TMP / f'hts-bands-{fit}.png'
+    dom = subprocess.run([CHROME, '--headless', '--no-sandbox', '--disable-gpu',
+        '--allow-file-access-from-files', '--window-size=1400,900',
+        '--virtual-time-budget=5000', f'--screenshot={shot}', '--dump-dom',
+        'file://' + str(page)], capture_output=True, text=True, timeout=180).stdout
+    box = json.loads(re.search(r'<title>RESULT(.*?)</title>', dom, re.S).group(1))
+    im = Image.open(shot).convert('RGB')
+    found = {'top': False, 'bottom': False}
+    for y in range(box['t'], box['b']):
+        for x in range(box['l'], box['r']):
+            px = im.getpixel((x, y))
+            if all(abs(a - b) <= 18 for a, b in zip(px, (220, 40, 40))):
+                found['top'] = True
+            if all(abs(a - b) <= 18 for a, b in zip(px, (30, 90, 220))):
+                found['bottom'] = True
+    return found
+
+
+whole = bands_in_circle('contain')
+check('fitting the photo shows all of it, top edge and bottom edge',
+      whole['top'] and whole['bottom'],
+      f"top band {'visible' if whole['top'] else 'missing'}, "
+      f"bottom band {'visible' if whole['bottom'] else 'missing'}")
+
+filled = bands_in_circle('cover')
+check('and filling the circle crops it, which is the other choice',
+      not filled['top'] and not filled['bottom'],
+      "neither end of the image survives the crop")
+
+# object-fit only bites on a constrained box. `height: 100%` here resolves
+# against an auto-sized grid row, which it cannot, so the image kept its own
+# height and spilled out of the circle to be clipped instead.
+sized = run('photo-box', overrides={'settings': {'photo_size': 160, 'photo_inset': 8},
+    'blocks': [{'type': 'step', 'settings': {'title': 'x', 'image': str(BANDS)}}]})
+fig = sized['steps'][0]['fig']['box']
+check('the photo is given a square box inside the circle, not its own height',
+      sized['imgBox'] and sized['imgBox']['h'] == sized['imgBox']['w']
+      and sized['imgBox']['h'] <= fig['h'],
+      f"image box {sized['imgBox']['w']}x{sized['imgBox']['h']} "
+      f"in a {fig['w']}x{fig['h']} circle")
+
+# ------------------------------------------------------ numeral opacity -----
+faint = run('faint', overrides={'settings': {'number_opacity': 20}})
+check('the numeral opacity is a setting',
+      faint['numOpacity'] == '0.2' and d['numOpacity'] == '1',
+      f"20% renders {faint['numOpacity']}, the default renders {d['numOpacity']}")
 
 print(f"\n{sum(res)}/{len(res)} passed")
 sys.exit(0 if all(res) else 1)

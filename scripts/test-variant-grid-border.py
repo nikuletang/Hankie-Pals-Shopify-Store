@@ -2,7 +2,10 @@
 import json, subprocess, sys, pathlib, re
 CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
 SECTION = '/home/user/hankie-pals-shopify-store/sections/variant-grid.liquid'
-HERE = pathlib.Path('.').resolve()
+# Anchored to this file, not the shell's cwd: the suite is run both from the
+# repo root and from scripts/, and a relative path only worked from one of them.
+HERE = pathlib.Path(__file__).resolve().parent
+TMP = pathlib.Path('/tmp/claude-0')
 
 PROBE = """<script>
 (function(){
@@ -30,8 +33,8 @@ PROBE = """<script>
 </script>"""
 
 def run(overrides, name, width=1200):
-    page = HERE / f'vg-{name}.html'
-    subprocess.run([sys.executable, 'render-section.py', SECTION,
+    page = TMP / f'vg-{name}.html'
+    subprocess.run([sys.executable, str(HERE / 'render-section.py'), SECTION,
                     json.dumps(overrides), str(page)], check=True, capture_output=True)
     html = page.read_text(encoding='utf-8').replace('</body>', PROBE + '</body>')
     page.write_text(html, encoding='utf-8')

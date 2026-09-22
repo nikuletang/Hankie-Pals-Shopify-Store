@@ -37,6 +37,8 @@
 
 {%- liquid
   assign s = section.settings
+  assign bp = s.nav_breakpoint | default: 900
+  assign bp_up = bp | plus: 1
   assign btn_fill = s.btn_fill | default: '#D88B6D'
   assign btn_ink = s.btn_ink | default: '#2F3326'
   assign btn_line = s.btn_line | default: '#2F3326'
@@ -224,7 +226,11 @@
   }
 
   /* --- The menu on a phone ------------------------------------------------- */
-  .hp-nav__burger { display: none; }
+  /* Two classes on purpose. `.hp-nav__burger` alone weighs the same as
+     `.hp-btn`, so which one won depended on the order the two stylesheets
+     happened to land in on the page -- and that order is not ours to
+     guarantee once the shared file is installed by hand in theme.liquid. */
+  .hp-nav .hp-nav__burger { display: none; }
 
   .hp-nav__drawer {
     max-width: var(--hp-nav-width);
@@ -254,9 +260,9 @@
 
   .hp-nav__stack .hp-btn { width: 100%; }
 
-  @media screen and (max-width: 989px) {
-    .hp-nav__links { display: none; }
-    .hp-nav__burger { display: inline-flex; }
+  @media screen and (max-width: {{ bp }}px) {
+    .hp-nav .hp-nav__links { display: none; }
+    .hp-nav .hp-nav__burger { display: inline-flex; }
   }
 
   @media screen and (max-width: 749px) {
@@ -270,8 +276,8 @@
     }
   }
 
-  @media screen and (min-width: 990px) {
-    .hp-nav__drawer { display: none; }
+  @media screen and (min-width: {{ bp_up }}px) {
+    .hp-nav .hp-nav__drawer { display: none; }
   }
 
   .hp-nav__sr {
@@ -398,25 +404,27 @@
           </span>
         {%- endif -%}
 
-        <button
-          type="button"
-          class="hp-btn hp-btn--sm hp-nav__icon hp-nav__burger"
-          style="{{ btn_vars }}"
-          data-hp-menu-toggle
-          aria-expanded="false"
-          aria-controls="HpNavMenu-{{ section.id }}"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" data-hp-burger-open>
-            <line x1="4" y1="7" x2="20" y2="7"></line>
-            <line x1="4" y1="12" x2="20" y2="12"></line>
-            <line x1="4" y1="17" x2="20" y2="17"></line>
-          </svg>
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" data-hp-burger-close hidden>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-          </svg>
-          <span class="hp-nav__sr">{{ s.menu_label | default: 'Menu' | escape }}</span>
-        </button>
+        {%- if s.menu != blank -%}
+          <button
+            type="button"
+            class="hp-btn hp-btn--sm hp-nav__icon hp-nav__burger"
+            style="{{ btn_vars }}"
+            data-hp-menu-toggle
+            aria-expanded="false"
+            aria-controls="HpNavMenu-{{ section.id }}"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" data-hp-burger-open>
+              <line x1="4" y1="7" x2="20" y2="7"></line>
+              <line x1="4" y1="12" x2="20" y2="12"></line>
+              <line x1="4" y1="17" x2="20" y2="17"></line>
+            </svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" data-hp-burger-close hidden>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+            </svg>
+            <span class="hp-nav__sr">{{ s.menu_label | default: 'Menu' | escape }}</span>
+          </button>
+        {%- endif -%}
       </div>
     </div>
 
@@ -696,7 +704,18 @@
     },
     { "type": "header", "content": "Layout" },
     { "type": "range", "id": "max_width", "label": "Maximum width", "unit": "px", "min": 900, "max": 1800, "step": 20, "default": 1500 },
-    { "type": "range", "id": "padding_block", "label": "Height around the buttons", "unit": "px", "min": 4, "max": 48, "step": 2, "default": 18 }
+    { "type": "range", "id": "padding_block", "label": "Height around the buttons", "unit": "px", "min": 4, "max": 48, "step": 2, "default": 18 },
+    {
+      "type": "range",
+      "id": "nav_breakpoint",
+      "label": "Switch to the hamburger below",
+      "unit": "px",
+      "min": 700,
+      "max": 1200,
+      "step": 10,
+      "default": 900,
+      "info": "Narrower than this and the links become a hamburger. Raise it if your link names are long enough to crowd the bar. Note the Customize preview is narrower than your real site, so it may show the hamburger when the live site does not."
+    }
   ],
   "presets": [{ "name": "Totterful header" }]
 }

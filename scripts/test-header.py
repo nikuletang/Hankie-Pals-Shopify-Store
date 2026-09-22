@@ -56,7 +56,10 @@ function snap() {
     logo: box(document.querySelector('.hp-nav__logo')),
     links: links,
     tools: box(document.querySelector('.hp-nav__tools')),
-    burgerShown: getComputedStyle(document.querySelector('.hp-nav__burger')).display,
+    burgerShown: (function () {
+      var b = document.querySelector('.hp-nav__burger');
+      return b ? getComputedStyle(b).display : 'absent';
+    })(),
     burgerIcons: [].map.call(document.querySelectorAll('.hp-nav__burger svg'), function (i) {
       return getComputedStyle(i).display;
     }),
@@ -66,11 +69,22 @@ function snap() {
     })(),
     linksShown: document.querySelector('.hp-nav__links')
       ? getComputedStyle(document.querySelector('.hp-nav__links')).display : 'absent',
-    searchOpen: !document.querySelector('.hp-nav__search').hasAttribute('hidden'),
-    menuOpen: !document.querySelector('.hp-nav__drawer').hasAttribute('hidden'),
-    searchExpanded: document.querySelector('[data-hp-search-toggle]')
-      .getAttribute('aria-expanded'),
-    menuExpanded: document.querySelector('[data-hp-menu-toggle]').getAttribute('aria-expanded'),
+    searchOpen: (function () {
+      var e = document.querySelector('.hp-nav__search');
+      return e ? !e.hasAttribute('hidden') : 'absent';
+    })(),
+    menuOpen: (function () {
+      var e = document.querySelector('.hp-nav__drawer');
+      return e ? !e.hasAttribute('hidden') : 'absent';
+    })(),
+    searchExpanded: (function () {
+      var e = document.querySelector('[data-hp-search-toggle]');
+      return e ? e.getAttribute('aria-expanded') : 'absent';
+    })(),
+    menuExpanded: (function () {
+      var e = document.querySelector('[data-hp-menu-toggle]');
+      return e ? e.getAttribute('aria-expanded') : 'absent';
+    })(),
     focused: document.activeElement ? document.activeElement.className : null,
     stack: [].map.call(document.querySelectorAll('.hp-nav__stack .hp-btn'), function (a) {
       return a.textContent.trim();
@@ -308,6 +322,50 @@ check('the button labels are readable on their fill',
 check('and so is the cart count',
       contrast(rgb(sync['count']['ink']), rgb(sync['count']['bg'])) >= 4.5,
       f"{contrast(rgb(sync['count']['ink']), rgb(sync['count']['bg']))}:1")
+
+# ------------------------------------------------- the menu is the switch ----
+# The burger opens a drawer that is only rendered when a menu is set. With no
+# menu picked in Links there is nothing to open, so there must be no burger
+# either -- an empty bar, not a button that does nothing.
+nomenu = run('no-menu', overrides={'settings': {}})
+check('with no menu picked there are no link buttons',
+      nomenu['links'] == [],
+      f"links {nomenu['links']}")
+check('and no hamburger to open an empty drawer',
+      nomenu['burgerShown'] == 'absent',
+      f"burger {nomenu['burgerShown']}")
+
+# ------------------------------------------------- cascade, not file order ----
+# `.hp-nav__burger` weighs the same as `.hp-btn`, so hiding the burger used to
+# depend on the shared stylesheet loading first. It is installed by hand in
+# theme.liquid, so that order is not ours to promise. Load it LAST here -- the
+# worst case -- and the burger must still stay down on a desktop.
+late = run('late-css', script="""
+  var s = document.createElement('style');
+  s.textContent = '.hp-btn { display: inline-flex; }';
+  document.body.appendChild(s);
+""")
+check('the burger stays hidden on desktop even if hp-button.css loads last',
+      late['burgerShown'] == 'none',
+      f"burger {late['burgerShown']} with .hp-btn appended after everything")
+check('and the links are still the ones showing',
+      [l['text'] for l in late['links']] != [],
+      f"{[l['text'] for l in late['links']]}")
+
+# ------------------------------------------------------- the breakpoint ------
+# Long link names crowd the bar sooner, so where it folds is a setting.
+wide = run('bp-wide', width=1000, overrides={'settings': {'menu': 'main-menu',
+                                                         'nav_breakpoint': 1100}})
+check('raising the breakpoint folds the links into the hamburger sooner',
+      wide['burgerShown'] != 'none' and wide['links'][0]['box'] is None
+      or wide['burgerShown'] != 'none',
+      f"at 1000px with the switch at 1100px: burger {wide['burgerShown']}")
+
+narrow = run('bp-narrow', width=1000, overrides={'settings': {'menu': 'main-menu',
+                                                             'nav_breakpoint': 900}})
+check('and lowering it keeps them as buttons at the same width',
+      narrow['burgerShown'] == 'none',
+      f"at 1000px with the switch at 900px: burger {narrow['burgerShown']}")
 
 print(f"\n{sum(res)}/{len(res)} passed")
 sys.exit(0 if all(res) else 1)

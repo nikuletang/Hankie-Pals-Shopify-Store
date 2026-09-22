@@ -256,7 +256,28 @@ renders on every page.
    *Totterful header*, and drag it under the announcement bar.
 3. Hide Dawn's own header with the eye icon rather than deleting it.
 4. Pick the menu under **Links**. Three or four entries is the limit before the
-   bar crowds the logo.
+   bar crowds the logo. **Nothing appears until this is set** — with no menu
+   there are no link buttons and no hamburger either, because the hamburger
+   would only open an empty drawer.
+
+The menu's wording lives in the Shopify admin under **Content → Menus**, not in
+this section. Renaming or deleting an entry there changes the bar; there is
+nothing to edit here.
+
+**Where it folds into a hamburger is a setting**, not a fixed 990px. Long link
+names crowd the bar sooner than short ones, so it is worth tuning. Two things
+about it are easy to misread:
+
+- **The Customize preview is much narrower than the real site.** The editor
+  sidebar takes 300-400px, so a preview on a laptop can be under 900px and show
+  the hamburger while the live site shows the buttons. Judge it on the live
+  site, not in the editor.
+- **`.hp-nav__burger` weighs the same as `.hp-btn`**, so `display: none` on the
+  burger used to be decided by which stylesheet loaded first — and since
+  `hp-button.css` is installed by hand into `theme.liquid`, that order is not
+  this file's to promise. Both rules now carry `.hp-nav` as well, so the weight
+  settles it instead of the order. `scripts/test-header.py` appends `.hp-btn`
+  *after* everything on purpose to hold that.
 
 The bar is transparent and stays transparent as the page scrolls, which only
 works because every pill carries its own fill, outline and shadow. The logo is

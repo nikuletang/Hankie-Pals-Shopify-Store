@@ -1,0 +1,553 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — Choose your Pal
+  ---------------------------------------------------------------------------
+  The picking moment for the product page. One block per Pal: choosing one
+  swaps the photograph, the name, the blurb and the accent colour behind it.
+
+  It does NOT take the money. Dawn's own buy box stays below it and keeps
+  price, inventory, sold-out and add to cart. This section only sets which
+  variant Dawn has selected, three ways, in order:
+
+    1. a radio input whose value is the option  (Dawn's "pill" picker)
+    2. a <select> that carries that option      (Dawn's dropdown picker)
+    3. the product form's hidden input[name="id"], so at least the right
+       variant is added even when the first two are not found
+
+  If none of them is there, the click is left alone and the browser follows
+  the pill's href to ?variant=<id>, which selects it on the way in. So the
+  picker works with the script failed and with JavaScript off entirely —
+  the same bargain the header's cart button makes.
+
+  Sizes are px: Dawn's root font-size is 62.5%, so rem renders at 62.5% of
+  its intended value. Every setting carries a `| default:`, because a setting
+  added after a section was saved reads nil.
+
+  Every selector is prefixed .hp-pb, and every rule that competes with
+  .hp-btn carries .hp-pb as well — a single class weighs the same as .hp-btn
+  and hp-button.css is installed by hand, so its load order is not ours to
+  promise.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{{ 'hp-button.css' | asset_url | stylesheet_tag }}
+
+{%- liquid
+  assign s = section.settings
+  assign product = s.product | default: product
+
+  assign accent_fallback = '#CFE1B9'
+  assign pad_t = s.padding_top | default: 64
+  assign pad_b = s.padding_bottom | default: 56
+  assign ratio = s.image_ratio | default: '1/1'
+  assign pill_size = s.pill_size | default: 15
+  assign pill_pad_y = pill_size | times: 0.8 | round
+  assign pill_pad_x = pill_size | times: 1.6 | round
+
+  assign first_accent = accent_fallback
+  for block in section.blocks
+    if forloop.first and block.settings.accent != blank
+      assign first_accent = block.settings.accent
+    endif
+  endfor
+-%}
+
+{% style %}
+  .hp-pb {
+    --hp-pb-accent: {{ first_accent }};
+    --hp-pb-ink: {{ s.text_color | default: '#2F3326' }};
+    --hp-pb-muted: {{ s.muted_color | default: '#5C6150' }};
+    --hp-pb-line: {{ s.line_color | default: '#2F3326' }};
+    --hp-pb-panel: {{ s.panel_color | default: '#FCFBF6' }};
+
+    background-color: {{ s.background | default: '#FCFBF6' }};
+    padding-block: {{ pad_t }}px {{ pad_b }}px;
+    color: var(--hp-pb-ink);
+  }
+
+  .hp-pb__wrap {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(24px, 4vw, 56px);
+    max-width: {{ s.max_width | default: 1180 }}px;
+    margin-inline: auto;
+    padding-inline: clamp(16px, 4vw, 48px);
+  }
+
+  /* --- the photograph ------------------------------------------------------ */
+  /* One box, every Pal stacked inside it, so swapping never changes the
+     page's height and nothing below jumps when you pick. */
+  .hp-pb__stage {
+    position: relative;
+    aspect-ratio: {{ ratio }};
+    border: {{ s.panel_edge | default: 2 }}px solid var(--hp-pb-line);
+    border-radius: {{ s.panel_radius | default: 28 }}px;
+    background-color: var(--hp-pb-accent);
+    overflow: hidden;
+    transition: background-color .35s ease;
+  }
+
+  .hp-pb__shot {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: clamp(14px, 3vw, 34px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .3s ease, visibility .3s;
+  }
+
+  .hp-pb__shot[data-active] { opacity: 1; visibility: visible; }
+
+  .hp-pb__shot img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .hp-pb__ph {
+    font: 600 14px/1.4 system-ui, sans-serif;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--hp-pb-muted);
+  }
+
+  /* --- the copy ------------------------------------------------------------ */
+  .hp-pb__eyebrow {
+    margin: 0 0 10px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--hp-pb-muted);
+  }
+
+  .hp-pb__heading {
+    margin: 0 0 6px;
+    font-size: {{ s.heading_size | default: 40 }}px;
+    line-height: 1.08;
+    letter-spacing: -0.01em;
+  }
+
+  .hp-pb__name {
+    margin: 0 0 10px;
+    font-size: {{ s.name_size | default: 26 }}px;
+    line-height: 1.15;
+  }
+
+  .hp-pb__blurb {
+    max-width: 46ch;
+    font-size: {{ s.blurb_size | default: 17 }}px;
+    line-height: 1.55;
+    color: var(--hp-pb-muted);
+  }
+
+  /* richtext brings its own <p>. It must sit in a <div>: a <p> inside a <p>
+     is closed early by the parser, which puts the words outside the styled
+     element and back at the theme's own size. These keep the spacing on the
+     outer element now that the inner one is a real paragraph. */
+  .hp-pb__blurb > :first-child,
+  .hp-pb__note > :first-child { margin-top: 0; }
+  .hp-pb__blurb > :last-child,
+  .hp-pb__note > :last-child { margin-bottom: 0; }
+
+  .hp-pb__said { display: none; }
+  .hp-pb__said[data-active] { display: block; }
+
+  /* --- the pills ----------------------------------------------------------- */
+  .hp-pb__pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 22px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* Two classes: .hp-btn sets these too and weighs the same on its own. */
+  .hp-pb .hp-pb__pill {
+    --hp-btn-size: {{ pill_size }}px;
+    --hp-btn-pad-y: {{ pill_pad_y }}px;
+    --hp-btn-pad-x: {{ pill_pad_x }}px;
+    --hp-btn-bg: var(--hp-pb-panel);
+    --hp-btn-ink: var(--hp-pb-ink);
+    --hp-btn-line: var(--hp-pb-line);
+  }
+
+  /* The chosen one wears its own colour, so the picker says which is picked
+     without relying on the photograph having loaded. */
+  .hp-pb .hp-pb__pill[aria-current="true"] {
+    --hp-btn-bg: var(--hp-pb-pill, var(--hp-pb-accent));
+  }
+
+  .hp-pb__note {
+    margin-top: 16px;
+    font-size: 14px;
+    color: var(--hp-pb-muted);
+  }
+
+  .hp-pb__warn {
+    margin: 10px 0 0;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: #FBE9E4;
+    font-size: 13px;
+    color: #7A3B24;
+  }
+
+  @media screen and (max-width: {{ s.stack_below | default: 830 }}px) {
+    .hp-pb__wrap { grid-template-columns: minmax(0, 1fr); }
+    .hp-pb__heading { font-size: {{ s.heading_size | default: 40 | times: 0.78 | round }}px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hp-pb__stage,
+    .hp-pb__shot { transition: none; }
+  }
+{% endstyle %}
+
+{%- if s.hide_dawn_picker -%}
+  {% style %}
+    /* Dawn's own picker only. Its form, its price and its Add to cart are
+       left exactly where they are — this hides the duplicate control, it does
+       not replace any of the machinery behind it. */
+    .product-form__input--pill,
+    .product-form__input--dropdown,
+    variant-selects,
+    variant-radios { display: none !important; }
+  {% endstyle %}
+{%- endif -%}
+
+<hp-pal-buy
+  class="hp-pb"
+  id="HpPalBuy-{{ section.id }}"
+  {{ section.shopify_attributes }}
+>
+  <div class="hp-pb__wrap">
+    <div class="hp-pb__stage" data-hp-pb-stage>
+      {%- for block in section.blocks -%}
+        {%- assign b = block.settings -%}
+        <div
+          class="hp-pb__shot"
+          data-hp-pb-shot="{{ forloop.index0 }}"
+          {% if forloop.first %}data-active{% endif %}
+        >
+          {%- if b.image != blank -%}
+            {{
+              b.image
+              | image_url: width: 1200
+              | image_tag:
+                loading: 'lazy',
+                widths: '300, 500, 700, 900, 1200',
+                sizes: '(max-width: 830px) 90vw, 46vw',
+                alt: b.image.alt | default: b.label
+            }}
+          {%- else -%}
+            <p class="hp-pb__ph">{{ b.label | default: 'Add a photo' | escape }}</p>
+          {%- endif -%}
+        </div>
+      {%- endfor -%}
+    </div>
+
+    <div class="hp-pb__copy">
+      {%- if s.eyebrow != blank -%}
+        <p class="hp-pb__eyebrow">{{ s.eyebrow | escape }}</p>
+      {%- endif -%}
+
+      {%- if s.heading != blank -%}
+        <h2 class="hp-pb__heading">{{ s.heading | escape }}</h2>
+      {%- endif -%}
+
+      {%- for block in section.blocks -%}
+        {%- assign b = block.settings -%}
+        <div
+          class="hp-pb__said"
+          data-hp-pb-said="{{ forloop.index0 }}"
+          {% if forloop.first %}data-active{% endif %}
+        >
+          {%- if b.name != blank -%}
+            <p class="hp-pb__name">{{ b.name | escape }}</p>
+          {%- endif -%}
+          {%- if b.blurb != blank -%}
+            <div class="hp-pb__blurb">{{ b.blurb }}</div>
+          {%- endif -%}
+        </div>
+      {%- endfor -%}
+
+      <ul class="hp-pb__pills" role="list">
+        {%- assign missing = 0 -%}
+        {%- for block in section.blocks -%}
+          {%- liquid
+            assign b = block.settings
+
+            # Resolve the variant the same way the variant grid does: a named
+            # variant matches its full title or its first option, ignoring case
+            # and surrounding space; a blank name falls back to this block's
+            # place in the product's own variant order.
+            assign variant = false
+            assign unresolved = false
+            assign wanted = b.variant_title | downcase | strip
+
+            if product != blank
+              if wanted != blank
+                for v in product.variants
+                  assign v_title = v.title | downcase | strip
+                  assign v_option = v.option1 | downcase | strip
+                  if v_title == wanted or v_option == wanted
+                    assign variant = v
+                    break
+                  endif
+                endfor
+                unless variant
+                  assign unresolved = true
+                  assign missing = missing | plus: 1
+                endunless
+              else
+                assign variant = product.variants[forloop.index0]
+              endif
+            endif
+
+            assign pill_label = b.label
+            if pill_label == blank and variant
+              assign pill_label = variant.title
+              if pill_label == 'Default Title'
+                assign pill_label = product.title
+              endif
+            endif
+            if pill_label == blank
+              assign pill_label = 'Pal'
+            endif
+          -%}
+          <li>
+            <a
+              class="hp-btn hp-pb__pill"
+              {% if variant %}href="{{ product.url }}?variant={{ variant.id }}"{% else %}href="#"{% endif %}
+              data-hp-pb-pill="{{ forloop.index0 }}"
+              {% if variant %}
+                data-variant-id="{{ variant.id }}"
+                data-option="{{ variant.option1 | escape }}"
+              {% endif %}
+              data-accent="{{ b.accent | default: accent_fallback }}"
+              {% if forloop.first %}aria-current="true"{% endif %}
+              style="--hp-pb-pill: {{ b.accent | default: accent_fallback }};"
+              {{ block.shopify_attributes }}
+            >{{ pill_label | escape }}</a>
+          </li>
+        {%- endfor -%}
+      </ul>
+
+      {%- if s.note != blank -%}
+        <div class="hp-pb__note">{{ s.note }}</div>
+      {%- endif -%}
+
+      {%- if request.design_mode and missing > 0 -%}
+        <p class="hp-pb__warn">
+          {{ missing }} block(s) name a variant this product does not have, so
+          those pills are not linked. Check the spelling against the product's
+          variants. Only you can see this.
+        </p>
+      {%- endif -%}
+    </div>
+  </div>
+</hp-pal-buy>
+
+<script>
+  (function () {
+    if (customElements.get('hp-pal-buy')) return;
+
+    customElements.define('hp-pal-buy', class extends HTMLElement {
+      connectedCallback() {
+        try {
+          this.pills = this.querySelectorAll('[data-hp-pb-pill]');
+          this.shots = this.querySelectorAll('[data-hp-pb-shot]');
+          this.saids = this.querySelectorAll('[data-hp-pb-said]');
+          this.stage = this.querySelector('[data-hp-pb-stage]');
+
+          var self = this;
+          [].forEach.call(this.pills, function (pill) {
+            pill.addEventListener('click', function (e) { self.onPick(e, pill); });
+          });
+        } catch (e) {
+          // Every pill is a real link to ?variant=<id>. A failure here costs
+          // the crossfade, never the ability to choose a Pal.
+        }
+      }
+
+      onPick(event, pill) {
+        var index = pill.getAttribute('data-hp-pb-pill');
+        var option = pill.getAttribute('data-option');
+        var id = pill.getAttribute('data-variant-id');
+
+        // Show the choice first, so it never looks unresponsive while Dawn
+        // catches up. If nothing below takes, the href still runs.
+        this.showIndex(index, pill.getAttribute('data-accent'));
+        this.markCurrent(pill);
+
+        if (this.tellDawn(option, id)) {
+          // Dawn owns the selection now; no need to reload the page for it.
+          event.preventDefault();
+        }
+      }
+
+      showIndex(index, accent) {
+        if (accent && this.stage) {
+          this.style.setProperty('--hp-pb-accent', accent);
+        }
+        [].forEach.call(this.shots, function (el) {
+          el.toggleAttribute('data-active', el.getAttribute('data-hp-pb-shot') === index);
+        });
+        [].forEach.call(this.saids, function (el) {
+          el.toggleAttribute('data-active', el.getAttribute('data-hp-pb-said') === index);
+        });
+      }
+
+      markCurrent(pill) {
+        [].forEach.call(this.pills, function (p) { p.removeAttribute('aria-current'); });
+        pill.setAttribute('aria-current', 'true');
+      }
+
+      /* Three ways in, in order of how much of Dawn they keep working.
+         Returns true only if one of them actually took. */
+      tellDawn(option, id) {
+        if (!option && !id) return false;
+
+        if (option) {
+          // 1. Dawn's pill picker: a radio whose value is the option.
+          var radios = document.querySelectorAll(
+            '.product-form__input input[type="radio"], variant-radios input[type="radio"]');
+          for (var i = 0; i < radios.length; i++) {
+            if (radios[i].value === option && !radios[i].checked) {
+              radios[i].click();
+              return true;
+            }
+            if (radios[i].value === option && radios[i].checked) return true;
+          }
+
+          // 2. Dawn's dropdown picker.
+          var selects = document.querySelectorAll(
+            '.product-form__input select, variant-selects select');
+          for (var j = 0; j < selects.length; j++) {
+            var opts = selects[j].options;
+            for (var k = 0; k < opts.length; k++) {
+              if (opts[k].value === option) {
+                selects[j].value = option;
+                selects[j].dispatchEvent(new Event('change', { bubbles: true }));
+                return true;
+              }
+            }
+          }
+        }
+
+        // 3. Last resort: point the form at the right variant. Price and
+        //    gallery will not follow, so this is worse than a reload —
+        //    it is used only when Dawn's own controls are not on the page,
+        //    which is the case the reload cannot improve on either.
+        if (id) {
+          var hidden = document.querySelector('form[action*="/cart/add"] input[name="id"]');
+          if (hidden && hidden.value !== id) {
+            hidden.value = id;
+            hidden.dispatchEvent(new Event('change', { bubbles: true }));
+            return true;
+          }
+          if (hidden) return true;
+        }
+
+        return false;
+      }
+    });
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Choose your Pal",
+  "tag": "section",
+  "class": "hp-pal-buy-section",
+  "settings": [
+    {
+      "type": "product",
+      "id": "product",
+      "label": "Product",
+      "info": "Leave empty on a product page to use the product being shown."
+    },
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow", "default": "One hankie, three friends" },
+    { "type": "text", "id": "heading", "label": "Heading", "default": "Choose your Pal" },
+    {
+      "type": "richtext",
+      "id": "note",
+      "label": "Note under the pills",
+      "default": "<p>Pick a Pal, then add it to your cart below.</p>"
+    },
+    {
+      "type": "checkbox",
+      "id": "hide_dawn_picker",
+      "label": "Hide the theme's own variant picker",
+      "default": true,
+      "info": "Hides the duplicate dropdown below. The price, stock and Add to cart button are untouched."
+    },
+    { "type": "header", "content": "Type" },
+    { "type": "range", "id": "heading_size", "label": "Heading size", "unit": "px", "min": 24, "max": 64, "step": 2, "default": 40 },
+    { "type": "range", "id": "name_size", "label": "Pal name size", "unit": "px", "min": 16, "max": 44, "step": 1, "default": 26 },
+    { "type": "range", "id": "blurb_size", "label": "Blurb size", "unit": "px", "min": 13, "max": 22, "step": 1, "default": 17 },
+    { "type": "range", "id": "pill_size", "label": "Pill text size", "unit": "px", "min": 11, "max": 22, "step": 1, "default": 15 },
+    { "type": "header", "content": "Colours" },
+    { "type": "color", "id": "background", "label": "Section background", "default": "#FCFBF6" },
+    { "type": "color", "id": "panel_color", "label": "Unpicked pill fill", "default": "#FCFBF6" },
+    { "type": "color", "id": "text_color", "label": "Text", "default": "#2F3326" },
+    { "type": "color", "id": "muted_color", "label": "Quiet text", "default": "#5C6150" },
+    { "type": "color", "id": "line_color", "label": "Outlines", "default": "#2F3326" },
+    { "type": "header", "content": "The photo panel" },
+    {
+      "type": "select",
+      "id": "image_ratio",
+      "label": "Shape",
+      "options": [
+        { "value": "1/1", "label": "Square" },
+        { "value": "4/5", "label": "Portrait" },
+        { "value": "4/3", "label": "Landscape" }
+      ],
+      "default": "1/1"
+    },
+    { "type": "range", "id": "panel_radius", "label": "Corner rounding", "unit": "px", "min": 0, "max": 60, "step": 2, "default": 28 },
+    { "type": "range", "id": "panel_edge", "label": "Outline", "unit": "px", "min": 0, "max": 6, "step": 1, "default": 2 },
+    { "type": "header", "content": "Layout" },
+    { "type": "range", "id": "max_width", "label": "Maximum width", "unit": "px", "min": 800, "max": 1600, "step": 20, "default": 1180 },
+    { "type": "range", "id": "stack_below", "label": "Stack below", "unit": "px", "min": 600, "max": 1100, "step": 10, "default": 830 },
+    { "type": "range", "id": "padding_top", "label": "Space above", "unit": "px", "min": 0, "max": 140, "step": 4, "default": 64 },
+    { "type": "range", "id": "padding_bottom", "label": "Space below", "unit": "px", "min": 0, "max": 140, "step": 4, "default": 56 }
+  ],
+  "blocks": [
+    {
+      "type": "pal",
+      "name": "Pal",
+      "limit": 6,
+      "settings": [
+        {
+          "type": "text",
+          "id": "variant_title",
+          "label": "Variant",
+          "info": "The variant's name, e.g. Bunny. Leave empty to use this block's position in the product's variant order."
+        },
+        { "type": "text", "id": "label", "label": "Pill label", "info": "Defaults to the variant's name." },
+        { "type": "text", "id": "name", "label": "Heading when picked" },
+        { "type": "richtext", "id": "blurb", "label": "Blurb when picked" },
+        { "type": "image_picker", "id": "image", "label": "Photo" },
+        { "type": "color", "id": "accent", "label": "Accent behind the photo", "default": "#CFE1B9" }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Choose your Pal",
+      "blocks": [
+        { "type": "pal", "settings": { "variant_title": "Bunny", "label": "Bunny", "name": "Bunny", "blurb": "<p>Long ears, soft edges, and a nose that wipes noses.</p>", "accent": "#CFE1B9" } },
+        { "type": "pal", "settings": { "variant_title": "Cow", "label": "Cow", "name": "Cow", "blurb": "<p>Spotty, steady, and unbothered by a runny nose.</p>", "accent": "#ECA883" } },
+        { "type": "pal", "settings": { "variant_title": "Dog", "label": "Dog", "name": "Dog", "blurb": "<p>Floppy ears and endless patience. The loyal one.</p>", "accent": "#B5C99A" } }
+      ]
+    }
+  ]
+}
+{% endschema %}

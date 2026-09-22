@@ -24,6 +24,7 @@ anything moving.
 | [`sections/pal-reveal.liquid`](sections/pal-reveal.liquid) | **Pal reveal** | A Pal that grows on scroll until its body becomes the next section |
 | [`sections/pal-panel.liquid`](sections/pal-panel.liquid) | **Pal panel** | A domed Pal-shaped panel that rises over the pinned section above and holds the copy |
 | [`sections/hp-header.liquid`](sections/hp-header.liquid) | **Totterful header** | Logo, the site's buttons as navigation, search, account and cart. Transparent over the hero. Goes in the header section group |
+| [`sections/hp-pal-buy.liquid`](sections/hp-pal-buy.liquid) | **Choose your Pal** | The product page's picking moment. One pill per Pal; choosing one swaps the photo, the name, the blurb and the accent, and selects that variant in Dawn's own buy box below |
 | [`sections/hp-footer.liquid`](sections/hp-footer.liquid) | **Totterful footer** | Brand, menu columns, policies. Goes in the footer section group, so it is on every page |
 
 Click a filename above, then use the **copy icon** in the toolbar over the code
@@ -745,3 +746,37 @@ From the Totterful brand sheet.
 | Ink | `#2F3326`, `#5C6150` muted |
 | Type | Alata headings (one weight, 400), Quicksand body |
 | Shape | 24px card radius, pill buttons, 4px spacing base |
+
+## Choose your Pal, and the line it does not cross
+
+`hp-pal-buy.liquid` is the product page's picker. It deliberately **does not
+take the money**: Dawn's buy box stays below it and keeps the price, the stock
+count, the sold-out state and Add to cart. This section only decides which
+variant Dawn has selected.
+
+It reaches Dawn three ways, in order of how much of Dawn keeps working:
+
+1. a radio input whose value is the option — Dawn's "pill" picker
+2. a `<select>` carrying that option — Dawn's dropdown picker
+3. the product form's hidden `input[name="id"]`, so at least the right variant
+   is added even when neither picker is found
+
+If none of them is on the page the click is left alone and the browser follows
+the pill's `href` to `?variant=<id>`, which selects it on the way in. So the
+picker survives the script failing and JavaScript being off — the same bargain
+the header's cart button makes. `scripts/test-pal-buy.py` stands all three
+shapes up as stand-ins and asserts each one is driven; neutering the code turns
+five checks red, and the fall-through still lands on the right variant.
+
+**Install it above Dawn's product section**, not instead of it. *Hide the
+theme's own variant picker* is on by default so there is only one control on
+screen; it hides the duplicate dropdown and nothing else.
+
+### richtext cannot go in a `<p>`
+
+A `richtext` setting emits its own `<p>`. Put that inside a `<p>` of your own
+and the parser closes yours early — the words end up outside the styled element
+and fall back to the theme's size, which under Dawn's 62.5% root renders 17px
+as **10px**. It is visible in a screenshot long before it is obvious in the
+code. richtext goes in a `<div>`, and the check measures the element the text
+actually landed in rather than the one it was meant to land in.

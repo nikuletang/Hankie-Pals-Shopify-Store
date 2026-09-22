@@ -36,6 +36,32 @@ def _link(title, url, links=()):
 
 CART = {'item_count': 0, 'items': []}
 
+# A stand-in for the one product this store sells. Three variants, so a
+# section that resolves variants by name has something to resolve against;
+# `overrides['product']` replaces it for the cases that need a different shape
+# (a single variant, a combined title, a sold-out one).
+def _variant(vid, title, option1, price=2400, available=True, was=None):
+    # `compare_at_price` carries the price rather than nil when there is no
+    # sale on. On the store it really is nil and `nil > price` is false, but
+    # python-liquid raises on that comparison instead of answering it, so a
+    # truthful nil would fail a section whose Liquid is correct. Same number,
+    # same branch taken, no false alarm.
+    return {'id': vid, 'title': title, 'option1': option1, 'option2': None,
+            'option3': None, 'price': price, 'compare_at_price': was or price,
+            'available': available, 'featured_image': None,
+            'url': f'/products/hankie-pals?variant={vid}'}
+
+
+PRODUCT = {
+    'title': 'Hankie Pals',
+    'handle': 'hankie-pals',
+    'url': '/products/hankie-pals',
+    'available': True,
+    'variants': [_variant(101, 'Bunny', 'Bunny'),
+                 _variant(102, 'Cow', 'Cow'),
+                 _variant(103, 'Dog', 'Dog')],
+}
+
 SHOP = {
     'name': 'Totterful',
     'policies': [{'title': 'Refund policy', 'url': '/policies/refund-policy'},
@@ -43,6 +69,15 @@ SHOP = {
                  {'title': 'Terms of service', 'url': '/policies/terms-of-service'}],
     'enabled_payment_types': [],
 }
+
+def resolve_products(bag, kinds):
+    """A product setting holds a handle in the theme's JSON; Liquid is handed
+    the product itself. Without this, product.variants is nil and every
+    variant-resolving branch takes the wrong side."""
+    for key, kind in kinds.items():
+        if kind == 'product':
+            bag[key] = PRODUCT
+
 
 def resolve_menus(bag, kinds):
     """A link_list setting holds a handle in the theme's JSON, but Liquid is
@@ -71,6 +106,9 @@ if 'linklists' in overrides:
 settings = defaults(schema.get('settings', []))
 settings.update(overrides.get('settings', {}))
 resolve_menus(settings, types(schema.get('settings', [])))
+if 'product' in overrides:
+    PRODUCT = overrides['product']
+resolve_products(settings, types(schema.get('settings', [])))
 
 block_schema = {b['type']: b for b in schema.get('blocks', [])}
 blocks = []

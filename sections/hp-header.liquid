@@ -1,0 +1,703 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — header
+  ---------------------------------------------------------------------------
+  The site's buttons, used as navigation. Transparent, over the hero, and it
+  stays transparent as the page scrolls — which only works because every pill
+  carries its own fill, outline and shadow. The logo is on a pill for the same
+  reason: a bare wordmark would disappear over the sage panel and the Pal.
+
+  It belongs in the header SECTION GROUP, which is why "enabled_on" restricts
+  it to that group: it renders on every page, and it cannot be added to one
+  template by accident. Dawn's own header is hidden rather than deleted.
+
+  WHERE IT MEETS DAWN. Everything here is ours except the cart, and the cart is
+  handled by keeping Dawn's contract rather than copying its markup:
+
+  - A hidden #cart-icon-bubble sits in this header. Dawn's cart drawer writes
+    the live count into that id after every add to cart, whatever markup it
+    uses to do it, and a MutationObserver copies the number out into the
+    visible bubble. Reading the digits rather than the markup is what makes it
+    survive a Dawn version that rewrites the element.
+  - The visible cart button opens <cart-drawer> when there is one and follows
+    its href when there is not, so the cart still works with the drawer
+    switched off or the script failed.
+
+  Sizes are px: Dawn's root font-size is 62.5%, so rem renders at 62.5% of its
+  intended value.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- comment -%}
+  Loaded before this section's own rules on purpose: the shared file owns what
+  a button looks like, this file owns where one goes, and `display: none` on
+  the burger has to beat `.hp-btn`'s own display at the same weight.
+{%- endcomment -%}
+{{ 'hp-button.css' | asset_url | stylesheet_tag }}
+
+{%- liquid
+  assign s = section.settings
+  assign btn_fill = s.btn_fill | default: '#D88B6D'
+  assign btn_ink = s.btn_ink | default: '#2F3326'
+  assign btn_line = s.btn_line | default: '#2F3326'
+  capture btn_vars
+    echo '--hp-btn-bg: '
+    echo btn_fill
+    echo '; --hp-btn-ink: '
+    echo btn_ink
+    echo '; --hp-btn-line: '
+    echo btn_line
+    echo ';'
+  endcapture
+-%}
+
+{% style %}
+  /* The wrapper keeps its place in the flow and collapses to nothing, because
+     its only child is fixed. That is what puts the hero under the bar rather
+     than below it, and it is also how the script knows where the bar belongs:
+     the wrapper's own offset is the height of whatever sits above it. */
+  .hp-nav-anchor { height: 0; }
+
+  .hp-nav {
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    z-index: 6;
+    padding-block: var(--hp-nav-pad);
+  }
+
+  .hp-nav--fixed {
+    position: fixed;
+    top: var(--hp-nav-top, 0px);
+  }
+
+  .hp-nav__bar {
+    display: flex;
+    align-items: center;
+    gap: clamp(10px, 1.4vw, 20px);
+    max-width: var(--hp-nav-width);
+    margin-inline: auto;
+    padding-inline: clamp(12px, 3vw, 40px);
+  }
+
+  /* --- Logo ---------------------------------------------------------------- */
+  .hp-nav__logo {
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    margin-inline-end: auto;
+    text-decoration: none;
+  }
+
+  .hp-nav__logo img {
+    display: block;
+    width: var(--hp-nav-logo-w);
+    height: auto;
+  }
+
+  .hp-nav__wordmark {
+    margin: 0;
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: calc(24px * var(--font-heading-scale, 1));
+    line-height: 1;
+    color: var(--hp-nav-word-c);
+  }
+
+  /* Same pill as everything else, so the logo reads over any section. */
+  .hp-nav--logo-pill .hp-nav__logo {
+    padding: 10px 18px;
+    border: 2px solid var(--hp-nav-logo-line);
+    border-radius: 999px;
+    background: var(--hp-nav-logo-bg);
+    box-shadow: 0 4px 0 0 var(--hp-nav-logo-line);
+  }
+
+  /* --- Links --------------------------------------------------------------- */
+  .hp-nav__links {
+    display: flex;
+    align-items: center;
+    gap: clamp(8px, 1vw, 14px);
+  }
+
+  .hp-nav__tools {
+    display: flex;
+    align-items: center;
+    gap: clamp(8px, 1vw, 14px);
+  }
+
+  /* A square pill for an icon, rather than a wide one with a glyph in it. */
+  .hp-nav__icon {
+    position: relative;
+    --hp-btn-pad-y: 12px;
+    --hp-btn-pad-x: 12px;
+    line-height: 0;
+  }
+
+  .hp-nav__icon svg[hidden] { display: none; }
+
+  .hp-nav__icon svg {
+    display: block;
+    width: var(--hp-nav-icon-size);
+    height: var(--hp-nav-icon-size);
+    /* currentColor, so an icon always matches the pill's own text colour. */
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .hp-nav__count {
+    position: absolute;
+    top: -7px;
+    inset-inline-end: -7px;
+    min-width: 21px;
+    height: 21px;
+    padding-inline: 5px;
+    box-sizing: border-box;
+    border: 2px solid var(--hp-btn-line, #2F3326);
+    border-radius: 999px;
+    background: var(--hp-nav-count-bg);
+    color: var(--hp-nav-count-ink);
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-weight: 700;
+    font-size: 12px;
+    line-height: 17px;
+    text-align: center;
+  }
+
+  .hp-nav__count[hidden] { display: none; }
+
+  /* Dawn writes the live count in here. Present for scripts, gone for eyes. */
+  .hp-nav__sync {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* --- Search -------------------------------------------------------------- */
+  .hp-nav__search {
+    max-width: var(--hp-nav-width);
+    margin: 10px auto 0;
+    padding-inline: clamp(12px, 3vw, 40px);
+  }
+
+  .hp-nav__search[hidden] { display: none; }
+
+  .hp-nav__form {
+    display: flex;
+    gap: 10px;
+    margin: 0;
+    margin-inline-start: auto;
+    max-width: 460px;
+  }
+
+  .hp-nav__field {
+    box-sizing: border-box;
+    flex: 1;
+    min-width: 0;
+    padding: 13px 20px;
+    border: 2px solid var(--hp-btn-line, #2F3326);
+    border-radius: 999px;
+    background: var(--hp-nav-field-bg);
+    color: var(--hp-nav-field-ink);
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    /* 16px or iOS zooms the page in on focus and does not zoom back out. */
+    font-size: 16px;
+    line-height: 1.2;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .hp-nav__field::placeholder { color: var(--hp-nav-field-hint); opacity: 1; }
+
+  .hp-nav__field:focus-visible {
+    outline: 3px solid var(--hp-btn-line, #2F3326);
+    outline-offset: 3px;
+  }
+
+  /* --- The menu on a phone ------------------------------------------------- */
+  .hp-nav__burger { display: none; }
+
+  .hp-nav__drawer {
+    max-width: var(--hp-nav-width);
+    margin: 12px auto 0;
+    padding-inline: clamp(12px, 3vw, 40px);
+  }
+
+  .hp-nav__drawer[hidden] { display: none; }
+
+  /* The same buttons, stacked. Nothing new to learn on a small screen. */
+  .hp-nav__panel {
+    padding: 14px;
+    border: 2px solid var(--hp-nav-panel-line);
+    border-radius: 28px;
+    background: var(--hp-nav-panel-bg);
+    box-shadow: 0 6px 0 0 var(--hp-nav-panel-line);
+  }
+
+  .hp-nav__stack {
+    display: grid;
+    gap: 10px;
+    justify-items: stretch;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .hp-nav__stack .hp-btn { width: 100%; }
+
+  @media screen and (max-width: 989px) {
+    .hp-nav__links { display: none; }
+    .hp-nav__burger { display: inline-flex; }
+  }
+
+  @media screen and (max-width: 749px) {
+    .hp-nav__bar { gap: 8px; }
+    .hp-nav--logo-pill .hp-nav__logo { padding: 8px 12px; }
+    .hp-nav__logo img { width: min(var(--hp-nav-logo-w), 26vw); }
+
+    .hp-nav__icon {
+      --hp-btn-pad-y: 10px;
+      --hp-btn-pad-x: 10px;
+    }
+  }
+
+  @media screen and (min-width: 990px) {
+    .hp-nav__drawer { display: none; }
+  }
+
+  .hp-nav__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hp-nav { transition: none; }
+  }
+{% endstyle %}
+
+<div class="hp-nav-anchor">
+  <hp-header
+    class="hp-nav{% if s.sticky != false %} hp-nav--fixed{% endif %}{% if s.logo_pill != false %} hp-nav--logo-pill{% endif %}"
+    style="
+      --hp-nav-width: {{ s.max_width | default: 1500 }}px;
+      --hp-nav-pad: {{ s.padding_block | default: 18 }}px;
+      --hp-nav-logo-w: {{ s.logo_width | default: 130 }}px;
+      --hp-nav-logo-bg: {{ s.logo_pill_color | default: '#FCFBF6' }};
+      --hp-nav-logo-line: {{ s.logo_pill_line | default: '#2F3326' }};
+      --hp-nav-word-c: {{ s.logo_text_color | default: '#2F3326' }};
+      --hp-nav-icon-size: {{ s.icon_size | default: 20 }}px;
+      --hp-nav-count-bg: {{ s.count_background | default: '#2F3326' }};
+      --hp-nav-count-ink: {{ s.count_text_color | default: '#FCFBF6' }};
+      --hp-nav-field-bg: {{ s.field_background | default: '#FCFBF6' }};
+      --hp-nav-field-ink: {{ s.field_text_color | default: '#2F3326' }};
+      --hp-nav-field-hint: {{ s.field_hint_color | default: '#5C6150' }};
+      --hp-nav-panel-bg: {{ s.panel_background | default: '#FCFBF6' }};
+      --hp-nav-panel-line: {{ s.panel_line_color | default: '#2F3326' }};
+    "
+  >
+    <div class="hp-nav__bar">
+      <a class="hp-nav__logo" href="{{ routes.root_url }}">
+        {%- if s.logo != blank -%}
+          {{
+            s.logo
+            | image_url: width: 600
+            | image_tag:
+              loading: 'eager',
+              widths: '120, 200, 300, 460, 600',
+              sizes: '200px',
+              alt: shop.name
+          }}
+        {%- else -%}
+          <p class="hp-nav__wordmark">{{ shop.name }}</p>
+        {%- endif -%}
+      </a>
+
+      {%- if s.menu != blank -%}
+        <nav class="hp-nav__links" aria-label="{{ s.nav_label | default: 'Main' | escape }}">
+          {%- for link in s.menu.links -%}
+            <a class="hp-btn hp-btn--sm" href="{{ link.url }}" style="{{ btn_vars }}">
+              {{- link.title | escape -}}
+            </a>
+          {%- endfor -%}
+        </nav>
+      {%- endif -%}
+
+      <div class="hp-nav__tools">
+        {%- if s.show_search != false -%}
+          <button
+            type="button"
+            class="hp-btn hp-btn--sm hp-nav__icon"
+            style="{{ btn_vars }}"
+            data-hp-search-toggle
+            aria-expanded="false"
+            aria-controls="HpNavSearch-{{ section.id }}"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="11" cy="11" r="7"></circle>
+              <line x1="16.5" y1="16.5" x2="21" y2="21"></line>
+            </svg>
+            <span class="hp-nav__sr">Search</span>
+          </button>
+        {%- endif -%}
+
+        {%- if s.show_account != false -%}
+          <a
+            class="hp-btn hp-btn--sm hp-nav__icon"
+            href="{{ routes.account_url }}"
+            style="{{ btn_vars }}"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="8" r="4"></circle>
+              <path d="M4.5 20c0-3.6 3.4-6 7.5-6s7.5 2.4 7.5 6"></path>
+            </svg>
+            <span class="hp-nav__sr">Account</span>
+          </a>
+        {%- endif -%}
+
+        {%- if s.show_cart != false -%}
+          <a
+            class="hp-btn hp-btn--sm hp-nav__icon"
+            href="{{ routes.cart_url }}"
+            style="{{ btn_vars }}"
+            data-hp-cart
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 8Z"></path>
+              <path d="M9 8V6.5a3 3 0 0 1 6 0V8"></path>
+            </svg>
+            <span class="hp-nav__sr">Cart</span>
+            <span
+              class="hp-nav__count"
+              data-hp-cart-count
+              {% unless cart.item_count > 0 %}hidden{% endunless %}
+            >{{ cart.item_count }}</span>
+          </a>
+
+          {%- comment -%}
+            Dawn's own target. It writes the live count in here after an add to
+            cart; the script copies the digits into the bubble above.
+          {%- endcomment -%}
+          <span class="hp-nav__sync" id="cart-icon-bubble" aria-hidden="true">
+            {%- if cart != empty -%}
+              <span class="cart-count-bubble"><span>{{ cart.item_count }}</span></span>
+            {%- endif -%}
+          </span>
+        {%- endif -%}
+
+        <button
+          type="button"
+          class="hp-btn hp-btn--sm hp-nav__icon hp-nav__burger"
+          style="{{ btn_vars }}"
+          data-hp-menu-toggle
+          aria-expanded="false"
+          aria-controls="HpNavMenu-{{ section.id }}"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" data-hp-burger-open>
+            <line x1="4" y1="7" x2="20" y2="7"></line>
+            <line x1="4" y1="12" x2="20" y2="12"></line>
+            <line x1="4" y1="17" x2="20" y2="17"></line>
+          </svg>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" data-hp-burger-close hidden>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+          </svg>
+          <span class="hp-nav__sr">{{ s.menu_label | default: 'Menu' | escape }}</span>
+        </button>
+      </div>
+    </div>
+
+    {%- if s.show_search != false -%}
+      <div class="hp-nav__search" id="HpNavSearch-{{ section.id }}" hidden>
+        <form class="hp-nav__form" action="{{ routes.search_url }}" method="get" role="search">
+          <label class="hp-nav__sr" for="HpNavQ-{{ section.id }}">
+            {{ s.search_placeholder | default: 'Search the shop' | escape }}
+          </label>
+          <input
+            class="hp-nav__field"
+            id="HpNavQ-{{ section.id }}"
+            type="search"
+            name="q"
+            placeholder="{{ s.search_placeholder | default: 'Search the shop' | escape }}"
+            autocomplete="off"
+          >
+          <button type="submit" class="hp-btn hp-btn--sm" style="{{ btn_vars }}">
+            {{- s.search_button | default: 'Go' | escape -}}
+          </button>
+        </form>
+      </div>
+    {%- endif -%}
+
+    {%- if s.menu != blank -%}
+      <div class="hp-nav__drawer" id="HpNavMenu-{{ section.id }}" hidden>
+        <div class="hp-nav__panel">
+          <ul class="hp-nav__stack" role="list">
+            {%- for link in s.menu.links -%}
+              <li>
+                <a class="hp-btn" href="{{ link.url }}" style="{{ btn_vars }}">
+                  {{- link.title | escape -}}
+                </a>
+              </li>
+            {%- endfor -%}
+          </ul>
+        </div>
+      </div>
+    {%- endif -%}
+  </hp-header>
+</div>
+
+<script>
+  (function () {
+    if (customElements.get('hp-header')) return;
+
+    customElements.define('hp-header', class extends HTMLElement {
+      connectedCallback() {
+        try {
+          this.anchor = this.closest('.hp-nav-anchor');
+          this.search = this.querySelector('[id^="HpNavSearch-"]');
+          this.menu = this.querySelector('[id^="HpNavMenu-"]');
+          this.searchBtn = this.querySelector('[data-hp-search-toggle]');
+          this.menuBtn = this.querySelector('[data-hp-menu-toggle]');
+
+          this.onKey = this.onKey.bind(this);
+          this.onScroll = this.onScroll.bind(this);
+
+          if (this.searchBtn) {
+            this.searchBtn.addEventListener('click', this.toggleSearch.bind(this));
+          }
+          if (this.menuBtn) {
+            this.menuBtn.addEventListener('click', this.toggleMenu.bind(this));
+          }
+          document.addEventListener('keydown', this.onKey);
+
+          this.followBar();
+          this.watchCart();
+          this.wireCart();
+        } catch (e) {
+          // A header that fails is still a header: every control is a real
+          // link or a real form, so nothing here is needed to use the site.
+        }
+      }
+
+      disconnectedCallback() {
+        document.removeEventListener('keydown', this.onKey);
+        window.removeEventListener('scroll', this.onScroll);
+        window.removeEventListener('resize', this.onResize);
+        if (this.cartWatcher) this.cartWatcher.disconnect();
+      }
+
+      /* The bar sits under whatever is above it — the announcement bar — and
+         rides up with it until it reaches the top. The anchor stays in the
+         flow at zero height, so its offset is exactly that height. */
+      followBar() {
+        if (!this.classList.contains('hp-nav--fixed') || !this.anchor) return;
+        this.onResize = this.onResize.bind(this);
+        this.onResize();
+        window.addEventListener('scroll', this.onScroll, { passive: true });
+        window.addEventListener('resize', this.onResize);
+      }
+
+      // Measured once rather than on every scroll event: it cannot change
+      // without a resize, and reading layout on scroll is how a page gets
+      // jerky.
+      onResize() {
+        this.barHeight = this.anchor.getBoundingClientRect().top + window.scrollY;
+        this.onScroll();
+      }
+
+      onScroll() {
+        var y = Math.max(0, (this.barHeight || 0) - window.scrollY);
+        this.style.setProperty('--hp-nav-top', y + 'px');
+      }
+
+      toggleSearch() {
+        var open = this.search && this.search.hasAttribute('hidden');
+        this.setOpen(this.search, this.searchBtn, open);
+        if (open) {
+          this.setOpen(this.menu, this.menuBtn, false);
+          var field = this.querySelector('.hp-nav__field');
+          if (field) field.focus();
+        }
+      }
+
+      toggleMenu() {
+        var open = this.menu && this.menu.hasAttribute('hidden');
+        this.setOpen(this.menu, this.menuBtn, open);
+        if (open) this.setOpen(this.search, this.searchBtn, false);
+
+        var icons = this.menuBtn.querySelectorAll('svg');
+        if (icons.length === 2) {
+          icons[0].toggleAttribute('hidden', open);
+          icons[1].toggleAttribute('hidden', !open);
+        }
+      }
+
+      setOpen(panel, button, open) {
+        if (!panel) return;
+        panel.toggleAttribute('hidden', !open);
+        if (button) button.setAttribute('aria-expanded', open ? 'true' : 'false');
+      }
+
+      onKey(event) {
+        if (event.key !== 'Escape') return;
+        if (this.search && !this.search.hasAttribute('hidden')) {
+          this.setOpen(this.search, this.searchBtn, false);
+          if (this.searchBtn) this.searchBtn.focus();
+        }
+        if (this.menu && !this.menu.hasAttribute('hidden')) {
+          this.toggleMenu();
+          if (this.menuBtn) this.menuBtn.focus();
+        }
+      }
+
+      /* Dawn rewrites #cart-icon-bubble after every add to cart. Reading the
+         digits out of it rather than its markup is what survives a Dawn that
+         changes what it puts there. */
+      watchCart() {
+        var sync = this.querySelector('#cart-icon-bubble');
+        var bubble = this.querySelector('[data-hp-cart-count]');
+        if (!sync || !bubble || !('MutationObserver' in window)) return;
+
+        var self = this;
+        var last = null;
+
+        var update = function () {
+          // Not the whole text: Dawn prints the count twice, once for eyes and
+          // once for a screen reader, with nothing between them — "4" then
+          // "4 items" reads as 44. This takes the span it marks as the visible
+          // one, and its first child if a future Dawn drops the attribute.
+          var inner = sync.querySelector('.cart-count-bubble');
+          var node = sync.querySelector('.cart-count-bubble [aria-hidden="true"]')
+                  || (inner && inner.firstElementChild)
+                  || inner;
+          var found = node ? /\d+/.exec(node.textContent || '') : null;
+          var count = found ? parseInt(found[0], 10) : 0;
+
+          // Nothing to do is nothing to do. An observer whose callback writes
+          // to the DOM can feed itself, and this one ran away in testing — so
+          // it writes only on a change, and stops listening while it does.
+          if (count === last) return;
+          last = count;
+
+          if (self.cartWatcher) self.cartWatcher.disconnect();
+          bubble.textContent = count;
+          bubble.toggleAttribute('hidden', count === 0);
+          if (self.cartWatcher) watch();
+        };
+
+        var watch = function () {
+          self.cartWatcher.observe(sync, {
+            childList: true,
+            subtree: true,
+            characterData: true
+          });
+        };
+
+        this.cartWatcher = new MutationObserver(update);
+        watch();
+      }
+
+      /* Open Dawn's drawer when there is one. Every other path — no drawer, a
+         script that threw, JavaScript off — follows the href to the cart. */
+      wireCart() {
+        var link = this.querySelector('[data-hp-cart]');
+        if (!link) return;
+
+        link.addEventListener('click', function (event) {
+          var drawer = document.querySelector('cart-drawer');
+          if (!drawer || typeof drawer.open !== 'function') return;
+          if (drawer.classList.contains('is-empty')) return;
+          try {
+            event.preventDefault();
+            drawer.open(link);
+          } catch (e) {
+            window.location = link.getAttribute('href');
+          }
+        });
+      }
+    });
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Totterful header",
+  "tag": "div",
+  "class": "hp-header-section",
+  "enabled_on": { "groups": ["header"] },
+  "settings": [
+    { "type": "header", "content": "Logo" },
+    { "type": "image_picker", "id": "logo", "label": "Logo", "info": "Leave empty to use the store name." },
+    { "type": "range", "id": "logo_width", "label": "Logo width", "unit": "px", "min": 60, "max": 320, "step": 10, "default": 130 },
+    {
+      "type": "checkbox",
+      "id": "logo_pill",
+      "label": "Put the logo on a pill",
+      "default": true,
+      "info": "Keep this on while the bar is transparent. A bare logo disappears over the sage panel and over a photo; a pill never does."
+    },
+    { "type": "color", "id": "logo_pill_color", "label": "Logo pill fill", "default": "#FCFBF6" },
+    { "type": "color", "id": "logo_pill_line", "label": "Logo pill outline", "default": "#2F3326" },
+    { "type": "color", "id": "logo_text_color", "label": "Store name colour", "default": "#2F3326", "info": "Only used when no logo image is set." },
+    { "type": "header", "content": "Links" },
+    {
+      "type": "link_list",
+      "id": "menu",
+      "label": "Menu",
+      "info": "Each link becomes a button, in order. Three or four is about the limit before the bar crowds the logo. Edited in Content → Menus."
+    },
+    { "type": "text", "id": "nav_label", "label": "What a screen reader calls this nav", "default": "Main" },
+    { "type": "text", "id": "menu_label", "label": "What a screen reader calls the menu button", "default": "Menu" },
+    { "type": "header", "content": "Buttons" },
+    { "type": "color", "id": "btn_fill", "label": "Button fill", "default": "#D88B6D" },
+    { "type": "color", "id": "btn_ink", "label": "Button text", "default": "#2F3326" },
+    {
+      "type": "color",
+      "id": "btn_line",
+      "label": "Button outline and shadow",
+      "default": "#2F3326",
+      "info": "The same three colours as every other button on the site. Changing them here only changes the header."
+    },
+    { "type": "header", "content": "Icons" },
+    { "type": "checkbox", "id": "show_search", "label": "Search", "default": true },
+    { "type": "checkbox", "id": "show_account", "label": "Account", "default": true },
+    { "type": "checkbox", "id": "show_cart", "label": "Cart", "default": true },
+    { "type": "range", "id": "icon_size", "label": "Icon size", "unit": "px", "min": 14, "max": 30, "step": 1, "default": 20 },
+    { "type": "color", "id": "count_background", "label": "Cart count fill", "default": "#2F3326" },
+    { "type": "color", "id": "count_text_color", "label": "Cart count text", "default": "#FCFBF6" },
+    { "type": "color", "id": "panel_background", "label": "Menu panel fill", "default": "#FCFBF6", "info": "Behind the stacked buttons when the menu is open on a phone. It cannot be transparent: the menu lands on the hero's own words." },
+    { "type": "color", "id": "panel_line_color", "label": "Menu panel outline", "default": "#2F3326" },
+    { "type": "header", "content": "Search field" },
+    { "type": "text", "id": "search_placeholder", "label": "Placeholder", "default": "Search the shop" },
+    { "type": "text", "id": "search_button", "label": "Search button label", "default": "Go" },
+    { "type": "color", "id": "field_background", "label": "Field background", "default": "#FCFBF6" },
+    { "type": "color", "id": "field_text_color", "label": "Field text", "default": "#2F3326" },
+    { "type": "color", "id": "field_hint_color", "label": "Field placeholder", "default": "#5C6150" },
+    { "type": "header", "content": "Behaviour" },
+    {
+      "type": "checkbox",
+      "id": "sticky",
+      "label": "Keep the bar on screen",
+      "default": true,
+      "info": "It rides up with the announcement bar and then pins to the top. Off leaves it over the hero, where it scrolls away with it."
+    },
+    { "type": "header", "content": "Layout" },
+    { "type": "range", "id": "max_width", "label": "Maximum width", "unit": "px", "min": 900, "max": 1800, "step": 20, "default": 1500 },
+    { "type": "range", "id": "padding_block", "label": "Height around the buttons", "unit": "px", "min": 4, "max": 48, "step": 2, "default": 18 }
+  ],
+  "presets": [{ "name": "Totterful header" }]
+}
+{% endschema %}

@@ -34,6 +34,8 @@ def _link(title, url, links=()):
             'child_active': False}
 
 
+CART = {'item_count': 0, 'items': []}
+
 SHOP = {
     'name': 'Totterful',
     'policies': [{'title': 'Refund policy', 'url': '/policies/refund-policy'},
@@ -110,6 +112,9 @@ def color_modify(value, prop, amount):
 
 
 env.add_filter('color_modify', color_modify)
+# Shopify returns the translation; returning nothing here lets a `| default:`
+# behind it do the work, which is how these sections are written.
+env.add_filter('t', lambda v, **kw: '')
 
 # Sections link the shared button stylesheet through the assets folder. Pointing
 # it at the real file is what lets the suite measure the button a visitor gets
@@ -134,6 +139,7 @@ FORM = {'posted_successfully?': False, 'errors': None, 'email': ''}
 FORM.update(overrides.get('form', {}))
 
 html = env.from_string(body).render(shop=SHOP, linklists=LINKLISTS, form=FORM,
+                                    cart=dict(CART, **overrides.get('cart', {})),
                                     routes={'root_url': '/', 'cart_url': '/cart',
                                             'cart_add_url': '/cart/add',
                                             'search_url': '/search'},

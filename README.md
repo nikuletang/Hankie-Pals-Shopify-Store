@@ -23,6 +23,7 @@ anything moving.
 | [`sections/marquee.liquid`](sections/marquee.liquid) | **Scrolling marquee** | A band of text and images sliding past, with filled or outlined lettering |
 | [`sections/pal-reveal.liquid`](sections/pal-reveal.liquid) | **Pal reveal** | A Pal that grows on scroll until its body becomes the next section |
 | [`sections/pal-panel.liquid`](sections/pal-panel.liquid) | **Pal panel** | A domed Pal-shaped panel that rises over the pinned section above and holds the copy |
+| [`sections/hp-header.liquid`](sections/hp-header.liquid) | **Totterful header** | Logo, the site's buttons as navigation, search, account and cart. Transparent over the hero. Goes in the header section group |
 | [`sections/hp-footer.liquid`](sections/hp-footer.liquid) | **Totterful footer** | Brand, menu columns, policies. Goes in the footer section group, so it is on every page |
 
 Click a filename above, then use the **copy icon** in the toolbar over the code
@@ -242,6 +243,66 @@ Twenty-six cases: the form tag, the field name and tag, the scoped ids, required
 and autocomplete, the hidden label, 16px and a 44px target, the success and
 error states with the typed address kept, the button still available, an unset
 setting landing on the sign-up, and no overflow at four widths.
+
+## Installing the header
+
+Same mechanism as the footer, and the same one line in the schema —
+`"enabled_on": { "groups": ["header"] }` — so it can only be added where it
+renders on every page.
+
+1. **⋯ → Edit code** → **Sections → Add a new section**, name it `hp-header`,
+   paste the file, **Save**.
+2. **Customize**, scroll to the **Header** area, **Add section**, pick
+   *Totterful header*, and drag it under the announcement bar.
+3. Hide Dawn's own header with the eye icon rather than deleting it.
+4. Pick the menu under **Links**. Three or four entries is the limit before the
+   bar crowds the logo.
+
+The bar is transparent and stays transparent as the page scrolls, which only
+works because every pill carries its own fill, outline and shadow. The logo is
+on a pill for the same reason and should stay there: a bare wordmark disappears
+over the sage panel and over a photograph.
+
+### Where it meets Dawn
+
+This is the only section that has to interoperate with the theme rather than
+sit beside it, so the surface is kept deliberately small:
+
+- **The cart** is the one real dependency. A hidden `#cart-icon-bubble` sits in
+  the header; Dawn writes the live count into that id after every add to cart,
+  and a `MutationObserver` copies the number into the visible bubble. It reads
+  the element Dawn marks as the visible one rather than the whole text, because
+  Dawn prints the count twice — once for eyes, once for a screen reader, with
+  nothing between them, so "4" and "4 items" read as **44**.
+- **That observer writes to the DOM**, which is how an observer feeds itself.
+  It ran away in testing and hung the browser outright: not a slow page, a page
+  that never finished. It now writes only when the count has changed and
+  disconnects while it does.
+- **The drawer** opens through `<cart-drawer>` when there is one and follows the
+  link to the cart page when there is not, so the cart works with the drawer
+  off, with the script failed, and with JavaScript disabled.
+- **Nothing else** touches Dawn. Search is a form posting to `/search`, the
+  account icon is a link, and the mobile menu is ours.
+
+Two CSS traps this section ran into, both worth remembering:
+
+- **`hidden` is a UA rule, and a UA rule loses to any author rule.** The burger
+  showed the hamburger and the cross at the same time, because
+  `.hp-nav__icon svg { display: block }` outranked it. It needs an explicit
+  `svg[hidden] { display: none }`.
+- **The shared button stylesheet is loaded *before* this section's own rules**,
+  the opposite of every other section. The shared file owns what a button looks
+  like; this file owns where one goes, and `display: none` on the burger has to
+  beat `.hp-btn`'s own display at the same weight.
+
+    python3 scripts/test-header.py
+
+Thirty-one cases. Dawn is not here to test against, so the two places they meet
+are simulated narrowly and honestly: the page rewrites `#cart-icon-bubble` the
+way Dawn does and the suite asserts the bubble follows, and a stand-in
+`<cart-drawer>` asserts the button opens it rather than navigating. Neither
+proves Dawn's behaviour — they prove this header keeps its side of the bargain,
+which is the half that can be got wrong here.
 
 ## Installing the footer
 

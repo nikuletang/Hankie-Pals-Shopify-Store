@@ -230,7 +230,7 @@
   .hp-hts__body > :last-child { margin-bottom: 0; }
 
   /* --- the phone ------------------------------------------------------------ */
-  @media screen and (max-width: {{ s.tighten_below | default: 749 }}px) {
+  @media screen and (max-width: {{ s.tighten_below | default: 750 }}px) {
     .hp-hts__step {
       gap: {{ s.row_gap_inner | default: 26 | times: 0.55 | round }}px;
       padding: {{ s.card_pad_y | default: 26 | times: 0.7 | round }}px
@@ -410,7 +410,7 @@
     { "type": "color", "id": "pill_dot_color", "label": "Eyebrow dot", "default": "#B5C99A" },
     { "type": "header", "content": "Layout" },
     { "type": "range", "id": "max_width", "label": "Maximum width", "unit": "px", "min": 700, "max": 1500, "step": 20, "default": 1180 },
-    { "type": "range", "id": "tighten_below", "label": "Tighten below", "unit": "px", "min": 500, "max": 1000, "step": 10, "default": 749 },
+    { "type": "range", "id": "tighten_below", "label": "Tighten below", "unit": "px", "min": 500, "max": 1000, "step": 10, "default": 750 },
     { "type": "range", "id": "padding_top", "label": "Space above", "unit": "px", "min": 0, "max": 180, "step": 4, "default": 88 },
     { "type": "range", "id": "padding_bottom", "label": "Space below", "unit": "px", "min": 0, "max": 180, "step": 4, "default": 88 }
   ],

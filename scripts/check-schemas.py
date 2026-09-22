@@ -63,6 +63,17 @@ def check(path):
                         f"{path.name}: {prefix}range '{sid}' default {default} "
                         f"is outside {lo}-{hi}"
                     )
+                # Being inside the range is not enough: Shopify only accepts a
+                # default the slider can actually land on. min 500 step 10 puts
+                # 749 between two stops, and the theme editor refuses the file
+                # on paste with "default must be a step in the range" -- which
+                # is the whole section rejected, not the one setting.
+                elif default is not None and (default - lo) % step != 0:
+                    near = lo + round((default - lo) / step) * step
+                    problems.append(
+                        f"{path.name}: {prefix}range '{sid}' default {default} "
+                        f"is not a stop on {lo}-{hi} by {step}; nearest is {near}"
+                    )
 
             if setting.get("type") == "select":
                 values = [o["value"] for o in setting.get("options", [])]

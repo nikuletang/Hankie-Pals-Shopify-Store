@@ -892,3 +892,26 @@ once and each is handled somewhere different:
 
 Where the words cross the numeral the contrast is **5.39:1** against the quiet
 text colour, so the overlap stays readable rather than merely faint.
+
+## A range default has to land on a slider stop
+
+Shopify rejects a section whose range `default` sits between two stops — not
+the one setting, the whole file, at paste time:
+
+> Invalid schema: setting with id="tighten_below" default must be a step in
+> the range
+
+`min: 500, step: 10` makes the stops 500, 510, 520 … and 749 is not one of
+them. 749 is the conventional CSS breakpoint, which is exactly why it got
+typed; the slider cannot reach it.
+
+`check-schemas.py` already required the *max* to be reachable from the min,
+and the default to be *inside* the range. It did not require the default to be
+reachable, which is a different rule and the one Shopify actually enforced. It
+does now, and it names the nearest valid stop. Run it over all sixteen
+sections and this was the only one.
+
+The wider caution: that script is a reimplementation of Shopify's validator
+from the outside, so it is only as complete as the rules that have bitten so
+far. A clean run means nothing known is wrong, not that Shopify will accept
+the file.

@@ -48,6 +48,11 @@
   # up -- and at least one, or the middle column collapses.
   assign photo_edge = s.photo_edge | default: 0
   assign card_shadow = s.card_shadow | default: 4
+  assign tile_edge = s.tile_edge | default: 2
+  assign tile_shadow = s.tile_shadow | default: 4
+  assign photo_shadow = s.photo_shadow | default: 32
+  assign photo_alpha = photo_shadow | divided_by: 100.0
+  assign card_layout = s.card_layout | default: 'boxed'
 
   assign rows = feats | plus: 1 | divided_by: 2
   if rows < 1
@@ -188,6 +193,21 @@
     transform: rotate(var(--rot, 0deg)) scale({{ s.hover_scale | default: 106 | divided_by: 100.0 }});
   }
 
+  {%- if photo_shadow > 0 %}
+  .hp-fc__shot img,
+  .hp-fc__ph {
+    /* The shadow sits on the picture itself so it follows the rounded corners
+       rather than boxing them. Large blur, negative spread and a real offset:
+       that reads as a photograph lying over another, which a tight shadow
+       does not. Emitted only when there is depth to draw, so 0% is genuinely
+       no shadow rather than a transparent one. */
+    box-shadow: 0 {{ photo_shadow | times: 0.7 | round }}px
+                {{ photo_shadow | times: 1.5 | round }}px
+                -{{ photo_shadow | times: 0.4 | round }}px
+                rgba(47, 51, 38, {{ photo_alpha }});
+  }
+  {%- endif %}
+
   .hp-fc__shot img {
     display: block;
     width: 100%;
@@ -238,7 +258,14 @@
 
   /* --- the cards ------------------------------------------------------------ */
   .hp-fc__card {
+    display: flex;
+    align-items: flex-start;
+    gap: {{ s.tile_gap | default: 16 }}px;
     margin: 0;
+  }
+
+  {%- if card_layout == 'boxed' %}
+  .hp-fc__card {
     padding: {{ s.card_pad | default: 22 }}px;
     border: {{ s.card_edge | default: 2 }}px solid var(--hp-fc-line);
     border-radius: {{ s.card_radius | default: 22 }}px;
@@ -247,12 +274,48 @@
     box-shadow: 0 {{ card_shadow }}px 0 0 var(--hp-fc-line);
     {%- endif %}
   }
+  {%- else %}
+  /* No box: the words sit on the section's own background and a hairline
+     divides one card from the next, so the photographs carry the weight. */
+  .hp-fc__card + .hp-fc__card {
+    padding-top: {{ s.card_pad | default: 22 }}px;
+    border-top: 1px solid rgba(47, 51, 38, 0.14);
+  }
+  {%- endif %}
+
+  /* The cards on the right are the mirror of the ones on the left: icon to
+     the outside, words reading inward towards the collage. */
+  {%- unless s.icon_mirror == false %}
+  .hp-fc__card:nth-of-type(even) {
+    flex-direction: row-reverse;
+    text-align: right;
+  }
+  {%- endunless %}
+
+  .hp-fc__text { min-width: 0; }
+
+  /* A tile, not a bare glyph: it gives the icon the same outline-and-shadow
+     the rest of the site uses, and somewhere for a colour to live. */
+  .hp-fc__tile {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: {{ s.tile_size | default: 72 }}px;
+    height: {{ s.tile_size | default: 72 }}px;
+    border-radius: {{ s.tile_radius | default: 20 }}px;
+    background: var(--hp-fc-tile, #FCFBF6);
+    {%- if tile_edge > 0 %}
+    border: {{ tile_edge }}px solid var(--hp-fc-line);
+    {%- endif %}
+    {%- if tile_shadow > 0 %}
+    box-shadow: 0 {{ tile_shadow }}px 0 0 var(--hp-fc-line);
+    {%- endif %}
+  }
 
   .hp-fc__ico {
     display: block;
     width: {{ s.icon_size | default: 38 }}px;
     height: {{ s.icon_size | default: 38 }}px;
-    margin-bottom: 12px;
   }
 
   .hp-fc__ico .f { fill: var(--hp-fc-accent, #B5C99A); }
@@ -276,7 +339,6 @@
     display: block;
     width: {{ s.icon_size | default: 38 }}px;
     height: {{ s.icon_size | default: 38 }}px;
-    margin-bottom: 12px;
     object-fit: contain;
   }
 
@@ -316,6 +378,13 @@
       padding: 0.55em 1em;
       max-width: 44vw;
       white-space: normal;
+    }
+
+    /* Nothing sits either side of anything now, so every card reads the same
+       way round rather than half of them reading backwards. */
+    .hp-fc__card:nth-of-type(even) {
+      flex-direction: row;
+      text-align: left;
     }
     .hp-fc__heading { font-size: {{ s.heading_size | default: 40 | times: 0.78 | round }}px; }
   }
@@ -442,9 +511,11 @@
           style="
             --hp-fc-accent: {{ b.icon_color | default: '#B5C99A' }};
             --hp-fc-accent2: {{ b.icon_accent | default: '#D88B6D' }};
+            --hp-fc-tile: {{ b.tile_color | default: '#FCFBF6' }};
           "
           {{ block.shopify_attributes }}
         >
+          <span class="hp-fc__tile">
           {%- if b.icon_image != blank -%}
             {{
               b.icon_image
@@ -511,13 +582,16 @@
               {%- endcase -%}
             </svg>
           {%- endif -%}
+          </span>
 
-          {%- if b.title != blank -%}
-            <h3 class="hp-fc__card-title">{{ b.title | escape }}</h3>
-          {%- endif -%}
-          {%- if b.body != blank -%}
-            <div class="hp-fc__card-body">{{ b.body }}</div>
-          {%- endif -%}
+          <div class="hp-fc__text">
+            {%- if b.title != blank -%}
+              <h3 class="hp-fc__card-title">{{ b.title | escape }}</h3>
+            {%- endif -%}
+            {%- if b.body != blank -%}
+              <div class="hp-fc__card-body">{{ b.body }}</div>
+            {%- endif -%}
+          </div>
         </article>
       {%- endfor -%}
     </div>
@@ -574,11 +648,22 @@
       "min": 80,
       "max": 260,
       "step": 10,
-      "default": 140,
-      "info": "How much of the row the middle column takes, next to the cards either side."
+      "default": 210,
+      "info": "How much of the row the middle column takes, next to the cards either side. Raise it to let the photographs carry the section."
     },
     { "type": "range", "id": "photo_radius", "label": "Photo corner rounding", "unit": "px", "min": 0, "max": 60, "step": 2, "default": 20 },
     { "type": "range", "id": "photo_edge", "label": "Photo outline", "unit": "px", "min": 0, "max": 6, "step": 1, "default": 0 },
+    {
+      "type": "range",
+      "id": "photo_shadow",
+      "label": "Photo depth",
+      "unit": "%",
+      "min": 0,
+      "max": 60,
+      "step": 2,
+      "default": 32,
+      "info": "The drop shadow under each photograph, which is what makes them read as lying over one another."
+    },
     {
       "type": "range",
       "id": "hover_scale",
@@ -607,6 +692,29 @@
     { "type": "color", "id": "pill_line_color", "label": "Pill outline", "default": "#2F3326" },
     { "type": "color", "id": "pill_dot_color", "label": "Pill dot", "default": "#D88B6D" },
     { "type": "header", "content": "The cards" },
+    {
+      "type": "select",
+      "id": "card_layout",
+      "label": "Card style",
+      "options": [
+        { "value": "boxed", "label": "In a box" },
+        { "value": "plain", "label": "No box, just a divider" }
+      ],
+      "default": "boxed",
+      "info": "No box lets the photographs carry the section, with a hairline between one card and the next."
+    },
+    {
+      "type": "checkbox",
+      "id": "icon_mirror",
+      "label": "Mirror the cards on the right",
+      "default": true,
+      "info": "Icon to the outside, words reading in towards the collage. On a phone every card reads the same way round regardless."
+    },
+    { "type": "range", "id": "tile_size", "label": "Icon tile size", "unit": "px", "min": 44, "max": 120, "step": 2, "default": 72 },
+    { "type": "range", "id": "tile_radius", "label": "Icon tile rounding", "unit": "px", "min": 0, "max": 60, "step": 2, "default": 20 },
+    { "type": "range", "id": "tile_edge", "label": "Icon tile outline", "unit": "px", "min": 0, "max": 6, "step": 1, "default": 2 },
+    { "type": "range", "id": "tile_shadow", "label": "Icon tile shadow", "unit": "px", "min": 0, "max": 10, "step": 1, "default": 4 },
+    { "type": "range", "id": "tile_gap", "label": "Gap between tile and words", "unit": "px", "min": 6, "max": 40, "step": 2, "default": 16 },
     { "type": "range", "id": "card_radius", "label": "Corner rounding", "unit": "px", "min": 0, "max": 48, "step": 2, "default": 22 },
     { "type": "range", "id": "card_edge", "label": "Outline", "unit": "px", "min": 0, "max": 6, "step": 1, "default": 2 },
     { "type": "range", "id": "card_shadow", "label": "Hard shadow", "unit": "px", "min": 0, "max": 12, "step": 1, "default": 4 },
@@ -624,7 +732,7 @@
     { "type": "color", "id": "muted_color", "label": "Quiet text", "default": "#5C6150" },
     { "type": "color", "id": "line_color", "label": "Outlines", "default": "#2F3326" },
     { "type": "header", "content": "Layout" },
-    { "type": "range", "id": "max_width", "label": "Maximum width", "unit": "px", "min": 900, "max": 1600, "step": 20, "default": 1280 },
+    { "type": "range", "id": "max_width", "label": "Maximum width", "unit": "px", "min": 900, "max": 1700, "step": 20, "default": 1420 },
     { "type": "range", "id": "stack_below", "label": "Stack below", "unit": "px", "min": 700, "max": 1200, "step": 10, "default": 900 },
     { "type": "range", "id": "padding_top", "label": "Space above", "unit": "px", "min": 0, "max": 160, "step": 4, "default": 72 },
     { "type": "range", "id": "padding_bottom", "label": "Space below", "unit": "px", "min": 0, "max": 160, "step": 4, "default": 72 }
@@ -692,6 +800,7 @@
         { "type": "image_picker", "id": "icon_image", "label": "Or upload an icon", "info": "Used instead of the drawn icon above." },
         { "type": "color", "id": "icon_color", "label": "Icon main colour", "default": "#B5C99A" },
         { "type": "color", "id": "icon_accent", "label": "Icon accent colour", "default": "#D88B6D" },
+        { "type": "color", "id": "tile_color", "label": "Tile fill", "default": "#FCFBF6" },
         { "type": "text", "id": "title", "label": "Subheading", "default": "A feature" },
         { "type": "richtext", "id": "body", "label": "Paragraph", "default": "<p>A line or two about what it does and why it matters.</p>" }
       ]
@@ -701,13 +810,13 @@
     {
       "name": "Feature collage",
       "blocks": [
-        { "type": "photo", "settings": { "pos_x": 0, "pos_y": 16, "width": 40, "rotation": -6, "layer": 1, "pill_1": "Crinkle ears", "pill_1_x": 22, "pill_1_y": 8 } },
-        { "type": "photo", "settings": { "pos_x": 29, "pos_y": 2, "width": 44, "rotation": 2, "layer": 3, "pill_1": "Organic cotton", "pill_1_x": 60, "pill_1_y": 10, "pill_2": "Tag to fiddle with", "pill_2_x": 40, "pill_2_y": 86 } },
-        { "type": "photo", "settings": { "pos_x": 60, "pos_y": 20, "width": 38, "rotation": 7, "layer": 2, "pill_1": "Fits a pocket", "pill_1_x": 74, "pill_1_y": 88 } },
-        { "type": "feature", "settings": { "icon": "leaf", "title": "Organic cotton", "body": "<p>Soft enough for a face that is already sore from wiping.</p>" } },
-        { "type": "feature", "settings": { "icon": "refresh", "title": "Washes and comes back", "body": "<p>Machine wash warm. It keeps its crinkle and its shape.</p>" } },
-        { "type": "feature", "settings": { "icon": "pocket", "title": "Pocket sized", "body": "<p>Folds down small enough to live in a coat pocket or a bag.</p>" } },
-        { "type": "feature", "settings": { "icon": "smile", "title": "A friend, not a tissue", "body": "<p>They reach for it themselves, which is the whole trick.</p>" } }
+        { "type": "photo", "settings": { "pos_x": -2, "pos_y": 2, "width": 54, "rotation": -5, "layer": 1, "pill_1": "Crinkle ears", "pill_1_x": 20, "pill_1_y": 6 } },
+        { "type": "photo", "settings": { "pos_x": 48, "pos_y": 0, "width": 52, "rotation": 6, "layer": 2, "pill_1": "Fits a pocket", "pill_1_x": 78, "pill_1_y": 10 } },
+        { "type": "photo", "settings": { "pos_x": 22, "pos_y": 24, "width": 54, "rotation": 2, "layer": 3, "pill_1": "Organic cotton", "pill_1_x": 66, "pill_1_y": 8, "pill_2": "Tag to fiddle with", "pill_2_x": 34, "pill_2_y": 90 } },
+        { "type": "feature", "settings": { "icon": "leaf", "tile_color": "#E9F5DB", "title": "Organic cotton", "body": "<p>Soft enough for a face that is already sore from wiping.</p>" } },
+        { "type": "feature", "settings": { "icon": "refresh", "tile_color": "#FBE7DC", "title": "Washes and comes back", "body": "<p>Machine wash warm. It keeps its crinkle and its shape.</p>" } },
+        { "type": "feature", "settings": { "icon": "pocket", "tile_color": "#FBE7DC", "title": "Pocket sized", "body": "<p>Folds down small enough to live in a coat pocket or a bag.</p>" } },
+        { "type": "feature", "settings": { "icon": "smile", "tile_color": "#E9F5DB", "title": "A friend, not a tissue", "body": "<p>They reach for it themselves, which is the whole trick.</p>" } }
       ]
     }
   ]

@@ -799,6 +799,31 @@ Two things make that work:
   can change place when a photo comes forward. A check asserts every photo is
   in the same position before and after.
 
+### Depth, and the icon beside the words
+
+The photographs carry a real drop shadow — large blur, negative spread, a
+genuine vertical offset — set on the picture itself so it follows the rounded
+corners instead of boxing them. **Photo depth** drives it, and at 0% the
+declaration is not emitted at all, so off is off rather than a transparent
+shadow.
+
+Each card is a row: the icon sits in a tile beside the subheading and
+paragraph, not above them. The cards on the right are the mirror — tile to the
+outside, words reading inward — and on a phone that mirroring is dropped, since
+nothing is to either side of anything any more and half the cards would
+otherwise read backwards.
+
+**Card style** switches between the boxed version and one with no box at all,
+just a hairline between cards, which lets the photographs carry the section.
+
+### A photograph can hang out of the stage
+
+A photo is *placed* by percentage but *sized* by its own height, so a tall one
+can reach past the bottom of the collage and land on the card beneath it. The
+preset is set so that square photographs stay inside; a much taller one needs
+its **Down** lowered by hand. Two checks hold the shipped settings — one
+against the stage, one against the first card on a phone.
+
 ### A pill near an edge anchors to its own edge
 
 A pill centred on its anchor point spills outward, and a pill hanging off the

@@ -15,6 +15,13 @@ Attach the `.liquid` file to the reply as well. The store is not connected to
 this repository: nothing reaches the storefront until the file is pasted into
 Shopify by hand, so the file and the link are the actual delivery.
 
+## A mentioned attachment that did not arrive
+
+When a message refers to an attached photo, screenshot or file and nothing is
+attached, say so and ask for it before building. Do not guess at the reference
+and do not quietly build without it -- a design brief built from half its
+inputs wastes the round.
+
 ## What this repository is
 
 Section files for the Totterful / Hankie Pals storefront

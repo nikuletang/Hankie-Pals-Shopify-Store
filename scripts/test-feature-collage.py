@@ -26,8 +26,10 @@ function bx(el) {
 }
 function snap(doc, win) {
   var photos = [].map.call(doc.querySelectorAll('.hp-fc__photo'), function (p) {
+    var inner = p.querySelector('img') || p.querySelector('.hp-fc__ph');
     return { box: bx(p), z: win.getComputedStyle(p).zIndex,
-             shot: win.getComputedStyle(p.querySelector('.hp-fc__shot')).transform };
+             shot: win.getComputedStyle(p.querySelector('.hp-fc__shot')).transform,
+             shadow: inner ? win.getComputedStyle(inner).boxShadow : null };
   });
   var pills = [].map.call(doc.querySelectorAll('.hp-fc__pill'), function (p) {
     return { text: p.textContent.trim(), box: bx(p),
@@ -46,6 +48,27 @@ function snap(doc, win) {
     stage: bx(stage), collage: bx(collage),
     bodySize: body ? win.getComputedStyle(body).fontSize : null,
     bodyText: body ? body.textContent.trim().slice(0, 20) : null,
+    iconRow: (function () {
+      var c = doc.querySelector('.hp-fc__card');
+      if (!c) return null;
+      var tile = c.querySelector('.hp-fc__tile'), txt = c.querySelector('.hp-fc__text');
+      if (!tile || !txt) return null;
+      return { tileLeft: bx(tile).l, textLeft: bx(txt).l,
+               tileTop: bx(tile).t, textTop: bx(txt).t };
+    })(),
+    mirror: (function () {
+      var c = doc.querySelectorAll('.hp-fc__card')[1];
+      if (!c) return null;
+      var tile = c.querySelector('.hp-fc__tile'), txt = c.querySelector('.hp-fc__text');
+      var cs = win.getComputedStyle(c);
+      return { dir: cs.flexDirection, align: cs.textAlign,
+               tileLeft: tile ? bx(tile).l : null,
+               textLeft: txt ? bx(txt).l : null };
+    })(),
+    cardBorder: (function () {
+      var c = doc.querySelector('.hp-fc__card');
+      return c ? win.getComputedStyle(c).borderTopWidth : null;
+    })(),
     docW: doc.documentElement.scrollWidth,
     winW: win.innerWidth
   };
@@ -127,9 +150,16 @@ check('they overlap rather than sit in a row',
 check('each is tilted by its own setting',
       len({p['shot'] for p in d['photos']}) == 3,
       f"{len({p['shot'] for p in d['photos']})} different transforms")
-check('and the stacking order is the one set, not the source order',
-      [p['z'] for p in d['photos']] == ['1', '3', '2'],
-      f"z-index {[p['z'] for p in d['photos']]}")
+# Set deliberately against the source order, or the check proves nothing when
+# the preset's own layers happen to run 1, 2, 3.
+stack = run('stacking', overrides={'blocks': [
+    {'type': 'photo', 'settings': {'pos_x': 0, 'width': 40, 'layer': 3}},
+    {'type': 'photo', 'settings': {'pos_x': 25, 'width': 40, 'layer': 1}},
+    {'type': 'photo', 'settings': {'pos_x': 50, 'width': 40, 'layer': 2}},
+]})
+check('the stacking order is the one set, not the source order',
+      [p['z'] for p in stack['photos']] == ['3', '1', '2'],
+      f"z-index {[p['z'] for p in stack['photos']]} for layers 3, 1, 2")
 
 front = run('front', script="document.querySelectorAll('.hp-fc__photo')[0]"
                             ".setAttribute('data-front','');")
@@ -189,6 +219,66 @@ check('pills can be set to show only over the photo being hovered',
 check('and they are shown outright by default',
       all(p['op'] == '1' for p in d['pills']),
       f"opacities {[p['op'] for p in d['pills']]}")
+
+# ------------------------------------------------- depth, and the icon row --
+check('every photograph carries a drop shadow, so they read as lying over one another',
+      all('rgba' in (p.get('shadow') or '') and 'px' in (p.get('shadow') or '')
+          for p in d['photos']),
+      f"{d['photos'][0].get('shadow')}")
+check('and turning the depth off removes it',
+      all((p.get('shadow') or 'none') == 'none'
+          for p in run('flat', overrides={'settings': {'photo_shadow': 0}})['photos']),
+      "no shadow at 0%")
+
+check('the icon sits beside the words rather than above them',
+      d['iconRow'] and abs(d['iconRow']['tileTop'] - d['iconRow']['textTop']) < 30
+      and d['iconRow']['tileLeft'] < d['iconRow']['textLeft'],
+      f"tile at {d['iconRow']['tileLeft']}, words at {d['iconRow']['textLeft']}, "
+      f"tops {d['iconRow']['tileTop']} and {d['iconRow']['textTop']}")
+check('and the cards on the right are its mirror',
+      d['mirror']['dir'] == 'row-reverse' and d['mirror']['align'] == 'right'
+      and d['mirror']['tileLeft'] > d['mirror']['textLeft'],
+      f"{d['mirror']['dir']}, text {d['mirror']['align']}, "
+      f"tile at {d['mirror']['tileLeft']} against words at {d['mirror']['textLeft']}")
+
+flat = run('no-mirror', overrides={'settings': {'icon_mirror': False}})
+check('mirroring can be turned off',
+      flat['mirror']['dir'] == 'row' and flat['mirror']['tileLeft'] < flat['mirror']['textLeft'],
+      f"{flat['mirror']['dir']}, tile at {flat['mirror']['tileLeft']}")
+
+check('on a phone every card reads the same way round',
+      ph['mirror']['dir'] == 'row' and ph['mirror']['tileLeft'] < ph['mirror']['textLeft'],
+      f"{ph['mirror']['dir']}, tile at {ph['mirror']['tileLeft']} "
+      f"against words at {ph['mirror']['textLeft']}")
+
+plain = run('plain', overrides={'settings': {'card_layout': 'plain'}})
+check('the cards can drop their box so the photographs carry the section',
+      plain['cardBorder'] in ('0px', '') or plain['cardBorder'].startswith('0'),
+      f"card border {plain['cardBorder']} against {d['cardBorder']} when boxed")
+
+check('the collage is wider than the columns beside it',
+      d['collage']['w'] > d['cards'][0]['box']['w'] * 1.5,
+      f"collage {d['collage']['w']}px against a card column of "
+      f"{d['cards'][0]['box']['w']}px")
+
+# ------------------------------------------------ the collage keeps to itself --
+# A photo is placed by percentage but sized by its own height, so one can hang
+# out of the bottom of the stage and land on the card beneath it. The preset is
+# set so that square photographs -- what the placeholders are -- stay inside.
+# A much taller photograph still needs its "Down" lowered by hand.
+spill = [i for i, p in enumerate(d['photos'])
+         if p['box']['b'] > d['stage']['b'] + 2]
+check('at the settings it ships with, no photograph hangs out of the collage',
+      not spill,
+      f"stage ends {d['stage']['b']}, photos end "
+      f"{[p['box']['b'] for p in d['photos']]}")
+
+phspill = [i for i, p in enumerate(ph['photos'])
+           if p['box']['b'] > ph['cards'][0]['box']['t'] + 2]
+check('and none of them lands on the first card on a phone',
+      not phspill,
+      f"first card starts {ph['cards'][0]['box']['t']}, photos end "
+      f"{[p['box']['b'] for p in ph['photos']]}")
 
 print(f"\n{sum(res)}/{len(res)} passed")
 sys.exit(0 if all(res) else 1)

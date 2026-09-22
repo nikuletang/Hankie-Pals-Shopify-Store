@@ -327,8 +327,26 @@ check('and so is the cart count',
 # The burger opens a drawer that is only rendered when a menu is set. With no
 # menu picked in Links there is nothing to open, so there must be no burger
 # either -- an empty bar, not a button that does nothing.
-nomenu = run('no-menu', overrides={'settings': {}})
-check('with no menu picked there are no link buttons',
+# Nothing picked is the state a freshly added section is in, and an empty bar
+# is indistinguishable from a broken one. Fall back to the store's own main
+# menu instead. A schema `default` does not cover this: defaults are baked in
+# when the instance is first saved, so a section already on the page keeps its
+# empty value for good.
+unpicked = run('no-menu', overrides={'settings': {'menu': ''}})
+check('with nothing picked it falls back to the store main menu',
+      [l['text'] for l in unpicked['links']] == ['Home', 'Catalog', 'Contact'],
+      f"{[l['text'] for l in unpicked['links']]}")
+check('and the hamburger is there to open them on a phone',
+      unpicked['burgerShown'] != 'absent',
+      f"burger {unpicked['burgerShown']}")
+
+# Only when the store itself has no menu is there nothing to draw -- and then
+# there must be no hamburger either, since it would open an empty drawer.
+# The guard counts links rather than comparing the menu to blank: a menu that
+# is not there is nil in one Liquid and an EmptyDrop in another, and the two
+# disagree about `!= blank`. Nothing disagrees about how many links it has.
+nomenu = run('bare-store', overrides={'settings': {'menu': ''}, 'linklists': {}})
+check('a store with no menu at all draws no link buttons',
       nomenu['links'] == [],
       f"links {nomenu['links']}")
 check('and no hamburger to open an empty drawer',

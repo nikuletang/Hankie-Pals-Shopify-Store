@@ -62,6 +62,12 @@ LINKLISTS = {
 }
 
 
+# A suite can blank the store's menus to stand in for a shop whose main menu
+# is empty -- the one case where a header with a link_list fallback still has
+# nothing to draw.
+if 'linklists' in overrides:
+    LINKLISTS = {k: v for k, v in overrides['linklists'].items()}
+
 settings = defaults(schema.get('settings', []))
 settings.update(overrides.get('settings', {}))
 resolve_menus(settings, types(schema.get('settings', [])))

@@ -37,6 +37,12 @@
 
 {%- liquid
   assign s = section.settings
+  assign nav_menu = s.menu
+  assign nav_count = nav_menu.links | size
+  unless nav_count > 0
+    assign nav_menu = linklists['main-menu']
+    assign nav_count = nav_menu.links | size
+  endunless
   assign bp = s.nav_breakpoint | default: 900
   assign bp_up = bp | plus: 1
   assign btn_fill = s.btn_fill | default: '#D88B6D'
@@ -332,9 +338,9 @@
         {%- endif -%}
       </a>
 
-      {%- if s.menu != blank -%}
+      {%- if nav_count > 0 -%}
         <nav class="hp-nav__links" aria-label="{{ s.nav_label | default: 'Main' | escape }}">
-          {%- for link in s.menu.links -%}
+          {%- for link in nav_menu.links -%}
             <a class="hp-btn hp-btn--sm" href="{{ link.url }}" style="{{ btn_vars }}">
               {{- link.title | escape -}}
             </a>
@@ -404,7 +410,7 @@
           </span>
         {%- endif -%}
 
-        {%- if s.menu != blank -%}
+        {%- if nav_count > 0 -%}
           <button
             type="button"
             class="hp-btn hp-btn--sm hp-nav__icon hp-nav__burger"
@@ -449,11 +455,11 @@
       </div>
     {%- endif -%}
 
-    {%- if s.menu != blank -%}
+    {%- if nav_count > 0 -%}
       <div class="hp-nav__drawer" id="HpNavMenu-{{ section.id }}" hidden>
         <div class="hp-nav__panel">
           <ul class="hp-nav__stack" role="list">
-            {%- for link in s.menu.links -%}
+            {%- for link in nav_menu.links -%}
               <li>
                 <a class="hp-btn" href="{{ link.url }}" style="{{ btn_vars }}">
                   {{- link.title | escape -}}
@@ -665,7 +671,8 @@
       "type": "link_list",
       "id": "menu",
       "label": "Menu",
-      "info": "Each link becomes a button, in order. Three or four is about the limit before the bar crowds the logo. Edited in Content → Menus."
+      "default": "main-menu",
+      "info": "Each link becomes a button, in order. Leave it empty and the store's main menu is used. Three or four entries is about the limit before the bar crowds the logo. The wording is edited in Content → Menus, not here."
     },
     { "type": "text", "id": "nav_label", "label": "What a screen reader calls this nav", "default": "Main" },
     { "type": "text", "id": "menu_label", "label": "What a screen reader calls the menu button", "default": "Menu" },

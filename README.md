@@ -255,10 +255,22 @@ renders on every page.
 2. **Customize**, scroll to the **Header** area, **Add section**, pick
    *Totterful header*, and drag it under the announcement bar.
 3. Hide Dawn's own header with the eye icon rather than deleting it.
-4. Pick the menu under **Links**. Three or four entries is the limit before the
-   bar crowds the logo. **Nothing appears until this is set** — with no menu
-   there are no link buttons and no hamburger either, because the hamburger
-   would only open an empty drawer.
+4. Optionally pick a menu under **Links**. With nothing picked the store's own
+   `main-menu` is used, so the bar is never empty just because a setting was
+   not filled in. Three or four entries is the limit before the bar crowds the
+   logo.
+
+A schema `default` does not cover that fallback and it is worth knowing why:
+Shopify bakes defaults in when a section instance is first saved, so a section
+already on the page keeps the empty value it was saved with no matter what the
+schema says later. The fallback has to happen in Liquid, at render time.
+
+The guard counts links rather than testing the menu against `blank`. A menu
+that is not there is `nil` in one Liquid and an `EmptyDrop` in another and the
+two do not agree about `!= blank`; nothing disagrees about how many links it
+has. `nil > 0` is false in Shopify but *raises* in python-liquid, so the count
+goes through the `size` filter, which answers 0 for nil, for an empty string
+and for a menu with no links.
 
 The menu's wording lives in the Shopify admin under **Content → Menus**, not in
 this section. Renaming or deleting an entry there changes the bar; there is

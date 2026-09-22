@@ -44,6 +44,17 @@
     assign nav_count = nav_menu.links | size
   endunless
   assign bp = s.nav_breakpoint | default: 900
+  assign menu_size = s.menu_size | default: 14
+  assign mb_pad_y = menu_size | times: 0.78 | round
+  assign mb_pad_x = menu_size | times: 1.57 | round
+  assign links_pos = s.links_position | default: 'center'
+  if links_pos == 'center'
+    assign bar_cols = '1fr auto 1fr'
+    assign links_just = 'center'
+  else
+    assign bar_cols = 'auto 1fr auto'
+    assign links_just = 'end'
+  endif
   assign bp_up = bp | plus: 1
   assign btn_fill = s.btn_fill | default: '#D88B6D'
   assign btn_ink = s.btn_ink | default: '#2F3326'
@@ -80,7 +91,10 @@
   }
 
   .hp-nav__bar {
-    display: flex;
+    display: grid;
+    /* Explicit columns, because the middle one is not rendered at all when no
+       menu is set and the tools would otherwise slide into its place. */
+    grid-template-columns: {{ bar_cols }};
     align-items: center;
     gap: clamp(10px, 1.4vw, 20px);
     max-width: var(--hp-nav-width);
@@ -93,7 +107,8 @@
     display: inline-flex;
     align-items: center;
     flex: none;
-    margin-inline-end: auto;
+    grid-column: 1;
+    justify-self: start;
     text-decoration: none;
   }
 
@@ -123,23 +138,41 @@
 
   /* --- Links --------------------------------------------------------------- */
   .hp-nav__links {
+    grid-column: 2;
+    justify-self: {{ links_just }};
     display: flex;
     align-items: center;
     gap: clamp(8px, 1vw, 14px);
   }
 
   .hp-nav__tools {
+    grid-column: 3;
+    justify-self: end;
     display: flex;
     align-items: center;
     gap: clamp(8px, 1vw, 14px);
   }
 
   /* A square pill for an icon, rather than a wide one with a glyph in it. */
-  .hp-nav__icon {
+  .hp-nav .hp-nav__icon {
     position: relative;
     --hp-btn-pad-y: 12px;
     --hp-btn-pad-x: 12px;
     line-height: 0;
+  }
+
+  /* Size of the link buttons, separate from the icons. Three classes, so the
+     shared stylesheet cannot reach it whatever order it loads in. */
+  .hp-nav .hp-nav__links .hp-btn {
+    --hp-btn-size: {{ menu_size }}px;
+    --hp-btn-pad-y: {{ mb_pad_y }}px;
+    --hp-btn-pad-x: {{ mb_pad_x }}px;
+  }
+
+  .hp-nav .hp-nav__stack .hp-btn {
+    --hp-btn-size: {{ menu_size }}px;
+    --hp-btn-pad-y: {{ mb_pad_y | plus: 3 }}px;
+    --hp-btn-pad-x: {{ mb_pad_x }}px;
   }
 
   .hp-nav__icon svg[hidden] { display: none; }
@@ -269,6 +302,12 @@
   @media screen and (max-width: {{ bp }}px) {
     .hp-nav .hp-nav__links { display: none; }
     .hp-nav .hp-nav__burger { display: inline-flex; }
+{%- unless s.show_search_mobile %}
+    /* Logo, account, cart, hamburger. A fifth pill overflows a phone, and an
+       overflowing bar drags the whole page sideways. */
+    .hp-nav .hp-nav__search-btn,
+    .hp-nav .hp-nav__search { display: none; }
+{%- endunless %}
   }
 
   @media screen and (max-width: 749px) {
@@ -276,7 +315,7 @@
     .hp-nav--logo-pill .hp-nav__logo { padding: 8px 12px; }
     .hp-nav__logo img { width: min(var(--hp-nav-logo-w), 26vw); }
 
-    .hp-nav__icon {
+    .hp-nav .hp-nav__icon {
       --hp-btn-pad-y: 10px;
       --hp-btn-pad-x: 10px;
     }
@@ -352,7 +391,7 @@
         {%- if s.show_search != false -%}
           <button
             type="button"
-            class="hp-btn hp-btn--sm hp-nav__icon"
+            class="hp-btn hp-btn--sm hp-nav__icon hp-nav__search-btn"
             style="{{ btn_vars }}"
             data-hp-search-toggle
             aria-expanded="false"
@@ -674,6 +713,27 @@
       "default": "main-menu",
       "info": "Each link becomes a button, in order. Leave it empty and the store's main menu is used. Three or four entries is about the limit before the bar crowds the logo. The wording is edited in Content → Menus, not here."
     },
+    {
+      "type": "range",
+      "id": "menu_size",
+      "label": "Menu button size",
+      "unit": "px",
+      "min": 11,
+      "max": 22,
+      "step": 1,
+      "default": 14,
+      "info": "The text size of the link buttons; their padding scales with it. The icon buttons have their own size setting."
+    },
+    {
+      "type": "select",
+      "id": "links_position",
+      "label": "Where the link buttons sit",
+      "options": [
+        { "value": "center", "label": "Centred on the bar" },
+        { "value": "right", "label": "Beside the icons" }
+      ],
+      "default": "center"
+    },
     { "type": "text", "id": "nav_label", "label": "What a screen reader calls this nav", "default": "Main" },
     { "type": "text", "id": "menu_label", "label": "What a screen reader calls the menu button", "default": "Menu" },
     { "type": "header", "content": "Buttons" },
@@ -691,6 +751,13 @@
     { "type": "checkbox", "id": "show_account", "label": "Account", "default": true },
     { "type": "checkbox", "id": "show_cart", "label": "Cart", "default": true },
     { "type": "range", "id": "icon_size", "label": "Icon size", "unit": "px", "min": 14, "max": 30, "step": 1, "default": 20 },
+    {
+      "type": "checkbox",
+      "id": "show_search_mobile",
+      "label": "Keep search on a phone",
+      "default": false,
+      "info": "Off by default. Five pills do not fit a 390px phone, and a bar that overflows drags the whole page sideways."
+    },
     { "type": "color", "id": "count_background", "label": "Cart count fill", "default": "#2F3326" },
     { "type": "color", "id": "count_text_color", "label": "Cart count text", "default": "#FCFBF6" },
     { "type": "color", "id": "panel_background", "label": "Menu panel fill", "default": "#FCFBF6", "info": "Behind the stacked buttons when the menu is open on a phone. It cannot be transparent: the menu lands on the hero's own words." },

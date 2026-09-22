@@ -110,6 +110,29 @@ function snap() {
     })(),
     drawerOpened: window.__drawerOpened || false,
     navigated: window.__navigated || false,
+    barMid: (function () {
+      var b = document.querySelector('.hp-nav__bar');
+      if (!b) return null;
+      var r = b.getBoundingClientRect();
+      return Math.round((r.left + r.right) / 2);
+    })(),
+    linksMid: (function () {
+      var l = document.querySelectorAll('.hp-nav__links .hp-btn');
+      if (!l.length) return null;
+      var a = l[0].getBoundingClientRect(), z = l[l.length - 1].getBoundingClientRect();
+      return Math.round((a.left + z.right) / 2);
+    })(),
+    linkBtn: (function () {
+      var b = document.querySelector('.hp-nav__links .hp-btn');
+      if (!b) return null;
+      var c = getComputedStyle(b);
+      return { size: c.fontSize, padY: c.paddingTop, padX: c.paddingLeft,
+               h: Math.round(b.getBoundingClientRect().height) };
+    })(),
+    iconH: (function () {
+      var i = document.querySelector('.hp-nav__tools .hp-btn');
+      return i ? Math.round(i.getBoundingClientRect().height) : null;
+    })(),
     docW: document.documentElement.scrollWidth,
     winW: window.innerWidth
   };
@@ -117,19 +140,75 @@ function snap() {
 """
 
 
-def run(name, script='', width=1280, overrides=None, before=''):
+def run(name, script='', width=1280, overrides=None, before='', late=False):
     page = TMP / f'hd-{name}.html'
     subprocess.run([sys.executable, str(HERE / 'render-section.py'), str(SECTION),
                     json.dumps(overrides or MENU), str(page)], check=True, capture_output=True)
     html = page.read_text(encoding='utf-8')
     html = html.replace('<body>', '<body>' + BAR + before)
-    html = html.replace('</body>', HERO + '<script>' + SNAP + script +
+    html = html.replace('</body>', HERO + (LATE if late else '') + '<script>' + SNAP + script +
                         "\nsetTimeout(function(){document.title='RESULT'+JSON.stringify(snap());},"
                         " 500);</script></body>")
     page.write_text(html, encoding='utf-8')
     dom = subprocess.run([CHROME, '--headless', '--no-sandbox', '--disable-gpu',
         f'--window-size={width},900', '--virtual-time-budget=6000', '--dump-dom',
         'file://' + str(page)], capture_output=True, text=True, timeout=180).stdout
+    m = re.search(r'<title>RESULT(.*?)</title>', dom, re.S)
+    if not m:
+        raise SystemExit('no measurement for ' + name)
+    return json.loads(m.group(1))
+
+
+# hp-button.css is installed by hand into theme.liquid, so on a real store it
+# can land after this section's own rules. That is the worst case and it is
+# what these measure against: LATE puts it last on purpose.
+LATE = '<link rel="stylesheet" href="' + str(ROOT / 'assets' / 'hp-button.css') + '">'
+
+
+def framed(name, width=390, click=False, overrides=None, late=True):
+    """Measure at a real phone width.
+
+    Headless Chromium will not open a window under 500px, so the page is put
+    in an iframe of the width wanted: inside it innerWidth is exactly that and
+    the bar lays out as it would on the phone.
+    """
+    inner = TMP / f'hd-{name}-inner.html'
+    subprocess.run([sys.executable, str(HERE / 'render-section.py'), str(SECTION),
+                    json.dumps(overrides or MENU), str(inner)], check=True, capture_output=True)
+    html = inner.read_text(encoding='utf-8').replace('<body>', '<body>' + BAR)
+    html = html.replace('</body>', HERO + (LATE if late else '') + '</body>')
+    inner.write_text(html, encoding='utf-8')
+
+    wrap = TMP / f'hd-{name}-wrap.html'
+    wrap.write_text(
+        '<!doctype html><meta charset="utf-8"><style>html,body{margin:0}'
+        f'iframe{{width:{width}px;height:760px;border:0;display:block}}</style>'
+        f'<iframe src="{inner.name}"></iframe><script>'
+        'setTimeout(function(){'
+        'var f=document.querySelector("iframe"), d=f.contentDocument, w=f.contentWindow;'
+        + ('var b=d.querySelector("[data-hp-menu-toggle]"); if(b) b.click();' if click else '') +
+        'setTimeout(function(){'
+        'function bx(e){if(!e)return null;var r=e.getBoundingClientRect();'
+        'return {l:Math.round(r.left),r:Math.round(r.right),'
+        'w:Math.round(r.width),h:Math.round(r.height)};}'
+        'var dr=d.querySelector(".hp-nav__drawer");'
+        'var btn=d.querySelector("[data-hp-menu-toggle]");'
+        'var sb=d.querySelector(".hp-nav__search-btn");'
+        'document.title="RESULT"+JSON.stringify({'
+        'innerW:w.innerWidth,'
+        'pills:[].map.call(d.querySelectorAll(".hp-nav__bar .hp-btn"),bx),'
+        'logo:bx(d.querySelector(".hp-nav__logo")),'
+        'burger:bx(btn), drawer:bx(dr),'
+        'searchShown:sb?w.getComputedStyle(sb).display:"absent",'
+        'drawerHidden:dr?dr.hasAttribute("hidden"):"absent",'
+        'stack:[].map.call(d.querySelectorAll(".hp-nav__stack .hp-btn"),function(a){'
+        'return a.textContent.trim();})'
+        '});},250);},350);</script>',
+        encoding='utf-8')
+    dom = subprocess.run([CHROME, '--headless', '--no-sandbox', '--disable-gpu',
+        '--allow-file-access-from-files', f'--window-size={width + 300},960',
+        '--virtual-time-budget=6000', '--dump-dom', 'file://' + str(wrap)],
+        capture_output=True, text=True, timeout=180).stdout
     m = re.search(r'<title>RESULT(.*?)</title>', dom, re.S)
     if not m:
         raise SystemExit('no measurement for ' + name)
@@ -384,6 +463,82 @@ narrow = run('bp-narrow', width=1000, overrides={'settings': {'menu': 'main-menu
 check('and lowering it keeps them as buttons at the same width',
       narrow['burgerShown'] == 'none',
       f"at 1000px with the switch at 900px: burger {narrow['burgerShown']}")
+
+# ------------------------------------------------- a real phone, worst case ----
+# The window minimum in headless is 500px, and at 500px this all fitted -- which
+# is why an overflow at 390px went out. These run in a frame of the true width,
+# with hp-button.css loaded last, which is the state a real store is in.
+ph = framed('phone390', 390)
+over = [b for b in ph['pills'] if b and b['r'] > ph['innerW']]
+check('nothing in the bar reaches past the edge of a 390px phone',
+      not over,
+      f"widest pill ends at {max((b['r'] for b in ph['pills'] if b), default=0)} "
+      f"in {ph['innerW']}px")
+check('the icon pills keep their own padding, not the shared stylesheet\'s',
+      all(b['w'] <= 50 for b in ph['pills'] if b and b['w'] > 0),
+      f"pill widths {[b['w'] for b in ph['pills'] if b]}")
+check('search stands down on a phone, leaving logo, account, cart, menu',
+      ph['searchShown'] == 'none',
+      f"search display {ph['searchShown']}")
+check('and the hamburger is inside the screen, so it can be tapped',
+      ph['burger'] and ph['burger']['r'] <= ph['innerW'] and ph['burger']['l'] >= 0,
+      f"burger at {ph['burger']}")
+
+opened = framed('phone390open', 390, click=True)
+check('tapping it opens the drawer',
+      opened['drawerHidden'] is False,
+      f"drawer hidden: {opened['drawerHidden']}")
+check('with the three links stacked inside it',
+      opened['stack'] == ['Home', 'Catalog', 'Contact'],
+      f"{opened['stack']}")
+check('and the drawer itself fits the phone',
+      opened['drawer'] and opened['drawer']['r'] <= opened['innerW'],
+      f"drawer {opened['drawer']} in {opened['innerW']}px")
+
+keep = framed('phone-search', 390,
+              overrides={'settings': {'menu': 'main-menu', 'show_search_mobile': True}})
+check('search can be kept on a phone if that is wanted',
+      keep['searchShown'] != 'none',
+      f"search display {keep['searchShown']}")
+
+# ------------------------------------------------- centred, and sized ---------
+# Measured with hp-button.css last, since that is where the sizing used to be
+# lost. A three-column grid centres the middle column on the bar rather than on
+# whatever room is left beside the logo, so the answer does not depend on how
+# wide the logo happens to be.
+mid = run('centred', late=True)
+check('the link buttons sit on the middle of the bar, not beside the logo',
+      abs(mid['barMid'] - mid['linksMid']) <= 2,
+      f"bar midpoint {mid['barMid']}, links midpoint {mid['linksMid']}")
+
+wide_logo = run('centred-wide', late=True,
+                overrides={'settings': {'menu': 'main-menu', 'logo_width': 320}})
+check('and stay centred when the logo is a different width',
+      abs(wide_logo['barMid'] - wide_logo['linksMid']) <= 2,
+      f"bar midpoint {wide_logo['barMid']}, links midpoint {wide_logo['linksMid']}")
+
+right = run('links-right', late=True,
+            overrides={'settings': {'menu': 'main-menu', 'links_position': 'right'}})
+check('and they can be put back beside the icons instead',
+      right['linksMid'] > right['barMid'] + 50,
+      f"links midpoint {right['linksMid']} against bar midpoint {right['barMid']}")
+
+small = run('menu-sm', late=True,
+            overrides={'settings': {'menu': 'main-menu', 'menu_size': 11}})
+big = run('menu-lg', late=True,
+          overrides={'settings': {'menu': 'main-menu', 'menu_size': 22}})
+check('the menu button size setting changes the link buttons',
+      big['linkBtn']['h'] > small['linkBtn']['h'] + 15,
+      f"11px -> {small['linkBtn']['h']}px tall, 22px -> {big['linkBtn']['h']}px tall")
+check('and it survives hp-button.css loading last',
+      big['linkBtn']['size'] == '22px' and small['linkBtn']['size'] == '11px',
+      f"font sizes {small['linkBtn']['size']} and {big['linkBtn']['size']}")
+check('the padding scales with it rather than staying put',
+      big['linkBtn']['padX'] != small['linkBtn']['padX'],
+      f"pad-x {small['linkBtn']['padX']} -> {big['linkBtn']['padX']}")
+check('and the icon buttons are left out of it',
+      big['iconH'] == small['iconH'],
+      f"icon height {small['iconH']} either way")
 
 print(f"\n{sum(res)}/{len(res)} passed")
 sys.exit(0 if all(res) else 1)

@@ -280,16 +280,35 @@ nothing to edit here.
 names crowd the bar sooner than short ones, so it is worth tuning. Two things
 about it are easy to misread:
 
+- **Phone widths are measured in an iframe.** Headless Chromium will not open
+  a window under 500px, and at 500px all of this fitted — which is exactly how
+  a 390px overflow shipped. `framed()` puts the page in an iframe of the true
+  width, where `innerWidth` really is 390.
 - **The Customize preview is much narrower than the real site.** The editor
   sidebar takes 300-400px, so a preview on a laptop can be under 900px and show
   the hamburger while the live site shows the buttons. Judge it on the live
   site, not in the editor.
-- **`.hp-nav__burger` weighs the same as `.hp-btn`**, so `display: none` on the
-  burger used to be decided by which stylesheet loaded first — and since
-  `hp-button.css` is installed by hand into `theme.liquid`, that order is not
-  this file's to promise. Both rules now carry `.hp-nav` as well, so the weight
-  settles it instead of the order. `scripts/test-header.py` appends `.hp-btn`
-  *after* everything on purpose to hold that.
+- **Every rule here that competes with `.hp-btn` carries `.hp-nav` as well.**
+  A single class weighs the same as `.hp-btn`, so which one won was decided by
+  which stylesheet loaded first — and since `hp-button.css` is installed by
+  hand into `theme.liquid`, that order is not this file's to promise. It cost
+  two bugs before the pattern was applied properly. The second was the worse
+  one: `.hp-nav__icon` sets `--hp-btn-pad-x: 12px`, `.hp-btn` sets `32px`, and
+  when the shared file landed last every icon pill grew from 44px to 68px. On a
+  390px phone that put the hamburger at x=392 — off the edge, untappable, and
+  dragging the whole page sideways when you tried. The suite now loads
+  `hp-button.css` *last* for its layout measurements, which is the state a real
+  store is in.
+
+The bar is three grid columns — logo, links, icons — rather than a flex row.
+The middle column is then centred on the bar itself instead of on whatever room
+is left beside the logo, so changing the logo width does not shift the links.
+The columns are assigned explicitly because the middle one is not rendered at
+all when there is no menu, and the icons would otherwise slide into its place.
+
+On a phone the bar carries the logo, account, cart and hamburger. Search stands
+down, because a fifth pill does not fit 390px and a bar that overflows drags the
+whole page sideways. **Keep search on a phone** puts it back.
 
 The bar is transparent and stays transparent as the page scrolls, which only
 works because every pill carries its own fill, outline and shadow. The logo is

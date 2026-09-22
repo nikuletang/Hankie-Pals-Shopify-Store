@@ -20,11 +20,14 @@ def defaults(rows):
     # blank. python-liquid does not, so an unset setting is passed as '' here:
     # both are blank, and every `!= blank` branch then takes the same side it
     # takes on the real store.
-    return {r['id']: r.get('default', '') for r in rows if r.get('type') != 'header'}
+    # Keyed on having an id rather than on not being a 'header': `paragraph`
+    # and `header` are both informational and carry no id, and Shopify may add
+    # more of them. Anything without an id is not a setting.
+    return {r['id']: r.get('default', '') for r in rows if r.get('id')}
 
 
 def types(rows):
-    return {r['id']: r.get('type') for r in rows if r.get('type') != 'header'}
+    return {r['id']: r.get('type') for r in rows if r.get('id')}
 
 
 # Globals a section can reach for. Enough shape to render, not enough to be

@@ -1,0 +1,715 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — Feature collage
+  ---------------------------------------------------------------------------
+  A collage of photographs in the middle, feature cards around it.
+
+  The collage is a stage with a fixed aspect ratio; every photograph is placed
+  inside it by percentage, so the whole arrangement scales with the stage and
+  keeps its shape on a phone without a second set of numbers.
+
+  Pills belong to a photograph, not to the collage, and are placed by
+  percentage of that photograph's own box — so a pill put beside an ear stays
+  beside that ear at every width. The rotation is applied to the picture
+  inside the box rather than the box itself, which is what keeps a pill
+  upright over a tilted photograph.
+
+  Hovering a photograph lifts it over the others. That is z-index, not a
+  reflow: nothing moves, so no pill ever changes place.
+
+  Sizes are px: Dawn's root font-size is 62.5%, so rem renders at 62.5% of
+  its intended value. Every setting carries a `| default:`, because a setting
+  added after a section was saved reads nil.
+
+  richtext settings sit in a <div>, never a <p>: richtext brings its own <p>,
+  and a <p> inside a <p> is closed early by the parser, which drops the words
+  out of the styled element and back to the theme's size.
+
+  Every selector is prefixed .hp-fc and every per-instance value arrives as an
+  inline custom property, so nothing here can reach another section.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+
+  assign photos = 0
+  assign feats = 0
+  for block in section.blocks
+    if block.type == 'photo'
+      assign photos = photos | plus: 1
+    else
+      assign feats = feats | plus: 1
+    endif
+  endfor
+
+  # The collage sits in the middle column and spans every row of cards beside
+  # it. Two cards to a row, so the row count is the card count halved, rounded
+  # up -- and at least one, or the middle column collapses.
+  assign photo_edge = s.photo_edge | default: 0
+  assign card_shadow = s.card_shadow | default: 4
+
+  assign rows = feats | plus: 1 | divided_by: 2
+  if rows < 1
+    assign rows = 1
+  endif
+-%}
+
+{% style %}
+  .hp-fc {
+    --hp-fc-ink: {{ s.text_color | default: '#2F3326' }};
+    --hp-fc-muted: {{ s.muted_color | default: '#5C6150' }};
+    --hp-fc-line: {{ s.line_color | default: '#2F3326' }};
+    --hp-fc-card: {{ s.card_color | default: '#FCFBF6' }};
+    --hp-fc-pill-bg: {{ s.pill_background | default: '#FCFBF6' }};
+    --hp-fc-pill-ink: {{ s.pill_text_color | default: '#2F3326' }};
+    --hp-fc-pill-line: {{ s.pill_line_color | default: '#2F3326' }};
+    --hp-fc-dot: {{ s.pill_dot_color | default: '#D88B6D' }};
+
+    background-color: {{ s.background | default: '#E9F5DB' }};
+    /* Nothing in this section may ever drag the page sideways. clip, not
+       hidden: hidden on one axis forces the other to scroll, which would trap
+       the hover lift. */
+    overflow-x: clip;
+    padding-block: {{ s.padding_top | default: 72 }}px {{ s.padding_bottom | default: 72 }}px;
+    color: var(--hp-fc-ink);
+  }
+
+  .hp-fc__inner {
+    max-width: {{ s.max_width | default: 1280 }}px;
+    margin-inline: auto;
+    padding-inline: clamp(16px, 4vw, 48px);
+  }
+
+  /* --- the top of the section --------------------------------------------- */
+  .hp-fc__head { text-align: center; margin-bottom: clamp(28px, 4vw, 52px); }
+
+  .hp-fc__eyebrow { display: flex; justify-content: center; margin: 0 0 16px; }
+
+  /* The same soft pill as the eyebrow labels elsewhere on the site: a hairline
+     outline and a quiet shadow, not the heavy button. */
+  .hp-fc__eyebrow-inner,
+  .hp-fc__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6em;
+    padding: 0.7em 1.4em;
+    border: 1px solid var(--hp-fc-pill-line);
+    border-radius: 999px;
+    background: var(--hp-fc-pill-bg);
+    box-shadow: 0 2px 8px rgba(47, 51, 38, 0.06);
+    color: var(--hp-fc-pill-ink);
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: {{ s.pill_size | default: 14 }}px;
+    line-height: 1.2;
+    text-align: left;
+  }
+
+  .hp-fc__dot {
+    flex: none;
+    width: 0.5em;
+    height: 0.5em;
+    border-radius: 50%;
+    background: var(--hp-fc-dot);
+  }
+
+  .hp-fc__heading {
+    margin: 0 0 10px;
+    font-size: {{ s.heading_size | default: 40 }}px;
+    line-height: 1.08;
+    letter-spacing: -0.01em;
+  }
+
+  .hp-fc__intro {
+    margin-inline: auto;
+    max-width: 62ch;
+    font-size: {{ s.intro_size | default: 17 }}px;
+    line-height: 1.55;
+    color: var(--hp-fc-muted);
+  }
+
+  .hp-fc__intro > :first-child { margin-top: 0; }
+  .hp-fc__intro > :last-child { margin-bottom: 0; }
+
+  /* --- the three columns --------------------------------------------------- */
+  .hp-fc__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, {{ s.collage_share | default: 140 | divided_by: 100.0 }}fr) minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(18px, 2.6vw, 40px);
+  }
+
+  /* The collage holds the middle column for every row of cards beside it. */
+  .hp-fc__collage {
+    grid-column: 2;
+    grid-row: 1 / span {{ rows }};
+  }
+
+  /* nth-of-type, not nth-child: the collage is a <div> and the cards are
+     <article>, so the count here is the cards' own. */
+  .hp-fc__card:nth-of-type(odd) { grid-column: 1; }
+  .hp-fc__card:nth-of-type(even) { grid-column: 3; }
+
+  /* --- the stage ----------------------------------------------------------- */
+  .hp-fc__stage {
+    position: relative;
+    aspect-ratio: {{ s.collage_ratio | default: '4/3' }};
+    width: 100%;
+  }
+
+  /* Placed by percentage of the stage, so the arrangement is the same shape
+     at every width and needs no second set of numbers for a phone. */
+  .hp-fc__photo {
+    position: absolute;
+    left: var(--x, 0%);
+    top: var(--y, 0%);
+    width: var(--w, 40%);
+    z-index: var(--z, 1);
+    transition: z-index 0s;
+  }
+
+  .hp-fc__photo:hover,
+  .hp-fc__photo:focus-within,
+  .hp-fc__photo[data-front] { z-index: 20; }
+
+  /* The rotation lives on the picture, not on the box. The box stays square
+     to the page, which is what keeps every pill upright over a tilted photo. */
+  .hp-fc__shot {
+    display: block;
+    transform: rotate(var(--rot, 0deg));
+    transform-origin: 50% 50%;
+    transition: transform .28s ease, filter .28s ease;
+  }
+
+  .hp-fc__photo:hover .hp-fc__shot,
+  .hp-fc__photo:focus-within .hp-fc__shot,
+  .hp-fc__photo[data-front] .hp-fc__shot {
+    transform: rotate(var(--rot, 0deg)) scale({{ s.hover_scale | default: 106 | divided_by: 100.0 }});
+  }
+
+  .hp-fc__shot img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: {{ s.photo_radius | default: 20 }}px;
+  }
+
+  {%- if photo_edge > 0 %}
+  .hp-fc__shot img {
+    border: {{ photo_edge }}px solid var(--hp-fc-line);
+  }
+  {%- endif %}
+
+  .hp-fc__ph {
+    display: grid;
+    place-items: center;
+    aspect-ratio: 1/1;
+    border: 2px dashed var(--hp-fc-line);
+    border-radius: {{ s.photo_radius | default: 20 }}px;
+    background: var(--hp-fc-card);
+    font: 600 13px/1.3 system-ui, sans-serif;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--hp-fc-muted);
+  }
+
+  /* --- the floating pills --------------------------------------------------- */
+  /* Inside the photo's own box, so a pill put beside an ear stays there. */
+  .hp-fc__pill {
+    position: absolute;
+    left: var(--px, 50%);
+    top: var(--py, 50%);
+    transform: translate(var(--tx, -50%), -50%);
+    z-index: 3;
+    max-width: min(40ch, 86vw);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  .hp-fc--pills-hover .hp-fc__pill {
+    opacity: 0;
+    transition: opacity .25s ease;
+  }
+
+  .hp-fc--pills-hover .hp-fc__photo:hover .hp-fc__pill,
+  .hp-fc--pills-hover .hp-fc__photo:focus-within .hp-fc__pill,
+  .hp-fc--pills-hover .hp-fc__photo[data-front] .hp-fc__pill { opacity: 1; }
+
+  /* --- the cards ------------------------------------------------------------ */
+  .hp-fc__card {
+    margin: 0;
+    padding: {{ s.card_pad | default: 22 }}px;
+    border: {{ s.card_edge | default: 2 }}px solid var(--hp-fc-line);
+    border-radius: {{ s.card_radius | default: 22 }}px;
+    background: var(--hp-fc-card);
+    {%- if card_shadow > 0 %}
+    box-shadow: 0 {{ card_shadow }}px 0 0 var(--hp-fc-line);
+    {%- endif %}
+  }
+
+  .hp-fc__ico {
+    display: block;
+    width: {{ s.icon_size | default: 38 }}px;
+    height: {{ s.icon_size | default: 38 }}px;
+    margin-bottom: 12px;
+  }
+
+  .hp-fc__ico .f { fill: var(--hp-fc-accent, #B5C99A); }
+  .hp-fc__ico .a { fill: var(--hp-fc-accent2, #D88B6D); }
+  .hp-fc__ico .s {
+    fill: none;
+    stroke: var(--hp-fc-accent, #B5C99A);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .hp-fc__ico .sa {
+    fill: none;
+    stroke: var(--hp-fc-accent2, #D88B6D);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .hp-fc__ico-img {
+    display: block;
+    width: {{ s.icon_size | default: 38 }}px;
+    height: {{ s.icon_size | default: 38 }}px;
+    margin-bottom: 12px;
+    object-fit: contain;
+  }
+
+  .hp-fc__card-title {
+    margin: 0 0 6px;
+    font-size: {{ s.card_title_size | default: 19 }}px;
+    line-height: 1.2;
+  }
+
+  .hp-fc__card-body {
+    font-size: {{ s.card_body_size | default: 15 }}px;
+    line-height: 1.5;
+    color: var(--hp-fc-muted);
+  }
+
+  .hp-fc__card-body > :first-child { margin-top: 0; }
+  .hp-fc__card-body > :last-child { margin-bottom: 0; }
+
+  /* --- the phone ------------------------------------------------------------ */
+  /* The collage keeps its arrangement -- it is all percentages of a stage that
+     simply gets narrower. Everything else falls into one column beneath it,
+     which is why the collage is first in the markup. */
+  @media screen and (max-width: {{ s.stack_below | default: 900 }}px) {
+    .hp-fc__grid { grid-template-columns: minmax(0, 1fr); }
+
+    .hp-fc__collage,
+    .hp-fc__card:nth-of-type(odd),
+    .hp-fc__card:nth-of-type(even) {
+      grid-column: 1;
+      grid-row: auto;
+    }
+
+    /* Room runs out before the words do on a phone, so let a long pill wrap
+       rather than reach for the edge of the screen. */
+    .hp-fc__pill {
+      font-size: {{ s.pill_size | default: 14 | times: 0.78 | round }}px;
+      padding: 0.55em 1em;
+      max-width: 44vw;
+      white-space: normal;
+    }
+    .hp-fc__heading { font-size: {{ s.heading_size | default: 40 | times: 0.78 | round }}px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hp-fc__shot { transition: none; }
+    .hp-fc__photo:hover .hp-fc__shot,
+    .hp-fc__photo:focus-within .hp-fc__shot,
+    .hp-fc__photo[data-front] .hp-fc__shot { transform: rotate(var(--rot, 0deg)); }
+  }
+{% endstyle %}
+
+<section
+  class="hp-fc{% if s.pill_visibility == 'hover' %} hp-fc--pills-hover{% endif %}"
+  {{ section.shopify_attributes }}
+>
+  <div class="hp-fc__inner">
+    {%- if s.eyebrow != blank or s.heading != blank or s.intro != blank -%}
+      <div class="hp-fc__head">
+        {%- if s.eyebrow != blank -%}
+          <p class="hp-fc__eyebrow">
+            <span class="hp-fc__eyebrow-inner">
+              <span class="hp-fc__dot" aria-hidden="true"></span>
+              {{- s.eyebrow | escape -}}
+            </span>
+          </p>
+        {%- endif -%}
+        {%- if s.heading != blank -%}
+          <h2 class="hp-fc__heading">{{ s.heading | escape }}</h2>
+        {%- endif -%}
+        {%- if s.intro != blank -%}
+          <div class="hp-fc__intro">{{ s.intro }}</div>
+        {%- endif -%}
+      </div>
+    {%- endif -%}
+
+    <div class="hp-fc__grid">
+      {%- comment -%}
+        The collage comes first in the markup on purpose: on a phone the grid
+        becomes one column and source order is what puts it above the cards.
+      {%- endcomment -%}
+      <div class="hp-fc__collage">
+        <div class="hp-fc__stage">
+          {%- assign zi = 0 -%}
+          {%- for block in section.blocks -%}
+            {%- if block.type != 'photo' -%}{% continue %}{%- endif -%}
+            {%- assign b = block.settings -%}
+            {%- assign zi = zi | plus: 1 -%}
+            <div
+              class="hp-fc__photo"
+              style="
+                --x: {{ b.pos_x | default: 4 }}%;
+                --y: {{ b.pos_y | default: 10 }}%;
+                --w: {{ b.width | default: 42 }}%;
+                --rot: {{ b.rotation | default: 0 }}deg;
+                --z: {{ b.layer | default: zi }};
+              "
+              {{ block.shopify_attributes }}
+            >
+              <div class="hp-fc__shot">
+                {%- if b.image != blank -%}
+                  {{
+                    b.image
+                    | image_url: width: 900
+                    | image_tag:
+                      loading: 'lazy',
+                      widths: '200, 320, 480, 660, 900',
+                      sizes: '(max-width: 900px) 45vw, 26vw',
+                      alt: b.image.alt | default: ''
+                  }}
+                {%- else -%}
+                  <div class="hp-fc__ph">Photo {{ zi }}</div>
+                {%- endif -%}
+              </div>
+
+              {%- for i in (1..3) -%}
+                {%- liquid
+                  case i
+                    when 1
+                      assign ptext = b.pill_1
+                      assign ppx = b.pill_1_x | default: 50
+                      assign ppy = b.pill_1_y | default: 12
+                    when 2
+                      assign ptext = b.pill_2
+                      assign ppx = b.pill_2_x | default: 50
+                      assign ppy = b.pill_2_y | default: 50
+                    when 3
+                      assign ptext = b.pill_3
+                      assign ppx = b.pill_3_x | default: 50
+                      assign ppy = b.pill_3_y | default: 88
+                  endcase
+                -%}
+                {%- liquid
+                  assign ptx = '-50%'
+                  if ppx < 28
+                    assign ptx = '0%'
+                  elsif ppx > 72
+                    assign ptx = '-100%'
+                  endif
+                -%}
+                {%- if ptext != blank -%}
+                  <span class="hp-fc__pill" style="--px: {{ ppx }}%; --py: {{ ppy }}%; --tx: {{ ptx }};">
+                    <span class="hp-fc__dot" aria-hidden="true"></span>
+                    {{- ptext | escape -}}
+                  </span>
+                {%- endif -%}
+              {%- endfor -%}
+            </div>
+          {%- endfor -%}
+
+          {%- if photos == 0 -%}
+            <div class="hp-fc__photo" style="--x: 28%; --y: 18%; --w: 44%;">
+              <div class="hp-fc__shot"><div class="hp-fc__ph">Add a photo block</div></div>
+            </div>
+          {%- endif -%}
+        </div>
+      </div>
+
+      {%- for block in section.blocks -%}
+        {%- if block.type != 'feature' -%}{% continue %}{%- endif -%}
+        {%- assign b = block.settings -%}
+        <article
+          class="hp-fc__card"
+          style="
+            --hp-fc-accent: {{ b.icon_color | default: '#B5C99A' }};
+            --hp-fc-accent2: {{ b.icon_accent | default: '#D88B6D' }};
+          "
+          {{ block.shopify_attributes }}
+        >
+          {%- if b.icon_image != blank -%}
+            {{
+              b.icon_image
+              | image_url: width: 160
+              | image_tag: loading: 'lazy', class: 'hp-fc__ico-img', alt: ''
+            }}
+          {%- elsif b.icon != blank and b.icon != 'none' -%}
+            <svg class="hp-fc__ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              {%- case b.icon -%}
+                {%- when 'heart' -%}
+                  <path class="f" d="M12 21c-.42 0-.83-.15-1.14-.43C6.15 16.33 3 13.48 3 9.9 3 7.08 5.13 4.95 7.88 4.95c1.6 0 3.16.78 4.12 2.05.96-1.27 2.52-2.05 4.12-2.05C18.87 4.95 21 7.08 21 9.9c0 3.58-3.15 6.43-7.86 10.67-.31.28-.72.43-1.14.43z"/>
+                {%- when 'star' -%}
+                  <path class="f" d="M12 3.2c.4 0 .77.23.95.6l2.02 4.1 4.52.66c.4.06.73.34.86.72.12.38.02.8-.27 1.08l-3.27 3.19.77 4.5c.07.4-.1.81-.43 1.05-.33.24-.77.27-1.13.08L12 16.96l-4.02 2.12c-.36.19-.8.16-1.13-.08a1.05 1.05 0 0 1-.43-1.05l.77-4.5-3.27-3.19a1.05 1.05 0 0 1-.27-1.08c.13-.38.46-.66.86-.72l4.52-.66 2.02-4.1c.18-.37.55-.6.95-.6z"/>
+                {%- when 'sparkle' -%}
+                  <path class="f" d="M10.6 2.8c.36 0 .68.23.8.57l1.1 3.05c.27.74.85 1.32 1.6 1.59l3.05 1.1a.85.85 0 0 1 0 1.6l-3.05 1.1c-.75.27-1.33.85-1.6 1.6l-1.1 3.04a.85.85 0 0 1-1.6 0l-1.1-3.05a2.55 2.55 0 0 0-1.6-1.59l-3.04-1.1a.85.85 0 0 1 0-1.6l3.05-1.1c.74-.27 1.32-.85 1.59-1.6l1.1-3.04c.12-.34.44-.57.8-.57z"/>
+                  <path class="f" d="M18.1 14.6c.2 0 .38.13.45.32l.46 1.27c.1.29.33.52.62.62l1.27.46a.48.48 0 0 1 0 .9l-1.27.46c-.29.1-.52.33-.62.62l-.46 1.27a.48.48 0 0 1-.9 0l-.46-1.27a1.08 1.08 0 0 0-.62-.62l-1.27-.46a.48.48 0 0 1 0-.9l1.27-.46c.29-.1.52-.33.62-.62l.46-1.27c.07-.19.25-.32.45-.32z"/>
+                {%- when 'cloud' -%}
+                  <path class="f" d="M7.6 19.6a4.6 4.6 0 0 1-.72-9.14 5.7 5.7 0 0 1 10.76-.44 4.35 4.35 0 0 1-.44 9.58H7.6z"/>
+                {%- when 'leaf' -%}
+                  <path class="f" d="M6 18c0-7.83 5.72-13.55 13.55-13.55 0 7.83-5.72 13.55-13.55 13.55z"/>
+                  <path class="s" d="m4.2 19.8 1.8-1.8"/>
+                  <path class="sa" stroke-width="1.6" d="M6.6 17.4 16.8 7.2"/>
+                {%- when 'droplet' -%}
+                  <path class="f" d="M12 2.8c3.4 3.7 6.3 7 6.3 10.4a6.3 6.3 0 1 1-12.6 0c0-3.4 2.9-6.7 6.3-10.4z"/>
+                {%- when 'flower' -%}
+                  <circle class="f" cx="12" cy="5.3" r="2.95"/>
+                  <circle class="f" cx="18.4" cy="9.95" r="2.95"/>
+                  <circle class="f" cx="15.95" cy="17.5" r="2.95"/>
+                  <circle class="f" cx="8.05" cy="17.5" r="2.95"/>
+                  <circle class="f" cx="5.6" cy="9.95" r="2.95"/>
+                  <circle class="a" cx="12" cy="12" r="2.6"/>
+                {%- when 'smile' -%}
+                  <circle class="f" cx="12" cy="12" r="9.2"/>
+                  <circle class="a" cx="9.1" cy="10.4" r="1.2"/>
+                  <circle class="a" cx="14.9" cy="10.4" r="1.2"/>
+                  <path class="sa" d="M8.6 14.4a4.3 4.3 0 0 0 6.8 0"/>
+                {%- when 'bunny' -%}
+                  <ellipse class="f" cx="9.3" cy="6.9" rx="1.75" ry="4" transform="rotate(-13 9.3 6.9)"/>
+                  <ellipse class="f" cx="14.7" cy="6.9" rx="1.75" ry="4" transform="rotate(13 14.7 6.9)"/>
+                  <circle class="f" cx="12" cy="15.4" r="5.9"/>
+                  <circle class="a" cx="9.9" cy="14.4" r=".95"/>
+                  <circle class="a" cx="14.1" cy="14.4" r=".95"/>
+                  <path class="sa" d="M10.7 17.2a2.2 2.2 0 0 0 2.6 0"/>
+                {%- when 'paw' -%}
+                  <ellipse class="f" cx="7.1" cy="9.2" rx="2.1" ry="2.7" transform="rotate(-18 7.1 9.2)"/>
+                  <ellipse class="f" cx="11" cy="6.9" rx="2.1" ry="2.8"/>
+                  <ellipse class="f" cx="15.4" cy="7.6" rx="2.1" ry="2.8" transform="rotate(16 15.4 7.6)"/>
+                  <ellipse class="f" cx="18.7" cy="11" rx="2" ry="2.5" transform="rotate(30 18.7 11)"/>
+                  <path class="f" d="M12.4 11.6c2.6 0 5.5 2.3 5.5 5a3.7 3.7 0 0 1-3.7 3.7c-1 0-1.4-.3-1.8-.3s-.8.3-1.8.3a3.7 3.7 0 0 1-3.7-3.7c0-2.7 2.9-5 5.5-5z"/>
+                {%- when 'refresh' -%}
+                  <path class="s" d="M19.6 12.6a7.7 7.7 0 0 1-13 5.1M4.4 11.4a7.7 7.7 0 0 1 13-5.1"/>
+                  <path class="f" d="M17.9 2.8c.3 0 .55.25.55.55V7c0 .3-.25.55-.55.55h-3.65a.55.55 0 0 1-.39-.94l3.65-3.65a.55.55 0 0 1 .39-.16zM6.1 21.2a.55.55 0 0 1-.55-.55V17c0-.3.25-.55.55-.55h3.65a.55.55 0 0 1 .39.94l-3.65 3.65a.55.55 0 0 1-.39.16z"/>
+                {%- when 'shield' -%}
+                  <path class="f" d="M12 2.4c.12 0 .24.02.35.06l6.6 2.47c.35.13.58.46.58.84v5.1c0 4.75-3.03 8.4-7.16 10.64a.9.9 0 0 1-.86 0C7.38 19.27 4.35 15.62 4.35 10.87v-5.1c0-.38.23-.71.58-.84l6.6-2.47c.11-.04.23-.06.35-.06z"/>
+                  <path class="sa" d="m9 11.6 2.2 2.2 4-4.2"/>
+                {%- when 'gift' -%}
+                  <path class="f" d="M4.4 11.6h15.2v7.9c0 .77-.63 1.4-1.4 1.4H5.8c-.77 0-1.4-.63-1.4-1.4z"/>
+                  <path class="f" d="M3.6 7.3h16.8c.66 0 1.2.54 1.2 1.2v2.3H2.4V8.5c0-.66.54-1.2 1.2-1.2z"/>
+                  <path class="a" d="M10.7 7.3h2.6v13.6h-2.6z"/>
+                  <path class="s" d="M12 7.2c-1.3-3-2.6-4-3.8-3.4-1.1.6-.9 2.4 3.8 3.4zM12 7.2c1.3-3 2.6-4 3.8-3.4 1.1.6.9 2.4-3.8 3.4z"/>
+                {%- when 'pocket' -%}
+                  <path class="f" d="M4.9 8.4h14.2l-1.25 10.8a2.1 2.1 0 0 1-2.09 1.86H8.24a2.1 2.1 0 0 1-2.09-1.86z"/>
+                  <path class="s" d="M8.7 8.4V6.6a3.3 3.3 0 0 1 6.6 0v1.8"/>
+              {%- endcase -%}
+            </svg>
+          {%- endif -%}
+
+          {%- if b.title != blank -%}
+            <h3 class="hp-fc__card-title">{{ b.title | escape }}</h3>
+          {%- endif -%}
+          {%- if b.body != blank -%}
+            <div class="hp-fc__card-body">{{ b.body }}</div>
+          {%- endif -%}
+        </article>
+      {%- endfor -%}
+    </div>
+  </div>
+</section>
+
+<script>
+  (function () {
+    // Hover is the desktop story; a tap is the phone's. Nothing else here
+    // depends on the script -- the pills, the photos and the cards are all
+    // plain markup, so a failure costs the lift and nothing more.
+    var section = document.currentScript && document.currentScript.previousElementSibling;
+    if (!section || !section.classList || !section.classList.contains('hp-fc')) {
+      section = document.querySelector('.hp-fc');
+    }
+    if (!section) return;
+
+    var photos = section.querySelectorAll('.hp-fc__photo');
+    [].forEach.call(photos, function (photo) {
+      photo.addEventListener('click', function () {
+        [].forEach.call(photos, function (p) { p.removeAttribute('data-front'); });
+        photo.setAttribute('data-front', '');
+      });
+    });
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Feature collage",
+  "tag": "section",
+  "class": "hp-fc-section",
+  "settings": [
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow label", "default": "Made for small hands" },
+    { "type": "text", "id": "heading", "label": "Heading", "default": "Every bit of it on purpose" },
+    { "type": "richtext", "id": "intro", "label": "Intro", "default": "<p>Soft where it touches, busy where it needs to hold attention.</p>" },
+    { "type": "header", "content": "The collage" },
+    {
+      "type": "select",
+      "id": "collage_ratio",
+      "label": "Shape of the collage area",
+      "options": [
+        { "value": "4/3", "label": "Landscape" },
+        { "value": "1/1", "label": "Square" },
+        { "value": "3/4", "label": "Portrait" }
+      ],
+      "default": "4/3"
+    },
+    {
+      "type": "range",
+      "id": "collage_share",
+      "label": "Collage width against the cards",
+      "unit": "%",
+      "min": 80,
+      "max": 260,
+      "step": 10,
+      "default": 140,
+      "info": "How much of the row the middle column takes, next to the cards either side."
+    },
+    { "type": "range", "id": "photo_radius", "label": "Photo corner rounding", "unit": "px", "min": 0, "max": 60, "step": 2, "default": 20 },
+    { "type": "range", "id": "photo_edge", "label": "Photo outline", "unit": "px", "min": 0, "max": 6, "step": 1, "default": 0 },
+    {
+      "type": "range",
+      "id": "hover_scale",
+      "label": "Lift on hover",
+      "unit": "%",
+      "min": 100,
+      "max": 120,
+      "step": 1,
+      "default": 106,
+      "info": "100% brings the photo to the front without growing it."
+    },
+    { "type": "header", "content": "The floating pills" },
+    {
+      "type": "select",
+      "id": "pill_visibility",
+      "label": "When to show them",
+      "options": [
+        { "value": "always", "label": "Always" },
+        { "value": "hover", "label": "Only over the photo being hovered" }
+      ],
+      "default": "always"
+    },
+    { "type": "range", "id": "pill_size", "label": "Pill text size", "unit": "px", "min": 10, "max": 22, "step": 1, "default": 14 },
+    { "type": "color", "id": "pill_background", "label": "Pill fill", "default": "#FCFBF6" },
+    { "type": "color", "id": "pill_text_color", "label": "Pill text", "default": "#2F3326" },
+    { "type": "color", "id": "pill_line_color", "label": "Pill outline", "default": "#2F3326" },
+    { "type": "color", "id": "pill_dot_color", "label": "Pill dot", "default": "#D88B6D" },
+    { "type": "header", "content": "The cards" },
+    { "type": "range", "id": "card_radius", "label": "Corner rounding", "unit": "px", "min": 0, "max": 48, "step": 2, "default": 22 },
+    { "type": "range", "id": "card_edge", "label": "Outline", "unit": "px", "min": 0, "max": 6, "step": 1, "default": 2 },
+    { "type": "range", "id": "card_shadow", "label": "Hard shadow", "unit": "px", "min": 0, "max": 12, "step": 1, "default": 4 },
+    { "type": "range", "id": "card_pad", "label": "Padding", "unit": "px", "min": 10, "max": 44, "step": 2, "default": 22 },
+    { "type": "range", "id": "icon_size", "label": "Icon size", "unit": "px", "min": 20, "max": 80, "step": 2, "default": 38 },
+    { "type": "range", "id": "card_title_size", "label": "Subheading size", "unit": "px", "min": 14, "max": 30, "step": 1, "default": 19 },
+    { "type": "range", "id": "card_body_size", "label": "Paragraph size", "unit": "px", "min": 12, "max": 20, "step": 1, "default": 15 },
+    { "type": "header", "content": "Type" },
+    { "type": "range", "id": "heading_size", "label": "Heading size", "unit": "px", "min": 24, "max": 64, "step": 2, "default": 40 },
+    { "type": "range", "id": "intro_size", "label": "Intro size", "unit": "px", "min": 13, "max": 24, "step": 1, "default": 17 },
+    { "type": "header", "content": "Colours" },
+    { "type": "color", "id": "background", "label": "Section background", "default": "#E9F5DB" },
+    { "type": "color", "id": "card_color", "label": "Card fill", "default": "#FCFBF6" },
+    { "type": "color", "id": "text_color", "label": "Text", "default": "#2F3326" },
+    { "type": "color", "id": "muted_color", "label": "Quiet text", "default": "#5C6150" },
+    { "type": "color", "id": "line_color", "label": "Outlines", "default": "#2F3326" },
+    { "type": "header", "content": "Layout" },
+    { "type": "range", "id": "max_width", "label": "Maximum width", "unit": "px", "min": 900, "max": 1600, "step": 20, "default": 1280 },
+    { "type": "range", "id": "stack_below", "label": "Stack below", "unit": "px", "min": 700, "max": 1200, "step": 10, "default": 900 },
+    { "type": "range", "id": "padding_top", "label": "Space above", "unit": "px", "min": 0, "max": 160, "step": 4, "default": 72 },
+    { "type": "range", "id": "padding_bottom", "label": "Space below", "unit": "px", "min": 0, "max": 160, "step": 4, "default": 72 }
+  ],
+  "blocks": [
+    {
+      "type": "photo",
+      "name": "Collage photo",
+      "limit": 5,
+      "settings": [
+        { "type": "image_picker", "id": "image", "label": "Photo" },
+        {
+          "type": "paragraph",
+          "content": "Position is a percentage of the collage area: across from its left edge, down from its top. Width is a percentage of the collage too."
+        },
+        { "type": "range", "id": "pos_x", "label": "Across", "unit": "%", "min": -10, "max": 90, "step": 1, "default": 4 },
+        { "type": "range", "id": "pos_y", "label": "Down", "unit": "%", "min": -10, "max": 90, "step": 1, "default": 10 },
+        { "type": "range", "id": "width", "label": "Width", "unit": "%", "min": 10, "max": 90, "step": 1, "default": 42 },
+        { "type": "range", "id": "rotation", "label": "Tilt", "unit": "deg", "min": -20, "max": 20, "step": 1, "default": 0 },
+        { "type": "range", "id": "layer", "label": "Stacking order", "min": 1, "max": 9, "step": 1, "default": 1, "info": "Higher sits on top of lower. Hovering any photo lifts it above them all." },
+        { "type": "header", "content": "Pills on this photo" },
+        {
+          "type": "paragraph",
+          "content": "Each pill's position is a percentage of THIS photo, not of the collage — so a pill set beside an ear stays beside that ear at every screen width."
+        },
+        { "type": "text", "id": "pill_1", "label": "Pill 1" },
+        { "type": "range", "id": "pill_1_x", "label": "Pill 1 across", "unit": "%", "min": -30, "max": 130, "step": 2, "default": 50 },
+        { "type": "range", "id": "pill_1_y", "label": "Pill 1 down", "unit": "%", "min": -30, "max": 130, "step": 2, "default": 12 },
+        { "type": "text", "id": "pill_2", "label": "Pill 2" },
+        { "type": "range", "id": "pill_2_x", "label": "Pill 2 across", "unit": "%", "min": -30, "max": 130, "step": 2, "default": 50 },
+        { "type": "range", "id": "pill_2_y", "label": "Pill 2 down", "unit": "%", "min": -30, "max": 130, "step": 2, "default": 50 },
+        { "type": "text", "id": "pill_3", "label": "Pill 3" },
+        { "type": "range", "id": "pill_3_x", "label": "Pill 3 across", "unit": "%", "min": -30, "max": 130, "step": 2, "default": 50 },
+        { "type": "range", "id": "pill_3_y", "label": "Pill 3 down", "unit": "%", "min": -30, "max": 130, "step": 2, "default": 88 }
+      ]
+    },
+    {
+      "type": "feature",
+      "name": "Feature card",
+      "limit": 8,
+      "settings": [
+        {
+          "type": "select",
+          "id": "icon",
+          "label": "Icon",
+          "options": [
+            { "value": "none", "label": "No icon" },
+            { "value": "heart", "label": "Heart" },
+            { "value": "star", "label": "Star" },
+            { "value": "sparkle", "label": "Sparkle" },
+            { "value": "cloud", "label": "Cloud" },
+            { "value": "leaf", "label": "Leaf" },
+            { "value": "droplet", "label": "Droplet" },
+            { "value": "flower", "label": "Flower" },
+            { "value": "smile", "label": "Smiley face" },
+            { "value": "bunny", "label": "Bunny" },
+            { "value": "paw", "label": "Paw" },
+            { "value": "refresh", "label": "Reuse arrows" },
+            { "value": "shield", "label": "Shield" },
+            { "value": "gift", "label": "Gift" },
+            { "value": "pocket", "label": "Pouch" }
+          ],
+          "default": "sparkle"
+        },
+        { "type": "image_picker", "id": "icon_image", "label": "Or upload an icon", "info": "Used instead of the drawn icon above." },
+        { "type": "color", "id": "icon_color", "label": "Icon main colour", "default": "#B5C99A" },
+        { "type": "color", "id": "icon_accent", "label": "Icon accent colour", "default": "#D88B6D" },
+        { "type": "text", "id": "title", "label": "Subheading", "default": "A feature" },
+        { "type": "richtext", "id": "body", "label": "Paragraph", "default": "<p>A line or two about what it does and why it matters.</p>" }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Feature collage",
+      "blocks": [
+        { "type": "photo", "settings": { "pos_x": 0, "pos_y": 16, "width": 40, "rotation": -6, "layer": 1, "pill_1": "Crinkle ears", "pill_1_x": 22, "pill_1_y": 8 } },
+        { "type": "photo", "settings": { "pos_x": 29, "pos_y": 2, "width": 44, "rotation": 2, "layer": 3, "pill_1": "Organic cotton", "pill_1_x": 60, "pill_1_y": 10, "pill_2": "Tag to fiddle with", "pill_2_x": 40, "pill_2_y": 86 } },
+        { "type": "photo", "settings": { "pos_x": 60, "pos_y": 20, "width": 38, "rotation": 7, "layer": 2, "pill_1": "Fits a pocket", "pill_1_x": 74, "pill_1_y": 88 } },
+        { "type": "feature", "settings": { "icon": "leaf", "title": "Organic cotton", "body": "<p>Soft enough for a face that is already sore from wiping.</p>" } },
+        { "type": "feature", "settings": { "icon": "refresh", "title": "Washes and comes back", "body": "<p>Machine wash warm. It keeps its crinkle and its shape.</p>" } },
+        { "type": "feature", "settings": { "icon": "pocket", "title": "Pocket sized", "body": "<p>Folds down small enough to live in a coat pocket or a bag.</p>" } },
+        { "type": "feature", "settings": { "icon": "smile", "title": "A friend, not a tissue", "body": "<p>They reach for it themselves, which is the whole trick.</p>" } }
+      ]
+    }
+  ]
+}
+{% endschema %}

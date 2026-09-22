@@ -1,0 +1,194 @@
+"""Check the feature collage.
+
+The collage is absolutely positioned by percentage, and the pills hang off the
+photographs they belong to. Both of those are ways to end up wider than the
+screen without noticing, so the measurements that matter here are about what
+escapes: pills past the edge of the page, and the page itself gaining a
+sideways scroll.
+
+Phone widths are measured inside an iframe. Headless Chromium will not open a
+window under 500px, and 500px is wide enough to hide a 390px overflow.
+"""
+import json, re, subprocess, sys, pathlib
+
+CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
+ROOT = pathlib.Path('/home/user/hankie-pals-shopify-store')
+SECTION = ROOT / 'sections' / 'feature-collage.liquid'
+HERE = ROOT / 'scripts'
+TMP = pathlib.Path('/tmp/claude-0')
+
+PROBE = """
+function bx(el) {
+  if (!el) return null;
+  var r = el.getBoundingClientRect();
+  return { l: Math.round(r.left), r: Math.round(r.right), t: Math.round(r.top),
+           b: Math.round(r.bottom), w: Math.round(r.width), h: Math.round(r.height) };
+}
+function snap(doc, win) {
+  var photos = [].map.call(doc.querySelectorAll('.hp-fc__photo'), function (p) {
+    return { box: bx(p), z: win.getComputedStyle(p).zIndex,
+             shot: win.getComputedStyle(p.querySelector('.hp-fc__shot')).transform };
+  });
+  var pills = [].map.call(doc.querySelectorAll('.hp-fc__pill'), function (p) {
+    return { text: p.textContent.trim(), box: bx(p),
+             op: win.getComputedStyle(p).opacity,
+             owner: p.parentElement.className };
+  });
+  var cards = [].map.call(doc.querySelectorAll('.hp-fc__card'), function (c) {
+    return { box: bx(c), col: win.getComputedStyle(c).gridColumnStart,
+             title: (c.querySelector('.hp-fc__card-title') || {}).textContent };
+  });
+  var stage = doc.querySelector('.hp-fc__stage');
+  var collage = doc.querySelector('.hp-fc__collage');
+  var body = doc.querySelector('.hp-fc__card-body p') || doc.querySelector('.hp-fc__card-body');
+  return {
+    photos: photos, pills: pills, cards: cards,
+    stage: bx(stage), collage: bx(collage),
+    bodySize: body ? win.getComputedStyle(body).fontSize : null,
+    bodyText: body ? body.textContent.trim().slice(0, 20) : null,
+    docW: doc.documentElement.scrollWidth,
+    winW: win.innerWidth
+  };
+}
+"""
+
+
+def run(name, width=1400, overrides=None, script=''):
+    page = TMP / f'fc-{name}.html'
+    subprocess.run([sys.executable, str(HERE / 'render-section.py'), str(SECTION),
+                    json.dumps(overrides or {}), str(page)], check=True, capture_output=True)
+    html = page.read_text(encoding='utf-8').replace('</body>',
+        '<script>' + PROBE + script +
+        "\nsetTimeout(function(){document.title='RESULT'+JSON.stringify("
+        "snap(document, window));}, 400);</script></body>")
+    page.write_text(html, encoding='utf-8')
+    dom = subprocess.run([CHROME, '--headless', '--no-sandbox', '--disable-gpu',
+        f'--window-size={width},1000', '--virtual-time-budget=6000', '--dump-dom',
+        'file://' + str(page)], capture_output=True, text=True, timeout=180).stdout
+    m = re.search(r'<title>RESULT(.*?)</title>', dom, re.S)
+    if not m:
+        raise SystemExit('no measurement for ' + name)
+    return json.loads(m.group(1))
+
+
+def framed(name, width=390, overrides=None):
+    """A real phone width, through an iframe of that width."""
+    inner = TMP / f'fc-{name}-inner.html'
+    subprocess.run([sys.executable, str(HERE / 'render-section.py'), str(SECTION),
+                    json.dumps(overrides or {}), str(inner)], check=True, capture_output=True)
+    inner.write_text(inner.read_text(encoding='utf-8').replace(
+        '</body>', '<script>' + PROBE + '</script></body>'), encoding='utf-8')
+    wrap = TMP / f'fc-{name}-wrap.html'
+    wrap.write_text(
+        '<!doctype html><meta charset="utf-8"><style>html,body{margin:0}'
+        f'iframe{{width:{width}px;height:1400px;border:0;display:block}}</style>'
+        f'<iframe src="{inner.name}"></iframe><script>'
+        'setTimeout(function(){'
+        'var f=document.querySelector("iframe");'
+        'document.title="RESULT"+JSON.stringify('
+        'f.contentWindow.snap(f.contentDocument, f.contentWindow));}, 600);'
+        '</script>', encoding='utf-8')
+    dom = subprocess.run([CHROME, '--headless', '--no-sandbox', '--disable-gpu',
+        '--allow-file-access-from-files', f'--window-size={width + 300},1500',
+        '--virtual-time-budget=6000', '--dump-dom', 'file://' + str(wrap)],
+        capture_output=True, text=True, timeout=180).stdout
+    m = re.search(r'<title>RESULT(.*?)</title>', dom, re.S)
+    if not m:
+        raise SystemExit('no measurement for ' + name)
+    return json.loads(m.group(1))
+
+
+res = []
+def check(label, ok, detail):
+    res.append(bool(ok))
+    print(f"{'PASS' if ok else 'FAIL'}  {label}\n        {detail}")
+
+
+# ------------------------------------------------------------- the shape ----
+d = run('base')
+check('three photographs in the collage',
+      len(d['photos']) == 3, f"{len(d['photos'])} photos")
+check('and four cards around it',
+      len(d['cards']) == 4, f"{len(d['cards'])} cards")
+check('the cards alternate either side of the collage',
+      [c['col'] for c in d['cards']] == ['1', '3', '1', '3'],
+      f"columns {[c['col'] for c in d['cards']]}")
+check('and the collage sits between them',
+      d['collage']['l'] > d['cards'][0]['box']['r'] - 2
+      and d['collage']['r'] < d['cards'][1]['box']['l'] + 2,
+      f"collage {d['collage']['l']}-{d['collage']['r']}, "
+      f"left card ends {d['cards'][0]['box']['r']}, "
+      f"right card starts {d['cards'][1]['box']['l']}")
+
+# --------------------------------------------------------- the photographs --
+check('they overlap rather than sit in a row',
+      d['photos'][0]['box']['r'] > d['photos'][1]['box']['l'],
+      f"first ends {d['photos'][0]['box']['r']}, second starts {d['photos'][1]['box']['l']}")
+check('each is tilted by its own setting',
+      len({p['shot'] for p in d['photos']}) == 3,
+      f"{len({p['shot'] for p in d['photos']})} different transforms")
+check('and the stacking order is the one set, not the source order',
+      [p['z'] for p in d['photos']] == ['1', '3', '2'],
+      f"z-index {[p['z'] for p in d['photos']]}")
+
+front = run('front', script="document.querySelectorAll('.hp-fc__photo')[0]"
+                            ".setAttribute('data-front','');")
+check('bringing one to the front lifts it over the others',
+      int(front['photos'][0]['z']) > max(int(p['z']) for p in front['photos'][1:]),
+      f"z-index {[p['z'] for p in front['photos']]}")
+check('and nothing else moves when it does',
+      [p['box']['l'] for p in front['photos']] == [p['box']['l'] for p in d['photos']],
+      "every photo is in the same place as before")
+
+# --------------------------------------------------------------- the pills --
+check('each pill belongs to a photograph, not to the collage',
+      all('hp-fc__photo' in p['owner'] for p in d['pills']),
+      f"{len(d['pills'])} pills, all inside a photo")
+check('and they are placed apart rather than stacked',
+      len({(p['box']['l'], p['box']['t']) for p in d['pills']}) == len(d['pills']),
+      f"{len(d['pills'])} pills in {len({(p['box']['l'], p['box']['t']) for p in d['pills']})} places")
+
+# ------------------------------------------------- nothing escapes the page --
+for w in (1400, 1100, 900, 750, 500):
+    r = run(f'w{w}', width=w)
+    out = [p['text'] for p in r['pills']
+           if p['box']['l'] < 0 or p['box']['r'] > r['winW']]
+    check(f'no pill hangs off the page at {w}px',
+          not out and r['docW'] <= r['winW'],
+          f"document {r['docW']}px in {r['winW']}px"
+          + (f", escaping: {out}" if out else ""))
+
+ph = framed('phone390')
+esc = [p['text'] for p in ph['pills']
+       if p['box']['l'] < 0 or p['box']['r'] > ph['winW']]
+check('no pill hangs off a 390px phone',
+      not esc, f"escaping: {esc}" if esc else "every pill is inside the screen")
+check('and the page gains no sideways scroll there',
+      ph['docW'] <= ph['winW'], f"document {ph['docW']}px in {ph['winW']}px")
+check('the collage keeps its arrangement on a phone',
+      ph['photos'][0]['box']['r'] > ph['photos'][1]['box']['l'],
+      "the photographs still overlap")
+check('and the cards stack in one column under it',
+      all(c['box']['t'] > ph['collage']['b'] - 2 for c in ph['cards'])
+      and len({c['box']['l'] for c in ph['cards']}) == 1,
+      f"collage ends {ph['collage']['b']}, first card starts {ph['cards'][0]['box']['t']}")
+
+# ------------------------------------------------------------ the richtext --
+check("the card paragraph is the size the setting asks for, not the theme's",
+      d['bodySize'] == '15px',
+      f"rendered at {d['bodySize']} against a 15px setting")
+check('and it is the paragraph that was typed',
+      d['bodyText'] and 'Soft enough' in d['bodyText'],
+      f"{d['bodyText']!r}")
+
+# ---------------------------------------------------------- pills on hover --
+hov = run('pills-hover', overrides={'settings': {'pill_visibility': 'hover'}})
+check('pills can be set to show only over the photo being hovered',
+      all(p['op'] == '0' for p in hov['pills']),
+      f"opacities {[p['op'] for p in hov['pills']]}")
+check('and they are shown outright by default',
+      all(p['op'] == '1' for p in d['pills']),
+      f"opacities {[p['op'] for p in d['pills']]}")
+
+print(f"\n{sum(res)}/{len(res)} passed")
+sys.exit(0 if all(res) else 1)

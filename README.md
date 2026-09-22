@@ -24,6 +24,7 @@ anything moving.
 | [`sections/pal-reveal.liquid`](sections/pal-reveal.liquid) | **Pal reveal** | A Pal that grows on scroll until its body becomes the next section |
 | [`sections/pal-panel.liquid`](sections/pal-panel.liquid) | **Pal panel** | A domed Pal-shaped panel that rises over the pinned section above and holds the copy |
 | [`sections/hp-header.liquid`](sections/hp-header.liquid) | **Totterful header** | Logo, the site's buttons as navigation, search, account and cart. Transparent over the hero. Goes in the header section group |
+| [`sections/feature-collage.liquid`](sections/feature-collage.liquid) | **Feature collage** | Overlapping photographs in the middle with pills placed on them by hand, feature cards either side. Hovering a photo lifts it over the rest |
 | [`sections/hp-pal-buy.liquid`](sections/hp-pal-buy.liquid) | **Choose your Pal** | The product page's picking moment. One pill per Pal; choosing one swaps the photo, the name, the blurb and the accent, and selects that variant in Dawn's own buy box below |
 | [`sections/hp-footer.liquid`](sections/hp-footer.liquid) | **Totterful footer** | Brand, menu columns, policies. Goes in the footer section group, so it is on every page |
 
@@ -780,3 +781,34 @@ and fall back to the theme's size, which under Dawn's 62.5% root renders 17px
 as **10px**. It is visible in a screenshot long before it is obvious in the
 code. richtext goes in a `<div>`, and the check measures the element the text
 actually landed in rather than the one it was meant to land in.
+
+## Placing a pill by hand
+
+In **Feature collage**, a pill's position is a percentage of *the photograph it
+belongs to*, not of the collage. That is the whole point: set a pill beside an
+ear and it stays beside that ear at every screen width, because both the photo
+and the pill are placed in the same percentage space and the stage just gets
+narrower.
+
+Two things make that work:
+
+- **The tilt is on the picture, not on the box.** `.hp-fc__photo` stays square
+  to the page and holds the position; `.hp-fc__shot` inside it carries the
+  rotation. Rotate the box and every pill on it tilts too.
+- **Hovering lifts by `z-index`, never by reflow.** Nothing moves, so no pill
+  can change place when a photo comes forward. A check asserts every photo is
+  in the same position before and after.
+
+### A pill near an edge anchors to its own edge
+
+A pill centred on its anchor point spills outward, and a pill hanging off the
+page drags the whole page sideways. So the anchor moves: below 28% the pill
+grows rightwards from its point, above 72% it grows leftwards, and in between
+it stays centred. `overflow-x: clip` on the section is the guarantee behind
+that rather than the plan — `clip` and not `hidden`, because `hidden` on one
+axis forces the other to scroll and would trap the hover lift.
+
+This was found in a screenshot at 390px, with "Crinkle ears" cut off by the
+left edge. The suite measures every pill's box against the viewport at five
+widths plus a real 390px phone in an iframe; removing the anchoring turns that
+check red and names the pill.

@@ -56,6 +56,13 @@ DAWN_CSS = """
   }
   .accordion__content { margin-bottom: 1.5rem; padding: 0 0.6rem; overflow: auto; }
   details[open] > summary .icon-caret { transform: rotate(180deg); }
+  /* The site's button, which these rows sit directly beneath and must not
+     compete with: 2px ink outline, pill radius, hard offset shadow, a fill. */
+  .hp-btn {
+    display: flex; width: 100%; padding: 15px 32px;
+    border: 2px solid #2F3326; border-radius: 999px; background: #D88B6D;
+    color: #2F3326; box-shadow: 0 4px 0 0 #2F3326;
+  }
 """
 
 ROW = """
@@ -87,7 +94,11 @@ function bx(e){var r=e.getBoundingClientRect();
          l:Math.round(r.left),r:Math.round(r.right)};}
 function snap(){
   var rows=document.querySelectorAll('.product__accordion');
-  return {rows:[].map.call(rows,function(row){
+  var btn=document.querySelector('.hp-btn');
+  var btnCS=getComputedStyle(btn);
+  return {button:{border:btnCS.borderTopWidth, radius:btnCS.borderTopLeftRadius,
+                  shadow:btnCS.boxShadow, bg:btnCS.backgroundColor},
+    rows:[].map.call(rows,function(row){
     var cs=getComputedStyle(row);
     var sum=row.querySelector('summary');
     var title=row.querySelector('.accordion__title');
@@ -125,7 +136,8 @@ def run(name, ours_last=True, script='', width=1000):
     page.write_text(
         '<!doctype html><html><head><meta charset="utf-8">' + head +
         '<style>.icon-caret{transition:none !important}</style></head><body>'
-        '<div style="max-width:600px;margin:40px auto">' + ROWS + '</div>'
+        '<div style="max-width:600px;margin:40px auto">'
+        '<button class="hp-btn">Add to cart</button>' + ROWS + '</div>'
         '<script>' + PROBE + script +
         "setTimeout(function(){document.title='RESULT'+JSON.stringify(snap());},300);"
         '</script></body></html>', encoding='utf-8')
@@ -168,32 +180,51 @@ for order, ours_last in (('loaded after Dawn', True), ('loaded BEFORE Dawn', Fal
     r0 = d['rows'][0]
     tag = f'({order})'
 
-    check(f'the rows become outlined cards {tag}',
-          r0['border'] == '2px' and r0['radius'] == '18px',
-          f"outline {r0['border']}, radius {r0['radius']}")
-    check(f'with the hard shadow under them {tag}',
-          '0px 4px 0px 0px' in r0['shadow'],
-          f"{r0['shadow']}")
-    check(f'and they sit apart rather than butting together {tag}',
-          d['rows'][1]['box']['t'] - d['rows'][0]['box']['b'] >= 14,
-          f"gap {d['rows'][1]['box']['t'] - d['rows'][0]['box']['b']}px "
-          f"below an 18px margin plus a 4px shadow")
-    check(f"the handle gets real padding, not Dawn's 15px top and bottom {tag}",
-          r0['summaryPad'] == '18px 20px',
+    btn = d['button']
+    # These rows sit directly under Add to cart and Buy it now. Wearing the
+    # button's own outline, shadow, radius and fill made a third button out of
+    # a disclosure, which is the complaint this check exists for.
+    borrowed = []
+    if r0['border'] == btn['border']:
+        borrowed.append(f"the same {btn['border']} outline")
+    if r0['shadow'] != 'none':
+        borrowed.append('a hard shadow')
+    if r0['bg'] != 'rgba(0, 0, 0, 0)':
+        borrowed.append('a fill of its own')
+    if r0['radius'] != '0px':
+        borrowed.append('rounded corners')
+    check(f'a row borrows none of the buttons\' weight {tag}',
+          not borrowed,
+          'shares nothing with the button' if not borrowed
+          else 'shares ' + ', '.join(borrowed))
+    check(f'it is a hairline rule, thinner than the button\'s outline {tag}',
+          r0['border'] == '1px' and r0['borderStyle'] == 'solid'
+          and int(btn['border'].rstrip('px')) > 1,
+          f"row {r0['border']} against the button's {btn['border']}")
+    check(f'the rows butt together as one list, not a stack of cards {tag}',
+          abs(d['rows'][1]['box']['t'] - d['rows'][0]['box']['b']) <= 1,
+          f"gap {d['rows'][1]['box']['t'] - d['rows'][0]['box']['b']}px")
+    check(f'the handle sits flush with the column {tag}',
+          r0['summaryPad'] == '16px 0px',
           f"padding {r0['summaryPad']}")
-    check(f'the title is the heading face, uppercase {tag}',
-          r0['titleSize'] == '17px' and r0['titleCase'] == 'uppercase',
+    check(f'the title is the heading face, uppercase and smaller {tag}',
+          r0['titleSize'] == '14px' and r0['titleCase'] == 'uppercase',
           f"{r0['titleSize']}, {r0['titleCase']}")
     check(f'the icon takes the brand green {tag}',
-          rgb(r0['icoFill']) == [181, 201, 154] and r0['icoW'] == 26,
+          rgb(r0['icoFill']) == [181, 201, 154] and r0['icoW'] == 20,
           f"fill {r0['icoFill']}, {r0['icoW']}px")
+    # Dawn pins the caret absolutely to the summary's right edge. Taken into
+    # the flex row it follows the padding instead of being nailed to a corner
+    # the padding has since moved -- which is what went wrong when this file
+    # loaded first.
     check(f'the caret comes out of absolute placement into the row {tag}',
           r0['caretPos'] == 'static'
-          and r0['caretBox']['r'] <= r0['box']['r'] - 18,
-          f"position {r0['caretPos']}, caret ends {r0['caretBox']['r']} "
-          f"in a row ending {r0['box']['r']}")
+          and r0['caretBox']['r'] <= r0['box']['r']
+          and r0['caretBox']['l'] > r0['summary']['l'],
+          f"position {r0['caretPos']}, caret {r0['caretBox']['l']}-"
+          f"{r0['caretBox']['r']} inside a row ending {r0['box']['r']}")
     check(f"the content loses Dawn's scrollbar and takes the body size {tag}",
-          r0['contentOverflow'] == 'visible' and r0['contentSize'] == '16px',
+          r0['contentOverflow'] == 'visible' and r0['contentSize'] == '15px',
           f"overflow {r0['contentOverflow']}, {r0['contentSize']}")
 
 # --------------------------------------------------------------- behaviour ---
@@ -208,12 +239,15 @@ check("and Dawn's own caret rotation survives the restyle",
 
 # ---------------------------------------------------------------- contrast ---
 r0 = d['rows'][0]
-check('the title reads on the row',
-      contrast(rgb(r0['titleColor']), rgb(r0['bg'])) >= 4.5,
-      f"{contrast(rgb(r0['titleColor']), rgb(r0['bg']))}:1")
+# The row draws no fill of its own now, so the words sit on whatever the
+# product column is: white on Dawn's default scheme.
+behind = [255, 255, 255] if r0['bg'] == 'rgba(0, 0, 0, 0)' else rgb(r0['bg'])
+check('the title reads on whatever is behind the row',
+      contrast(rgb(r0['titleColor']), behind) >= 4.5,
+      f"{contrast(rgb(r0['titleColor']), behind)}:1 against the page")
 check('and so does the text inside it',
-      contrast(rgb(r0['contentColor']), rgb(r0['bg'])) >= 4.5,
-      f"{contrast(rgb(r0['contentColor']), rgb(r0['bg']))}:1")
+      contrast(rgb(r0['contentColor']), behind) >= 4.5,
+      f"{contrast(rgb(r0['contentColor']), behind)}:1")
 
 # ------------------------------------------------------------------ widths ---
 for w in (1000, 500, 390):

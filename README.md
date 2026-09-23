@@ -1015,6 +1015,20 @@ inside Product information in the site's clothes. No Liquid is edited, so the
 block stays Dawn's: its open and close, its keyboard handling and its icon
 picker keep working, and a theme update does not have to be re-applied by hand.
 
+### The rows are deliberately the quietest thing in that column
+
+The first version gave them the site's heavy treatment — a 2px ink outline
+over a `0 4px` hard offset shadow, a cream fill, rounded corners. Measured
+against the real button they shared **all four**, so a disclosure read as a
+third button under Add to cart and Buy it now.
+
+That treatment is the button's and it means "press me". These rows are
+hairline rules, no fill, no shadow, flush with the column; the brand comes
+through the type and the sage icon instead. The suite puts a real `.hp-btn` on
+the page and asserts a row borrows none of its outline weight, shadow, fill or
+radius — and names which it borrowed when it does. Putting the card version
+back fails that check and lists all four.
+
 A custom block *cannot* be added to Product information from a separate file.
 Blocks are declared in a section's own `{% schema %}`, so a new one means
 editing `sections/main-product.liquid` in two places — its schema and its

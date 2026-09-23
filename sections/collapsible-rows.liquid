@@ -1,0 +1,447 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — Collapsible rows
+  ---------------------------------------------------------------------------
+  Materials, shipping, and whatever else belongs under a product description.
+
+  Built on <details>/<summary>, not on buttons and ARIA, because that way the
+  rows open and close with no JavaScript at all: the keyboard handling, the
+  roles and find-in-page all come from the browser. The script only adds the
+  slide, and sets aria-hidden on the icon; with it gone the rows still open,
+  just instantly.
+
+  Closed panels have to be reachable by find-in-page and by a screen reader
+  reading ahead, which is why the panel is not display:none while it animates;
+  `hidden until-found` is the modern answer and the browsers that lack it fall
+  back to <details>'s own behaviour.
+
+  Sizes are px: Dawn's root font-size is 62.5%, so rem renders at 62.5% of its
+  intended value. Every setting carries a `| default:`.
+
+  richtext settings sit in a <div>, never a <p>: richtext brings its own <p>,
+  and a <p> inside a <p> is closed early by the parser, which drops the words
+  out of the styled element and back to the theme's size.
+
+  Every selector is prefixed .hp-acc and every per-instance value arrives as
+  an inline custom property, so nothing here can reach another section.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+  assign style = s.row_style | default: 'cards'
+  assign edge = s.row_edge | default: 2
+  assign shadow = s.row_shadow | default: 4
+  assign marker = s.marker | default: 'chevron'
+  assign gap = s.row_gap | default: 14
+-%}
+
+{% style %}
+  .hp-acc {
+    --hp-acc-ink: {{ s.text_color | default: '#2F3326' }};
+    --hp-acc-muted: {{ s.muted_color | default: '#5C6150' }};
+    --hp-acc-line: {{ s.line_color | default: '#2F3326' }};
+    --hp-acc-row: {{ s.row_color | default: '#FCFBF6' }};
+    --hp-acc-open: {{ s.open_color | default: '#FCFBF6' }};
+    --hp-acc-mark: {{ s.marker_color | default: '#2F3326' }};
+
+    background-color: {{ s.background | default: 'rgba(0,0,0,0)' }};
+    padding-block: {{ s.padding_top | default: 32 }}px {{ s.padding_bottom | default: 32 }}px;
+    color: var(--hp-acc-ink);
+  }
+
+  .hp-acc__inner {
+    max-width: {{ s.max_width | default: 720 }}px;
+    margin-inline: auto;
+  }
+
+  .hp-acc__heading {
+    margin: 0 0 18px;
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: {{ s.heading_size | default: 26 }}px;
+    line-height: 1.15;
+  }
+
+  .hp-acc__list {
+    display: flex;
+    flex-direction: column;
+    {%- if style == 'cards' %}
+    gap: {{ gap }}px;
+    {%- else %}
+    gap: 0;
+    border-top: 1px solid var(--hp-acc-line);
+    {%- endif %}
+  }
+
+  .hp-acc__row {
+    {%- if style == 'cards' %}
+    border: {{ edge }}px solid var(--hp-acc-line);
+    border-radius: {{ s.row_radius | default: 18 }}px;
+    background: var(--hp-acc-row);
+    {%- if shadow > 0 %}
+    box-shadow: 0 {{ shadow }}px 0 0 var(--hp-acc-line);
+    {%- endif %}
+    {%- else %}
+    border-bottom: 1px solid var(--hp-acc-line);
+    {%- endif %}
+  }
+
+  {%- if style == 'cards' %}
+  .hp-acc__row[open] { background: var(--hp-acc-open); }
+  {%- endif %}
+
+  /* --- the row's handle ----------------------------------------------------- */
+  /* The default disclosure triangle goes; the marker on the right replaces it.
+     `list-style: none` is for Firefox, the ::-webkit- rule for Safari. */
+  .hp-acc__summary {
+    display: flex;
+    align-items: center;
+    gap: {{ s.icon_gap | default: 14 }}px;
+    padding: {{ s.row_pad_y | default: 18 }}px {{ s.row_pad_x | default: 20 }}px;
+    cursor: pointer;
+    list-style: none;
+    /* Tap targets: a row is already well over the 24px minimum, but the
+       outline has to be visible when it is reached by keyboard. */
+    outline-offset: -4px;
+  }
+
+  .hp-acc__summary::-webkit-details-marker { display: none; }
+
+  .hp-acc__title {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: {{ s.title_size | default: 17 }}px;
+    line-height: 1.25;
+    letter-spacing: 0.01em;
+    {%- if s.title_case != 'as-typed' %}
+    text-transform: uppercase;
+    {%- endif %}
+  }
+
+  /* --- the icon ------------------------------------------------------------- */
+  .hp-acc__ico,
+  .hp-acc__ico-img {
+    flex: none;
+    display: block;
+    width: {{ s.icon_size | default: 26 }}px;
+    height: {{ s.icon_size | default: 26 }}px;
+  }
+
+  .hp-acc__ico-img { object-fit: contain; }
+
+  .hp-acc__ico .f { fill: var(--hp-acc-accent, #B5C99A); }
+  .hp-acc__ico .a { fill: var(--hp-acc-accent2, #D88B6D); }
+  .hp-acc__ico .s {
+    fill: none;
+    stroke: var(--hp-acc-accent, #B5C99A);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .hp-acc__ico .sa {
+    fill: none;
+    stroke: var(--hp-acc-accent2, #D88B6D);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* --- the marker ----------------------------------------------------------- */
+  .hp-acc__mark {
+    flex: none;
+    width: {{ s.marker_size | default: 18 }}px;
+    height: {{ s.marker_size | default: 18 }}px;
+    color: var(--hp-acc-mark);
+    transition: transform .25s ease;
+  }
+
+  .hp-acc__mark svg { display: block; width: 100%; height: 100%; }
+
+  .hp-acc__mark line,
+  .hp-acc__mark path {
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    fill: none;
+  }
+
+  {%- if marker == 'chevron' %}
+  .hp-acc__row[open] .hp-acc__mark { transform: rotate(180deg); }
+  {%- else %}
+  /* The plus loses its upright stroke rather than spinning, so open reads as
+     a minus instead of as a rotated plus, which looks the same either way. */
+  .hp-acc__row[open] .hp-acc__bar { opacity: 0; }
+  .hp-acc__bar { transition: opacity .2s ease; }
+  {%- endif %}
+
+  /* --- the panel ------------------------------------------------------------ */
+  /* A grid that goes from 0fr to 1fr: it animates to the content's own height
+     without anyone having to measure it. The inner element carries the
+     overflow, or the words spill out while it is still closing. */
+  .hp-acc__panel {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows {{ s.speed | default: 260 }}ms ease;
+  }
+
+  .hp-acc__row[open] .hp-acc__panel { grid-template-rows: 1fr; }
+
+  .hp-acc__panel-inner { overflow: hidden; }
+
+  .hp-acc__body {
+    padding: 0 {{ s.row_pad_x | default: 20 }}px {{ s.row_pad_y | default: 18 }}px;
+    font-size: {{ s.body_size | default: 16 }}px;
+    line-height: 1.55;
+    color: var(--hp-acc-muted);
+  }
+
+  .hp-acc__body > :first-child { margin-top: 0; }
+  .hp-acc__body > :last-child { margin-bottom: 0; }
+
+  .hp-acc__body a { color: inherit; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hp-acc__panel,
+    .hp-acc__mark,
+    .hp-acc__bar { transition: none; }
+  }
+{% endstyle %}
+
+<section class="hp-acc" {{ section.shopify_attributes }}>
+  <div class="hp-acc__inner">
+    {%- if s.heading != blank -%}
+      <h2 class="hp-acc__heading">{{ s.heading | escape }}</h2>
+    {%- endif -%}
+
+    <div class="hp-acc__list">
+      {%- for block in section.blocks -%}
+        {%- assign b = block.settings -%}
+        {%- assign alt = b.icon_image.alt | default: '' -%}
+        <details
+          class="hp-acc__row"
+          name="{% if s.one_at_a_time %}hp-acc-{{ section.id }}{% else %}hp-acc-{{ section.id }}-{{ forloop.index }}{% endif %}"
+          {% if b.open %}open{% endif %}
+          style="
+            --hp-acc-accent: {{ b.icon_color | default: '#B5C99A' }};
+            --hp-acc-accent2: {{ b.icon_accent | default: '#D88B6D' }};
+          "
+          {{ block.shopify_attributes }}
+        >
+          <summary class="hp-acc__summary">
+            {%- if b.icon_image != blank -%}
+              {%- assign icon_url = b.icon_image | image_url: width: 120 -%}
+              {{ icon_url | image_tag: loading: 'lazy', class: 'hp-acc__ico-img', alt: alt }}
+            {%- elsif b.icon != blank and b.icon != 'none' -%}
+              <svg class="hp-acc__ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                {%- case b.icon -%}
+                  {%- when 'leaf' -%}
+                    <path class="f" d="M6 18c0-7.83 5.72-13.55 13.55-13.55 0 7.83-5.72 13.55-13.55 13.55z"/>
+                    <path class="s" d="m4.2 19.8 1.8-1.8"/>
+                    <path class="sa" stroke-width="1.6" d="M6.6 17.4 16.8 7.2"/>
+                  {%- when 'droplet' -%}
+                    <path class="f" d="M12 2.8c3.4 3.7 6.3 7 6.3 10.4a6.3 6.3 0 1 1-12.6 0c0-3.4 2.9-6.7 6.3-10.4z"/>
+                  {%- when 'truck' -%}
+                    <path class="f" d="M2.6 6.4h10.2v9.2H2.6z"/>
+                    <path class="f" d="M12.8 9.4h3.9l3.1 3v3.2h-7z"/>
+                    <circle class="a" cx="7" cy="17.4" r="2.1"/>
+                    <circle class="a" cx="16.4" cy="17.4" r="2.1"/>
+                  {%- when 'refresh' -%}
+                    <path class="s" d="M19.6 12.6a7.7 7.7 0 0 1-13 5.1M4.4 11.4a7.7 7.7 0 0 1 13-5.1"/>
+                    <path class="f" d="M17.9 2.8c.3 0 .55.25.55.55V7c0 .3-.25.55-.55.55h-3.65a.55.55 0 0 1-.39-.94l3.65-3.65a.55.55 0 0 1 .39-.16zM6.1 21.2a.55.55 0 0 1-.55-.55V17c0-.3.25-.55.55-.55h3.65a.55.55 0 0 1 .39.94l-3.65 3.65a.55.55 0 0 1-.39.16z"/>
+                  {%- when 'shield' -%}
+                    <path class="f" d="M12 2.4c.12 0 .24.02.35.06l6.6 2.47c.35.13.58.46.58.84v5.1c0 4.75-3.03 8.4-7.16 10.64a.9.9 0 0 1-.86 0C7.38 19.27 4.35 15.62 4.35 10.87v-5.1c0-.38.23-.71.58-.84l6.6-2.47c.11-.04.23-.06.35-.06z"/>
+                    <path class="sa" d="m9 11.6 2.2 2.2 4-4.2"/>
+                  {%- when 'heart' -%}
+                    <path class="f" d="M12 21c-.42 0-.83-.15-1.14-.43C6.15 16.33 3 13.48 3 9.9 3 7.08 5.13 4.95 7.88 4.95c1.6 0 3.16.78 4.12 2.05.96-1.27 2.52-2.05 4.12-2.05C18.87 4.95 21 7.08 21 9.9c0 3.58-3.15 6.43-7.86 10.67-.31.28-.72.43-1.14.43z"/>
+                  {%- when 'sparkle' -%}
+                    <path class="f" d="M10.6 2.8c.36 0 .68.23.8.57l1.1 3.05c.27.74.85 1.32 1.6 1.59l3.05 1.1a.85.85 0 0 1 0 1.6l-3.05 1.1c-.75.27-1.33.85-1.6 1.6l-1.1 3.04a.85.85 0 0 1-1.6 0l-1.1-3.05a2.55 2.55 0 0 0-1.6-1.59l-3.04-1.1a.85.85 0 0 1 0-1.6l3.05-1.1c.74-.27 1.32-.85 1.59-1.6l1.1-3.04c.12-.34.44-.57.8-.57z"/>
+                    <path class="f" d="M18.1 14.6c.2 0 .38.13.45.32l.46 1.27c.1.29.33.52.62.62l1.27.46a.48.48 0 0 1 0 .9l-1.27.46c-.29.1-.52.33-.62.62l-.46 1.27a.48.48 0 0 1-.9 0l-.46-1.27a1.08 1.08 0 0 0-.62-.62l-1.27-.46a.48.48 0 0 1 0-.9l1.27-.46c.29-.1.52-.33.62-.62l.46-1.27c.07-.19.25-.32.45-.32z"/>
+                  {%- when 'pocket' -%}
+                    <path class="f" d="M4.9 8.4h14.2l-1.25 10.8a2.1 2.1 0 0 1-2.09 1.86H8.24a2.1 2.1 0 0 1-2.09-1.86z"/>
+                    <path class="s" d="M8.7 8.4V6.6a3.3 3.3 0 0 1 6.6 0v1.8"/>
+                  {%- when 'question' -%}
+                    <circle class="f" cx="12" cy="12" r="9.2"/>
+                    <path class="sa" stroke-width="2" d="M9.5 9.4a2.6 2.6 0 0 1 4.9 1.1c0 1.7-2.4 2-2.4 3.6"/>
+                    <circle class="a" cx="12" cy="17.1" r="1.15"/>
+                  {%- when 'smile' -%}
+                    <circle class="f" cx="12" cy="12" r="9.2"/>
+                    <circle class="a" cx="9.1" cy="10.4" r="1.2"/>
+                    <circle class="a" cx="14.9" cy="10.4" r="1.2"/>
+                    <path class="sa" d="M8.6 14.4a4.3 4.3 0 0 0 6.8 0"/>
+                {%- endcase -%}
+              </svg>
+            {%- endif -%}
+
+            <h3 class="hp-acc__title">{{ b.title | default: 'Row' | escape }}</h3>
+
+            <span class="hp-acc__mark" aria-hidden="true">
+              {%- if marker == 'chevron' -%}
+                <svg viewBox="0 0 24 24" focusable="false"><path d="m5 9 7 7 7-7"/></svg>
+              {%- else -%}
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <line x1="4" y1="12" x2="20" y2="12"/>
+                  <line class="hp-acc__bar" x1="12" y1="4" x2="12" y2="20"/>
+                </svg>
+              {%- endif -%}
+            </span>
+          </summary>
+
+          <div class="hp-acc__panel">
+            <div class="hp-acc__panel-inner">
+              <div class="hp-acc__body">{{ b.body }}</div>
+            </div>
+          </div>
+        </details>
+      {%- endfor -%}
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "Collapsible rows",
+  "tag": "section",
+  "class": "hp-acc-section",
+  "settings": [
+    { "type": "text", "id": "heading", "label": "Heading", "info": "Leave empty for no heading, which is usual directly under a product description." },
+    {
+      "type": "checkbox",
+      "id": "one_at_a_time",
+      "label": "Only one row open at a time",
+      "default": true,
+      "info": "Opening a row closes the others. The browser does this itself, with no script involved."
+    },
+    { "type": "header", "content": "The rows" },
+    {
+      "type": "select",
+      "id": "row_style",
+      "label": "Row style",
+      "options": [
+        { "value": "cards", "label": "Outlined cards" },
+        { "value": "divided", "label": "Hairline dividers" }
+      ],
+      "default": "cards",
+      "info": "Hairline dividers sit quieter beside a buy box; outlined cards match the rest of the site."
+    },
+    { "type": "color", "id": "row_color", "label": "Row fill", "default": "#FCFBF6" },
+    { "type": "color", "id": "open_color", "label": "Row fill when open", "default": "#FCFBF6" },
+    { "type": "range", "id": "row_radius", "label": "Corner rounding", "unit": "px", "min": 0, "max": 40, "step": 2, "default": 18 },
+    { "type": "range", "id": "row_edge", "label": "Outline", "unit": "px", "min": 0, "max": 6, "step": 1, "default": 2 },
+    { "type": "range", "id": "row_shadow", "label": "Hard shadow", "unit": "px", "min": 0, "max": 12, "step": 1, "default": 4 },
+    { "type": "range", "id": "row_gap", "label": "Gap between rows", "unit": "px", "min": 0, "max": 32, "step": 2, "default": 14 },
+    { "type": "range", "id": "row_pad_y", "label": "Row padding, top and bottom", "unit": "px", "min": 8, "max": 40, "step": 2, "default": 18 },
+    { "type": "range", "id": "row_pad_x", "label": "Row padding, left and right", "unit": "px", "min": 8, "max": 48, "step": 2, "default": 20 },
+    { "type": "header", "content": "Icons and marker" },
+    { "type": "range", "id": "icon_size", "label": "Icon size", "unit": "px", "min": 0, "max": 48, "step": 2, "default": 26 },
+    { "type": "range", "id": "icon_gap", "label": "Gap after the icon", "unit": "px", "min": 4, "max": 32, "step": 2, "default": 14 },
+    {
+      "type": "select",
+      "id": "marker",
+      "label": "Open and close marker",
+      "options": [
+        { "value": "chevron", "label": "Chevron that turns over" },
+        { "value": "plus", "label": "Plus that becomes a minus" }
+      ],
+      "default": "chevron"
+    },
+    { "type": "range", "id": "marker_size", "label": "Marker size", "unit": "px", "min": 10, "max": 32, "step": 2, "default": 18 },
+    { "type": "color", "id": "marker_color", "label": "Marker colour", "default": "#2F3326" },
+    { "type": "range", "id": "speed", "label": "Open and close speed", "unit": "ms", "min": 0, "max": 600, "step": 20, "default": 260 },
+    { "type": "header", "content": "Type" },
+    { "type": "range", "id": "heading_size", "label": "Heading size", "unit": "px", "min": 16, "max": 44, "step": 1, "default": 26 },
+    { "type": "range", "id": "title_size", "label": "Row title size", "unit": "px", "min": 12, "max": 26, "step": 1, "default": 17 },
+    {
+      "type": "select",
+      "id": "title_case",
+      "label": "Row title case",
+      "options": [
+        { "value": "upper", "label": "UPPERCASE" },
+        { "value": "as-typed", "label": "As typed" }
+      ],
+      "default": "upper"
+    },
+    { "type": "range", "id": "body_size", "label": "Row text size", "unit": "px", "min": 12, "max": 22, "step": 1, "default": 16 },
+    { "type": "header", "content": "Colours" },
+    { "type": "color_background", "id": "background", "label": "Section background", "info": "Leave it transparent to sit on whatever is behind." },
+    { "type": "color", "id": "text_color", "label": "Titles", "default": "#2F3326" },
+    { "type": "color", "id": "muted_color", "label": "Row text", "default": "#5C6150" },
+    { "type": "color", "id": "line_color", "label": "Outlines and dividers", "default": "#2F3326" },
+    { "type": "header", "content": "Layout" },
+    { "type": "range", "id": "max_width", "label": "Maximum width", "unit": "px", "min": 400, "max": 1200, "step": 20, "default": 720 },
+    { "type": "range", "id": "padding_top", "label": "Space above", "unit": "px", "min": 0, "max": 120, "step": 4, "default": 32 },
+    { "type": "range", "id": "padding_bottom", "label": "Space below", "unit": "px", "min": 0, "max": 120, "step": 4, "default": 32 }
+  ],
+  "blocks": [
+    {
+      "type": "row",
+      "name": "Row",
+      "limit": 10,
+      "settings": [
+        { "type": "text", "id": "title", "label": "Title", "default": "Materials" },
+        { "type": "richtext", "id": "body", "label": "Text", "default": "<p>What goes in it, and what does not.</p>" },
+        {
+          "type": "select",
+          "id": "icon",
+          "label": "Icon",
+          "options": [
+            { "value": "none", "label": "No icon" },
+            { "value": "leaf", "label": "Leaf" },
+            { "value": "droplet", "label": "Droplet" },
+            { "value": "truck", "label": "Delivery van" },
+            { "value": "refresh", "label": "Return arrows" },
+            { "value": "shield", "label": "Shield" },
+            { "value": "heart", "label": "Heart" },
+            { "value": "sparkle", "label": "Sparkle" },
+            { "value": "pocket", "label": "Pouch" },
+            { "value": "question", "label": "Question mark" },
+            { "value": "smile", "label": "Smiley face" }
+          ],
+          "default": "leaf"
+        },
+        { "type": "image_picker", "id": "icon_image", "label": "Or upload an icon", "info": "Used instead of the drawn icon above." },
+        { "type": "color", "id": "icon_color", "label": "Icon main colour", "default": "#B5C99A" },
+        { "type": "color", "id": "icon_accent", "label": "Icon accent colour", "default": "#D88B6D" },
+        { "type": "checkbox", "id": "open", "label": "Open to begin with", "default": false }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Collapsible rows",
+      "blocks": [
+        {
+          "type": "row",
+          "settings": {
+            "title": "Materials",
+            "icon": "leaf",
+            "icon_color": "#B5C99A",
+            "body": "<p>Double gauze cotton, soft on a face that is already sore from wiping. The clip is BPA-free and comes off before the wash.</p>"
+          }
+        },
+        {
+          "type": "row",
+          "settings": {
+            "title": "Shipping & returns",
+            "icon": "truck",
+            "icon_color": "#ECA883",
+            "body": "<p>Free U.S. shipping over $50, and orders leave within two business days. Not right for you? Send it back within 30 days.</p>"
+          }
+        },
+        {
+          "type": "row",
+          "settings": {
+            "title": "Care & safety",
+            "icon": "shield",
+            "icon_color": "#D88B6D",
+            "body": "<p>Machine wash warm, tumble dry low. Take the clip off first. For ages 1 and up, and always under an adult's eye.</p>"
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

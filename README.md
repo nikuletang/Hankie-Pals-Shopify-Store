@@ -24,6 +24,7 @@ anything moving.
 | [`sections/pal-reveal.liquid`](sections/pal-reveal.liquid) | **Pal reveal** | A Pal that grows on scroll until its body becomes the next section |
 | [`sections/pal-panel.liquid`](sections/pal-panel.liquid) | **Pal panel** | A domed Pal-shaped panel that rises over the pinned section above and holds the copy |
 | [`sections/hp-header.liquid`](sections/hp-header.liquid) | **Totterful header** | Logo, the site's buttons as navigation, search, account and cart. Transparent over the hero. Goes in the header section group |
+| [`sections/collapsible-rows.liquid`](sections/collapsible-rows.liquid) | **Collapsible rows** | Materials, shipping, care — an accordion for under a product description. Native `<details>`, so it needs no JavaScript at all |
 | [`sections/how-to-steps.liquid`](sections/how-to-steps.liquid) | **How-to steps** | Numbered capsule rows: a round tinted photo, a title, a line of copy, and a very pale numeral behind the words |
 | [`sections/feature-collage.liquid`](sections/feature-collage.liquid) | **Feature collage** | Overlapping photographs in the middle with pills placed on them by hand, feature cards either side. Hovering a photo lifts it over the rest |
 | [`sections/hp-pal-buy.liquid`](sections/hp-pal-buy.liquid) | **Choose your Pal** | The product page's picking moment. One pill per Pal; choosing one swaps the photo, the name, the blurb and the accent, and selects that variant in Dawn's own buy box below |
@@ -974,3 +975,35 @@ top and another at its very bottom; the screenshot is sampled inside the
 circle's own box and both bands have to be there. Geometry alone would have
 passed the broken version — the box was the right size, it was the *image*
 that overflowed it.
+
+## An accordion with no JavaScript in it
+
+`collapsible-rows.liquid` contains no script. `<details>`/`<summary>` supplies
+the open and close, the keyboard handling, the roles and find-in-page, and the
+`name` attribute gives one-at-a-time — set the same name on every row and the
+browser closes the others itself. The suite asserts the script count is zero,
+because the moment one creeps in the rows stop working for anyone it fails
+for.
+
+The slide is a grid going from `0fr` to `1fr` on a wrapper, with the overflow
+on an inner element. It animates to the content's own height without anything
+measuring it.
+
+### Two traps in testing it, neither in the section
+
+- **A transition never advances under a virtual time budget.** The first run
+  reported an opened panel still 0px tall and the chevron unrotated, which
+  looks exactly like the `[open]` rules failing to match. They matched fine;
+  the measurement was of the animation's first frame. The suite switches
+  transitions off before measuring.
+- **`--dump-dom` re-escapes the text it hands back.** A row titled
+  "Shipping & returns" arrives as `Shipping &amp; returns`, so the check
+  failed against correct output. The probe now undoes the three escapes the
+  serialiser introduces in element content, and leaves `&quot;` alone so the
+  JSON's own quoting survives.
+
+That second one did surface a real bug on the way: the preset carried
+`&amp;` as an HTML entity, `| escape` escaped it again, and the row genuinely
+rendered "Shipping &amp; returns" on the page. **A preset is data, not
+markup** — write the literal character and let `escape` do its job at render
+time.

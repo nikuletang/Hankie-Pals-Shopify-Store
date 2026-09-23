@@ -1007,3 +1007,36 @@ That second one did surface a real bug on the way: the preset carried
 rendered "Shipping &amp; returns" on the page. **A preset is data, not
 markup** — write the literal character and let `escape` do its job at render
 time.
+
+## Restyling Dawn's collapsible rows
+
+`assets/hp-accordion-dawn.css` dresses Dawn's own **Collapsible row** block
+inside Product information in the site's clothes. No Liquid is edited, so the
+block stays Dawn's: its open and close, its keyboard handling and its icon
+picker keep working, and a theme update does not have to be re-applied by hand.
+
+A custom block *cannot* be added to Product information from a separate file.
+Blocks are declared in a section's own `{% schema %}`, so a new one means
+editing `sections/main-product.liquid` in two places — its schema and its
+`{% case block.type %}`. Restyling Dawn's block avoids all of that.
+
+Install it in `layout/theme.liquid` alongside `hp-button-dawn.css`:
+
+```liquid
+{{ 'hp-accordion-dawn.css' | asset_url | stylesheet_tag }}
+```
+
+### Every selector is doubled, and one had to go further
+
+`.product__accordion.product__accordion` weighs two classes against Dawn's
+one, so the result does not depend on this file loading after Dawn's. The
+caret was the exception: Dawn places it with
+`.accordion .summary__title + .icon-caret`, which is **three** classes — the
+same weight as the doubled selector — so load order decided it, and the caret
+stayed absolutely positioned at the row's old right edge whenever this file
+came first. Matching Dawn's own shape adds a fourth class and settles it.
+
+`scripts/test-accordion-dawn.py` runs every check twice, once with this file
+after Dawn's and once before it, which is what caught that. It is a test of
+override mechanics — specificity and load order — not of Dawn: it would not
+catch a Dawn version that renames a class.

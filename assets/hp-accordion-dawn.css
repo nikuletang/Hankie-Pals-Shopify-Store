@@ -1,0 +1,146 @@
+/* ---------------------------------------------------------------------------
+   Totterful / Hankie Pals — Dawn's collapsible rows, in the site's clothes
+   ---------------------------------------------------------------------------
+   Dawn's own "Collapsible row" block inside Product information, restyled.
+   No Liquid is edited: the block stays Dawn's, so its open and close, its
+   keyboard handling and its icon picker all keep working, and a Dawn update
+   does not have to be re-applied by hand.
+
+   Every selector is doubled — `.product__accordion.product__accordion` weighs
+   two classes against Dawn's one — so the result does not depend on this file
+   loading after Dawn's. It should still be loaded last; it simply does not
+   have to be. That lesson cost two rounds on the header.
+
+   Sizes are px on purpose. Dawn sets the root font-size to 62.5%, so its own
+   rem values render at 62.5% of their face value and a rem written here would
+   not mean what it says.
+
+   Scoped to `.product__accordion`, which Dawn puts only on these blocks, so
+   nothing else on the store is touched.
+   --------------------------------------------------------------------------- */
+
+.product__accordion.product__accordion {
+  --hp-acc-ink: #2F3326;
+  --hp-acc-muted: #5C6150;
+  --hp-acc-line: #2F3326;
+  --hp-acc-fill: #FCFBF6;
+  --hp-acc-icon: #B5C99A;
+  --hp-acc-edge: 2px;
+  --hp-acc-drop: 4px;
+  --hp-acc-radius: 18px;
+  --hp-acc-pad-x: 20px;
+  --hp-acc-pad-y: 18px;
+
+  /* Dawn draws hairlines above and below each row and butts them together.
+     Both go: the card's own outline replaces them. */
+  border: var(--hp-acc-edge) solid var(--hp-acc-line);
+  border-radius: var(--hp-acc-radius);
+  background: var(--hp-acc-fill);
+  box-shadow: 0 var(--hp-acc-drop) 0 0 var(--hp-acc-line);
+  /* The shadow is drawn below the box, so the gap has to clear it. */
+  margin-block: 0 calc(14px + var(--hp-acc-drop));
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Dawn hangs a top border off the following row in some versions. */
+.product__accordion.product__accordion + .product__accordion.product__accordion {
+  border-top: var(--hp-acc-edge) solid var(--hp-acc-line);
+  margin-top: 0;
+}
+
+/* --- the handle ----------------------------------------------------------- */
+.product__accordion.product__accordion summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: var(--hp-acc-pad-y) var(--hp-acc-pad-x);
+  cursor: pointer;
+  list-style: none;
+  outline-offset: -4px;
+}
+
+.product__accordion.product__accordion summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Dawn's summary is `position: relative` with the caret absolutely placed at
+   its right edge. Keeping that, but the padding above moved the edge, so the
+   caret needs bringing back inside it. */
+.product__accordion.product__accordion .summary__title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.product__accordion.product__accordion .accordion__title {
+  margin: 0;
+  padding-right: 0;
+  font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+  font-weight: var(--font-heading-weight, 700);
+  font-size: 17px;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--hp-acc-ink);
+}
+
+/* --- the icon ------------------------------------------------------------- */
+.product__accordion.product__accordion .icon-accordion {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin: 0;
+  fill: var(--hp-acc-icon);
+  color: var(--hp-acc-icon);
+}
+
+/* --- the caret ------------------------------------------------------------ */
+/* Dawn places this one with `.accordion .summary__title + .icon-caret`, which
+   is three classes — the same weight as the doubled selector used everywhere
+   else here, so load order decided it and the caret stayed absolute whenever
+   this file came first. Matching Dawn's own shape adds a fourth class and
+   settles it by weight; the `summary >` line covers a version that drops the
+   sibling structure. */
+.product__accordion.product__accordion .summary__title + .icon-caret,
+.product__accordion.product__accordion summary > .icon-caret,
+.product__accordion.product__accordion .icon-caret {
+  position: static;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  color: var(--hp-acc-ink);
+  fill: var(--hp-acc-ink);
+  transition: transform .25s ease;
+}
+
+.product__accordion.product__accordion details[open] > summary .summary__title + .icon-caret,
+.product__accordion.product__accordion details[open] > summary .icon-caret {
+  transform: rotate(180deg);
+}
+
+/* --- the panel ------------------------------------------------------------ */
+.product__accordion.product__accordion .accordion__content {
+  margin: 0;
+  padding: 0 var(--hp-acc-pad-x) var(--hp-acc-pad-y);
+  /* Dawn sets overflow: auto here, which puts a scrollbar on a long row. */
+  overflow: visible;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--hp-acc-muted);
+}
+
+.product__accordion.product__accordion .accordion__content > :first-child {
+  margin-top: 0;
+}
+
+.product__accordion.product__accordion .accordion__content > :last-child {
+  margin-bottom: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .product__accordion.product__accordion .icon-caret { transition: none; }
+}

@@ -320,10 +320,36 @@
     .hp-ft__social-link { transition: none; }
     .hp-ft__social-link:hover { transform: none; }
   }
+  {%- if s.background_image != blank -%}
+    {%- comment -%}
+      The default has to land on the setting, not on the subtraction. Written
+      as `100 | minus: s.background_opacity | default: 100` the default applies
+      to the result, and an opacity that reads nil -- which is what a setting
+      added after the section was saved reads -- would give a full wash and
+      hide the image completely.
+    {%- endcomment -%}
+    {%- assign bg_op = s.background_opacity | default: 100 -%}
+    {%- assign fade = 100 | minus: bg_op | times: 0.01 -%}
+    {%- assign wash = s.background | default: '#FCFBF6' | color_modify: 'alpha', fade -%}
+    [data-hp-ft="{{ section.id }}"] {
+      background-image:
+        linear-gradient({{ wash }}, {{ wash }}),
+        url("{{ s.background_image | image_url: width: 1800 }}");
+      background-position: center, center;
+      background-repeat: repeat, repeat;
+      background-size: auto, {{ s.background_tile_size | default: 240 }}px auto;
+    }
+
+    [data-hp-ft="{{ section.id }}"].hp-ft--cover {
+      background-repeat: no-repeat, no-repeat;
+      background-size: cover, cover;
+      background-attachment: scroll, scroll;
+    }
+  {%- endif -%}
 {% endstyle %}
 
 <footer
-  class="hp-ft{% if s.social_style != 'plain' %} hp-ft--soc-ring{% endif %}"
+  class="hp-ft{% if s.social_style != 'plain' %} hp-ft--soc-ring{% endif %}{% if s.background_fit == 'cover' %} hp-ft--cover{% endif %}"
   data-hp-ft="{{ section.id }}"
   style="
     --hp-ft-bg: {{ s.background | default: '#FCFBF6' }};
@@ -631,6 +657,35 @@
     { "type": "url", "id": "social_pinterest", "label": "Pinterest" },
     { "type": "url", "id": "social_youtube", "label": "YouTube" },
     { "type": "url", "id": "social_x", "label": "X" },
+    { "type": "header", "content": "Background image" },
+    {
+      "type": "image_picker",
+      "id": "background_image",
+      "label": "Background image",
+      "info": "Optional. Sits under a wash of the background colour below, so the words keep their contrast whatever the picture is doing."
+    },
+    {
+      "type": "range",
+      "id": "background_opacity",
+      "label": "How much of the image shows",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "default": 100,
+      "info": "0% hides it behind the background colour entirely. Come down from 100% until the links are comfortable to read."
+    },
+    {
+      "type": "select",
+      "id": "background_fit",
+      "label": "How it sits",
+      "options": [
+        { "value": "tile", "label": "Tiled" },
+        { "value": "cover", "label": "Filling the band" }
+      ],
+      "default": "tile"
+    },
+    { "type": "range", "id": "background_tile_size", "label": "Tile size", "unit": "px", "min": 80, "max": 600, "step": 20, "default": 240, "info": "Tiled only." },
     { "type": "header", "content": "Colours" },
     { "type": "color", "id": "background", "label": "Background", "default": "#FCFBF6" },
     { "type": "color", "id": "heading_color", "label": "Headings and store name", "default": "#2F3326" },

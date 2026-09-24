@@ -70,6 +70,9 @@ setTimeout(function () {
                events: getComputedStyle(w).pointerEvents };
     })(),
     ftOverflow: getComputedStyle(ft).overflowX,
+    ftImage: getComputedStyle(ft).backgroundImage,
+    ftSize: getComputedStyle(ft).backgroundSize,
+    ftRepeat: getComputedStyle(ft).backgroundRepeat,
     social: [].map.call(document.querySelectorAll('.hp-ft__social-link'), function (e) {
       return { tag: e.tagName, href: e.getAttribute('href'),
                name: (e.querySelector('.hp-ft__sr') || {}).textContent || null,
@@ -282,6 +285,45 @@ check('the social icons read against the footer',
 hidden = run({'settings': {'show_social': False}}, 'no-social')
 check('and the whole row can be turned off',
       len(hidden['social']) == 0, 'no social icons rendered')
+
+# ------------------------------------------------------ the background image --
+plain_bg = run({}, 'bg-none')
+check('with no image the band draws none',
+      plain_bg['ftImage'] == 'none', f"background-image {plain_bg['ftImage']}")
+
+IMG = str(TMP / 'hts-bands.png') if (TMP / 'hts-bands.png').exists() else str(TMP / 'tall.png')
+withimg = run({'settings': {'background_image': IMG}}, 'bg-tile')
+check('an uploaded image is drawn behind the footer',
+      'url(' in withimg['ftImage'], f"{withimg['ftImage'][:60]}")
+check('under a wash of the background colour, so the words keep their contrast',
+      withimg['ftImage'].count('linear-gradient') == 1,
+      'one gradient layer over the picture')
+# An opacity that reads nil is the real case: a section saved before the
+# setting existed. Passing null makes the renderer hand over nil instead of
+# quietly substituting the schema default, which is the only way this can be
+# told apart from a working one.
+nil_op = run({'settings': {'background_image': IMG, 'background_opacity': None}},
+             'bg-nil')
+check('an opacity that reads nil shows the image rather than burying it',
+      ', 0)' in nil_op['ftImage'] or ', 0.0)' in nil_op['ftImage'],
+      f"wash {nil_op['ftImage'].split('url(')[0].strip()[:46]}")
+
+dimmed = run({'settings': {'background_image': IMG, 'background_opacity': 0}}, 'bg-hidden')
+check('taking it to 0% puts the background colour back over it',
+      dimmed['ftImage'] != withimg['ftImage'],
+      'the wash changed with the setting')
+
+check('tiled by default, at the size asked for',
+      'repeat' in withimg['ftRepeat'], f"repeat {withimg['ftRepeat']}")
+
+cover = run({'settings': {'background_image': IMG, 'background_fit': 'cover'}}, 'bg-cover')
+check('and it can fill the band instead',
+      'cover' in cover['ftSize'] and 'no-repeat' in cover['ftRepeat'],
+      f"size {cover['ftSize']}, repeat {cover['ftRepeat']}")
+
+check('an image never lets the footer widen the page',
+      cover['docW'] <= cover['winW'],
+      f"document {cover['docW']}px in {cover['winW']}px")
 
 print(f"\n{sum(res)}/{len(res)} passed")
 sys.exit(0 if all(res) else 1)

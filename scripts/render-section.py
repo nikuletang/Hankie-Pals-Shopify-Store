@@ -37,6 +37,10 @@ def _link(title, url, links=()):
             'child_active': False}
 
 
+# python-liquid treats a missing key as Undefined; an explicit None is the
+# closest stand-in for Shopify's nil that survives a dict.
+NIL = None
+
 CART = {'item_count': 0, 'items': []}
 
 # A stand-in for the one product this store sells. Three variants, so a
@@ -107,7 +111,13 @@ if 'linklists' in overrides:
     LINKLISTS = {k: v for k, v in overrides['linklists'].items()}
 
 settings = defaults(schema.get('settings', []))
-settings.update(overrides.get('settings', {}))
+# A JSON null in the overrides means the setting reads nil, which is what a
+# setting added after the section was already saved actually does on the
+# store. Without this the schema's default always lands and the nil case --
+# the one every `| default:` in these files exists for -- cannot be tested at
+# all.
+for key, value in overrides.get('settings', {}).items():
+    settings[key] = NIL if value is None else value
 resolve_menus(settings, types(schema.get('settings', [])))
 if 'product' in overrides:
     PRODUCT = overrides['product']

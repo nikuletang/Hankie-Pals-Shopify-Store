@@ -1093,3 +1093,39 @@ accessible name is worse still. Real ones carry a visually hidden label.
 `check-schemas.py` also had a bug this turned up: it matched setting names
 with `[a-z_]+`, which stops at a digit, so `s.pebble_color_1` was read as
 `s.pebble_color_` and reported as undeclared. Ids may contain digits.
+
+## The nil case, which the harness could not reach
+
+Every setting in these files carries a `| default:` because a setting added
+**after** a section was saved reads nil on the store, not its schema default.
+`render-section.py` could not reproduce that: it always merged the schema's
+default in, so the nil branch was never once executed by any suite.
+
+Passing JSON `null` for a setting now hands Liquid nil instead:
+
+```json
+{"settings": {"background_opacity": null}}
+```
+
+That closed a hole immediately. The footer's background wash was written
+
+```liquid
+{%- assign fade = 100 | minus: s.background_opacity | default: 100 | times: 0.01 -%}
+```
+
+which reads as "the opacity, or 100". It is not: `default` applies to the
+**subtraction's result**, so a nil opacity gave `100 - nil = 100`, then
+`× 0.01 = 1.0` — a fully opaque wash, with the uploaded image hidden behind
+it completely. The default has to land on the setting first:
+
+```liquid
+{%- assign bg_op = s.background_opacity | default: 100 -%}
+{%- assign fade = 100 | minus: bg_op | times: 0.01 -%}
+```
+
+The check only tells the two apart when the opacity is nil. With the schema
+default present both forms give the same answer, which is exactly why this
+went unnoticed until the renderer could say nil.
+
+Same family as the `alt:` binding: in a filter chain, `| default:` attaches to
+everything to its left, not to the nearest word.

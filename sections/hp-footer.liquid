@@ -31,12 +31,66 @@
   .hp-ft {
     --hp-ft-body-scale: var(--font-body-scale, 1);
     --hp-ft-heading-scale: var(--font-heading-scale, 1);
+    position: relative;
     background: var(--hp-ft-bg);
     padding-block: var(--hp-ft-pt) var(--hp-ft-pb);
     color: var(--hp-ft-ink);
+    /* The pebbles hang off both sides on purpose; without this they would
+       widen the page. clip where it is understood: it does not make a scroll
+       container, so nothing else in the theme changes behaviour. */
+    overflow: hidden;
+  }
+
+  @supports (overflow: clip) {
+    .hp-ft { overflow: clip; }
+  }
+
+  /* --- Pebbles -------------------------------------------------------------
+     The same lopsided shape the Pals picker uses, and placed the same way:
+     each by its *inner* edge, with the rest hanging off the side for the band
+     to clip. Offsetting by a share of the pebble's own width instead would let
+     a bigger pebble reach further in, and the columns come closest to the edge
+     at exactly the widths where the pebble is largest. */
+  .hp-ft__pebbles {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .hp-ft__pebble {
+    display: none;
+    position: absolute;
+    width: var(--w);
+    aspect-ratio: 1;
+    background: var(--c);
+    opacity: var(--hp-ft-pebble-op, 0.4);
+    border-radius: 45% 55% 50% 50% / 55% 45% 55% 45%;
+  }
+
+  .hp-ft__pebble--l {
+    --w: min(var(--hp-ft-pebble-size, 300px), 24vw);
+    --c: var(--hp-ft-pebble-c1, #CFE1B9);
+    bottom: calc(var(--w) * -0.38);
+    left: calc(11vw - 40px - var(--w));
+  }
+
+  .hp-ft__pebble--r {
+    --w: min(calc(var(--hp-ft-pebble-size, 300px) * 0.78), 19vw);
+    --c: var(--hp-ft-pebble-c2, #F7DDCD);
+    top: calc(var(--w) * -0.34);
+    right: calc(9vw - 30px - var(--w));
+  }
+
+  /* Below this the columns reach the edges and a pebble would sit under the
+     words rather than beside them. */
+  @media screen and (min-width: 750px) {
+    .hp-ft__pebble { display: block; }
   }
 
   .hp-ft__inner {
+    position: relative;
+    z-index: 1;
     max-width: var(--hp-ft-width);
     margin-inline: auto;
     padding-inline: clamp(16px, 3.5vw, 48px);
@@ -183,6 +237,67 @@
 
   .hp-ft__pay svg { width: 38px; height: 24px; display: block; }
 
+  /* --- Social ------------------------------------------------------------
+     Pinned to the far end of the bottom row by its own auto margin rather
+     than by being last in the flex order, so it stays right even when the
+     policies wrap onto their own line. */
+  .hp-ft__social {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 0 auto;
+    padding: 0;
+    list-style: none;
+  }
+
+  .hp-ft__social-link {
+    display: grid;
+    place-items: center;
+    width: var(--hp-ft-soc-box);
+    height: var(--hp-ft-soc-box);
+    border-radius: 50%;
+    color: var(--hp-ft-soc-ink);
+    text-decoration: none;
+    transition: transform .2s ease, background-color .2s ease;
+  }
+
+  .hp-ft--soc-ring .hp-ft__social-link {
+    border: 1px solid var(--hp-ft-soc-ring);
+    background: var(--hp-ft-soc-fill);
+  }
+
+  .hp-ft__social-link svg {
+    display: block;
+    width: var(--hp-ft-soc-size);
+    height: var(--hp-ft-soc-size);
+    fill: currentColor;
+  }
+
+  .hp-ft__social-link:hover { transform: translateY(-2px); }
+
+  .hp-ft__social-link:focus-visible {
+    outline: 2px solid var(--hp-ft-soc-ink);
+    outline-offset: 2px;
+  }
+
+  /* A placeholder is not a link: it shows the shape while the accounts are
+     still being set up, and nothing about it invites a click. */
+  /* Named for a screen reader without showing the name; the icon alone
+     would otherwise be a link with nothing to read out. */
+  .hp-ft__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .hp-ft__social-link--ph { cursor: default; opacity: 0.45; }
+  .hp-ft__social-link--ph:hover { transform: none; }
+
   @media screen and (max-width: 989px) {
     .hp-ft__top {
       grid-template-columns: minmax(0, 1fr);
@@ -197,15 +312,18 @@
   @media screen and (max-width: 749px) {
     .hp-ft { padding-block: var(--hp-ft-pt-mobile) var(--hp-ft-pb-mobile); }
     .hp-ft__bottom { justify-content: flex-start; }
+    .hp-ft__social { margin-inline-start: 0; }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .hp-ft__link { transition: none; }
+    .hp-ft__link,
+    .hp-ft__social-link { transition: none; }
+    .hp-ft__social-link:hover { transform: none; }
   }
 {% endstyle %}
 
 <footer
-  class="hp-ft"
+  class="hp-ft{% if s.social_style != 'plain' %} hp-ft--soc-ring{% endif %}"
   data-hp-ft="{{ section.id }}"
   style="
     --hp-ft-bg: {{ s.background | default: '#FCFBF6' }};
@@ -219,8 +337,23 @@
     --hp-ft-pb: {{ s.padding_bottom | default: 48 }}px;
     --hp-ft-pt-mobile: {{ s.padding_top_mobile | default: 52 }}px;
     --hp-ft-pb-mobile: {{ s.padding_bottom_mobile | default: 36 }}px;
+    --hp-ft-pebble-size: {{ s.pebble_size | default: 300 }}px;
+    --hp-ft-pebble-c1: {{ s.pebble_color_1 | default: '#CFE1B9' }};
+    --hp-ft-pebble-c2: {{ s.pebble_color_2 | default: '#F7DDCD' }};
+    --hp-ft-pebble-op: {{ s.pebble_opacity | default: 40 | divided_by: 100.0 }};
+    --hp-ft-soc-size: {{ s.social_size | default: 18 }}px;
+    --hp-ft-soc-box: {{ s.social_size | default: 18 | plus: 18 }}px;
+    --hp-ft-soc-ink: {{ s.social_color | default: '#5C6150' }};
+    --hp-ft-soc-ring: {{ s.social_ring_color | default: '#D8DCCE' }};
+    --hp-ft-soc-fill: {{ s.social_fill | default: 'rgba(0,0,0,0)' }};
   "
 >
+  {%- if s.show_pebbles != false -%}
+    <div class="hp-ft__pebbles" aria-hidden="true">
+      <span class="hp-ft__pebble hp-ft__pebble--l"></span>
+      <span class="hp-ft__pebble hp-ft__pebble--r"></span>
+    </div>
+  {%- endif -%}
   <div class="hp-ft__inner">
     <div class="hp-ft__top">
       <div class="hp-ft__brand">
@@ -294,6 +427,97 @@
           {%- endfor -%}
         </ul>
       {%- endif -%}
+
+      {%- liquid
+        assign soc_any = false
+        assign urls = ''
+        assign urls = urls | append: s.social_instagram | append: s.social_tiktok
+        assign urls = urls | append: s.social_facebook | append: s.social_pinterest
+        assign urls = urls | append: s.social_youtube | append: s.social_x
+        if urls != blank
+          assign soc_any = true
+        endif
+
+        assign show_soc = false
+        unless s.show_social == false
+          if soc_any
+            assign show_soc = true
+          elsif s.social_placeholders != false
+            assign show_soc = true
+          endif
+        endunless
+      -%}
+
+      {%- comment -%}
+        A for tag takes a variable or a range, never a filtered expression, so
+        the split happens on its own line first.
+      {%- endcomment -%}
+      {%- assign soc_names = 'instagram,tiktok,facebook,pinterest,youtube,x' | split: ',' -%}
+
+      {%- if show_soc -%}
+        <ul class="hp-ft__social">
+          {%- for name in soc_names -%}
+            {%- liquid
+              case name
+                when 'instagram'
+                  assign href = s.social_instagram
+                  assign label = 'Instagram'
+                when 'tiktok'
+                  assign href = s.social_tiktok
+                  assign label = 'TikTok'
+                when 'facebook'
+                  assign href = s.social_facebook
+                  assign label = 'Facebook'
+                when 'pinterest'
+                  assign href = s.social_pinterest
+                  assign label = 'Pinterest'
+                when 'youtube'
+                  assign href = s.social_youtube
+                  assign label = 'YouTube'
+                when 'x'
+                  assign href = s.social_x
+                  assign label = 'X'
+              endcase
+
+              assign draw = false
+              if href != blank
+                assign draw = true
+              elsif soc_any == false
+                assign draw = true
+              endif
+            -%}
+
+            {%- if draw -%}
+              <li>
+                {%- if href != blank -%}
+                  <a class="hp-ft__social-link" href="{{ href }}" rel="noopener" target="_blank">
+                    <span class="hp-ft__sr">{{ label }}</span>
+                {%- else -%}
+                  <span class="hp-ft__social-link hp-ft__social-link--ph" aria-hidden="true">
+                {%- endif -%}
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    {%- case name -%}
+                      {%- when 'instagram' -%}
+                        <path d="M12 2.2c-2.7 0-3 0-4.1.06-1 .05-1.8.2-2.4.45a4.8 4.8 0 0 0-1.8 1.15A4.8 4.8 0 0 0 2.7 5.6c-.25.6-.4 1.3-.45 2.4C2.2 9.1 2.2 9.4 2.2 12s0 2.9.06 4c.05 1.1.2 1.8.45 2.4a4.8 4.8 0 0 0 1.15 1.8 4.8 4.8 0 0 0 1.8 1.15c.6.25 1.3.4 2.4.45 1.1.06 1.4.06 4.1.06s3 0 4.1-.06c1.1-.05 1.8-.2 2.4-.45a5.1 5.1 0 0 0 2.95-2.95c.25-.6.4-1.3.45-2.4.06-1.1.06-1.4.06-4s0-2.9-.06-4c-.05-1.1-.2-1.8-.45-2.4a4.8 4.8 0 0 0-1.15-1.8 4.8 4.8 0 0 0-1.8-1.15c-.6-.25-1.3-.4-2.4-.45-1.1-.06-1.4-.06-4.1-.06zm0 1.8c2.67 0 2.98 0 4.03.06.97.04 1.5.2 1.85.34.47.18.8.4 1.15.75.35.35.57.68.75 1.15.14.35.3.88.34 1.85.05 1.05.06 1.36.06 4.03s0 2.98-.06 4.03c-.04.97-.2 1.5-.34 1.85-.18.47-.4.8-.75 1.15-.35.35-.68.57-1.15.75-.35.14-.88.3-1.85.34-1.05.05-1.36.06-4.03.06s-2.98 0-4.03-.06c-.97-.04-1.5-.2-1.85-.34a3.1 3.1 0 0 1-1.15-.75 3.1 3.1 0 0 1-.75-1.15c-.14-.35-.3-.88-.34-1.85C4 14.98 4 14.67 4 12s0-2.98.06-4.03c.04-.97.2-1.5.34-1.85.18-.47.4-.8.75-1.15.35-.35.68-.57 1.15-.75.35-.14.88-.3 1.85-.34C9.02 4 9.33 4 12 4z"/>
+                        <path d="M12 15.3a3.3 3.3 0 1 1 0-6.6 3.3 3.3 0 0 1 0 6.6zm0-8.4a5.1 5.1 0 1 0 0 10.2 5.1 5.1 0 0 0 0-10.2zM18.6 6.7a1.2 1.2 0 1 1-2.4 0 1.2 1.2 0 0 1 2.4 0z"/>
+                      {%- when 'tiktok' -%}
+                        <path d="M16.6 2.2h-3v13.1a2.6 2.6 0 1 1-2.6-2.6c.27 0 .53.04.78.12V9.7a5.7 5.7 0 0 0-.78-.06 5.7 5.7 0 1 0 5.7 5.7V8.6a6.6 6.6 0 0 0 4 1.35V6.85a3.7 3.7 0 0 1-3.1-3.2 4 4 0 0 1-.03-.4z"/>
+                      {%- when 'facebook' -%}
+                        <path d="M22 12a10 10 0 1 0-11.56 9.88v-6.99H7.9V12h2.54V9.8c0-2.5 1.5-3.89 3.77-3.89 1.1 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.45 2.89h-2.33v6.99A10 10 0 0 0 22 12z"/>
+                      {%- when 'pinterest' -%}
+                        <path d="M12 2.2a9.8 9.8 0 0 0-3.57 18.93c-.08-.77-.16-1.95.03-2.79.17-.76 1.14-4.83 1.14-4.83s-.29-.58-.29-1.44c0-1.35.78-2.36 1.76-2.36.83 0 1.23.62 1.23 1.37 0 .84-.53 2.09-.81 3.25-.23.98.49 1.77 1.45 1.77 1.74 0 3.08-1.84 3.08-4.49 0-2.35-1.69-3.99-4.1-3.99-2.79 0-4.43 2.09-4.43 4.26 0 .84.32 1.75.73 2.24.08.1.09.18.07.28l-.27 1.11c-.04.18-.14.22-.33.13-1.23-.57-2-2.37-2-3.81 0-3.1 2.25-5.95 6.5-5.95 3.41 0 6.06 2.43 6.06 5.68 0 3.39-2.14 6.12-5.1 6.12-1 0-1.93-.52-2.25-1.13l-.61 2.34c-.22.85-.82 1.91-1.22 2.56A9.8 9.8 0 1 0 12 2.2z"/>
+                      {%- when 'youtube' -%}
+                        <path d="M21.6 7.2a2.5 2.5 0 0 0-1.76-1.77C18.28 5 12 5 12 5s-6.28 0-7.84.43A2.5 2.5 0 0 0 2.4 7.2 26 26 0 0 0 2 12a26 26 0 0 0 .4 4.8 2.5 2.5 0 0 0 1.76 1.77C5.72 19 12 19 12 19s6.28 0 7.84-.43a2.5 2.5 0 0 0 1.76-1.77A26 26 0 0 0 22 12a26 26 0 0 0-.4-4.8zM10 15.1V8.9l5.2 3.1z"/>
+                      {%- when 'x' -%}
+                        <path d="M17.7 3h3.3l-7.2 8.24L22.3 21h-6.63l-5.2-6.79L4.53 21H1.22l7.7-8.8L1.7 3h6.8l4.7 6.2zm-1.16 16h1.83L7.53 4.9H5.57z"/>
+                    {%- endcase -%}
+                  </svg>
+                {%- if href != blank -%}</a>{%- else -%}</span>{%- endif -%}
+              </li>
+            {%- endif -%}
+          {%- endfor -%}
+        </ul>
+      {%- endif -%}
     </div>
   </div>
 </footer>
@@ -356,6 +580,57 @@
       "label": "After the copyright",
       "info": "Optional. A company number, or where the Pals are made."
     },
+    { "type": "header", "content": "Decorative pebbles" },
+    {
+      "type": "checkbox",
+      "id": "show_pebbles",
+      "label": "Show the pebbles",
+      "default": true,
+      "info": "The same lopsided shape the Pals picker uses. They hang off the sides and the footer clips them, so they never widen the page. Hidden below 750px, where the columns reach the edges and a pebble would sit under the words."
+    },
+    { "type": "color", "id": "pebble_color_1", "label": "Left pebble", "default": "#CFE1B9" },
+    { "type": "color", "id": "pebble_color_2", "label": "Right pebble", "default": "#F7DDCD" },
+    {
+      "type": "range",
+      "id": "pebble_opacity",
+      "label": "Pebble opacity",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "default": 40,
+      "info": "Low is the point: they sit behind the words, not beside them."
+    },
+    { "type": "range", "id": "pebble_size", "label": "Pebble size", "unit": "px", "min": 120, "max": 460, "step": 10, "default": 300 },
+    { "type": "header", "content": "Social" },
+    { "type": "checkbox", "id": "show_social", "label": "Show social icons", "default": true },
+    {
+      "type": "checkbox",
+      "id": "social_placeholders",
+      "label": "Show placeholders while the links are empty",
+      "default": true,
+      "info": "Faded and unclickable, so the row reads before the accounts exist. As soon as one link is filled in, only the filled-in ones are shown."
+    },
+    {
+      "type": "select",
+      "id": "social_style",
+      "label": "Icon style",
+      "options": [
+        { "value": "ring", "label": "In a circle" },
+        { "value": "plain", "label": "Plain glyph" }
+      ],
+      "default": "ring"
+    },
+    { "type": "range", "id": "social_size", "label": "Icon size", "unit": "px", "min": 12, "max": 30, "step": 1, "default": 18 },
+    { "type": "color", "id": "social_color", "label": "Icon colour", "default": "#5C6150" },
+    { "type": "color", "id": "social_ring_color", "label": "Circle outline", "default": "#D8DCCE" },
+    { "type": "color", "id": "social_fill", "label": "Circle fill", "default": "rgba(0,0,0,0)" },
+    { "type": "url", "id": "social_instagram", "label": "Instagram" },
+    { "type": "url", "id": "social_tiktok", "label": "TikTok" },
+    { "type": "url", "id": "social_facebook", "label": "Facebook" },
+    { "type": "url", "id": "social_pinterest", "label": "Pinterest" },
+    { "type": "url", "id": "social_youtube", "label": "YouTube" },
+    { "type": "url", "id": "social_x", "label": "X" },
     { "type": "header", "content": "Colours" },
     { "type": "color", "id": "background", "label": "Background", "default": "#FCFBF6" },
     { "type": "color", "id": "heading_color", "label": "Headings and store name", "default": "#2F3326" },

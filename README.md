@@ -1054,3 +1054,42 @@ came first. Matching Dawn's own shape adds a fourth class and settles it.
 after Dawn's and once before it, which is what caught that. It is a test of
 override mechanics — specificity and load order — not of Dawn: it would not
 catch a Dawn version that renames a class.
+
+## Pebbles and social icons in the footer
+
+The footer borrows the Pals picker's pebbles: the same lopsided radius, and
+the same placement rule — each is positioned by its **inner** edge with the
+rest hanging off the side for the band to clip. Offsetting by a share of the
+pebble's own width instead would let a bigger pebble reach further in, and the
+columns come closest to the edge at exactly the widths where the pebble is
+largest.
+
+`overflow: clip` on the band is what makes that safe; without it the pebbles
+widen the page by nearly 200px at 1440. Removing it fails the overflow checks
+at three widths at once. They stand down below 750px, where the columns reach
+the edges and a pebble would sit under the words rather than beside them.
+
+Colour is per pebble and opacity is shared, both settings. Low opacity is the
+point: they sit behind the words, and `.hp-ft__inner` carries `z-index: 1` to
+keep it that way.
+
+### Placeholders that are not links
+
+The social row shows six faded icons while every URL is empty, so the design
+reads before the accounts exist. Fill any one and the placeholders vanish,
+leaving only what is set. A placeholder is a `<span>`, not an `<a>`, and is
+`aria-hidden`: a link to nowhere is worse than no link, and an icon with no
+accessible name is worse still. Real ones carry a visually hidden label.
+
+### Two Liquid rules this ran into
+
+- **A `for` tag takes a variable or a range, never a filtered expression.**
+  `{% for name in 'a,b' | split: ',' %}` is a syntax error; the split has to
+  happen on its own line first.
+- **`and` and `or` have no precedence in Liquid and bind right to left.** A
+  mixed condition is a guess about what it groups; work the answer out in a
+  `{% liquid %}` block and test one variable.
+
+`check-schemas.py` also had a bug this turned up: it matched setting names
+with `[a-z_]+`, which stops at a digit, so `s.pebble_color_1` was read as
+`s.pebble_color_` and reported as undeclared. Ids may contain digits.

@@ -56,6 +56,37 @@ setTimeout(function () {
       document.querySelector('.hp-ft__cols .hp-ft__link')).color : null,
     titleInk: getComputedStyle(document.querySelector('.hp-ft__col-title')).color,
     copyInk: copy ? getComputedStyle(copy).color : null,
+    pebbles: [].map.call(document.querySelectorAll('.hp-ft__pebble'), function (e) {
+      var c = getComputedStyle(e);
+      return { display: c.display, bg: c.backgroundColor, op: c.opacity,
+               radius: c.borderTopLeftRadius, z: c.zIndex, box: box(e) };
+    }),
+    pebbleLayer: (function () {
+      var w = document.querySelector('.hp-ft__pebbles');
+      var inner = document.querySelector('.hp-ft__inner');
+      if (!w || !inner) return null;
+      return { wrap: getComputedStyle(w).zIndex,
+               inner: getComputedStyle(inner).zIndex,
+               events: getComputedStyle(w).pointerEvents };
+    })(),
+    ftOverflow: getComputedStyle(ft).overflowX,
+    social: [].map.call(document.querySelectorAll('.hp-ft__social-link'), function (e) {
+      return { tag: e.tagName, href: e.getAttribute('href'),
+               name: (e.querySelector('.hp-ft__sr') || {}).textContent || null,
+               hidden: e.getAttribute('aria-hidden'),
+               ph: e.classList.contains('hp-ft__social-link--ph'),
+               border: getComputedStyle(e).borderTopWidth,
+               ink: getComputedStyle(e).color,
+               box: box(e) };
+    }),
+    socialBox: (function () {
+      var u = document.querySelector('.hp-ft__social');
+      return u ? box(u) : null;
+    })(),
+    bottomBox: (function () {
+      var b = document.querySelector('.hp-ft__bottom');
+      return b ? box(b) : null;
+    })(),
     docW: document.documentElement.scrollWidth,
     winW: window.innerWidth
   });
@@ -171,6 +202,86 @@ for label, key, floor in (('links', 'linkInk', 4.5), ('column headings', 'titleI
                           ('the copyright line', 'copyInk', 4.5)):
     c = contrast(rgb(d[key]), bg)
     check(f'{label} clear {floor}:1 on the background', c >= floor, f"{c}:1")
+
+# ------------------------------------------------------------- the pebbles --
+d = run({}, 'pebbles')
+check('two pebbles sit in the band',
+      len(d['pebbles']) == 2, f"{len(d['pebbles'])} pebbles")
+check('and they wear the brand shape, not a circle',
+      all('%' in p['radius'] for p in d['pebbles']),
+      f"radius {d['pebbles'][0]['radius']}")
+check('each takes its own colour',
+      d['pebbles'][0]['bg'] != d['pebbles'][1]['bg'],
+      f"{d['pebbles'][0]['bg']} and {d['pebbles'][1]['bg']}")
+check('they are faint by default, so the words stay first',
+      all(float(p['op']) <= 0.5 for p in d['pebbles']),
+      f"opacity {[p['op'] for p in d['pebbles']]}")
+check('and they sit behind the content, ignoring the mouse',
+      d['pebbleLayer']['wrap'] == '0' and d['pebbleLayer']['inner'] == '1'
+      and d['pebbleLayer']['events'] == 'none',
+      f"pebbles z{d['pebbleLayer']['wrap']}, content z{d['pebbleLayer']['inner']}, "
+      f"pointer-events {d['pebbleLayer']['events']}")
+
+faint = run({'settings': {'pebble_opacity': 10}}, 'faint')
+check('the opacity is a setting',
+      all(abs(float(p['op']) - 0.1) < 0.001 for p in faint['pebbles']),
+      f"10% renders {faint['pebbles'][0]['op']}")
+
+hue = run({'settings': {'pebble_color_1': '#D88B6D'}}, 'hue')
+check('and so is the colour',
+      rgb(hue['pebbles'][0]['bg']) == [216, 139, 109],
+      f"{hue['pebbles'][0]['bg']}")
+
+check('the band clips whatever hangs off its sides',
+      d['ftOverflow'] in ('clip', 'hidden'), f"overflow-x {d['ftOverflow']}")
+check('so a pebble hanging off the edge never widens the page',
+      d['docW'] <= d['winW'], f"document {d['docW']}px in {d['winW']}px")
+
+off = run({'settings': {'show_pebbles': False}}, 'no-pebbles')
+check('they can be turned off',
+      len(off['pebbles']) == 0, 'no pebbles rendered')
+
+small = run({}, 'pebbles-phone', width=500)
+check('and they stand down where the columns reach the edges',
+      all(p['display'] == 'none' for p in small['pebbles']),
+      f"display {[p['display'] for p in small['pebbles']]} at 500px")
+
+# -------------------------------------------------------------- the social --
+check('with no links set, the row shows placeholders so it still reads',
+      len(d['social']) == 6 and all(s['ph'] for s in d['social']),
+      f"{len(d['social'])} icons, all placeholders")
+check('and a placeholder is not a link, nor read out',
+      all(s['tag'] != 'A' and s['hidden'] == 'true' for s in d['social']),
+      'every placeholder is a span, aria-hidden')
+
+filled = run({'settings': {'social_instagram': 'https://instagram.com/totterful',
+                           'social_tiktok': 'https://tiktok.com/@totterful'}}, 'social')
+check('filling one link drops the placeholders and shows only what is set',
+      len(filled['social']) == 2 and all(s['tag'] == 'A' for s in filled['social']),
+      f"{len(filled['social'])} icons, all real links")
+check('and each is named for a screen reader',
+      [s['name'] for s in filled['social']] == ['Instagram', 'TikTok'],
+      f"{[s['name'] for s in filled['social']]}")
+check('they sit at the far end of the bottom row',
+      filled['socialBox']['r'] >= filled['bottomBox']['r'] - 2,
+      f"social ends {filled['socialBox']['r']}, row ends {filled['bottomBox']['r']}")
+check('the icons ride in a circle by default',
+      filled['social'][0]['border'] == '1px',
+      f"outline {filled['social'][0]['border']}")
+
+plain = run({'settings': {'social_style': 'plain',
+                          'social_instagram': 'https://instagram.com/x'}}, 'social-plain')
+check('and can be bare glyphs instead',
+      plain['social'][0]['border'] == '0px',
+      f"outline {plain['social'][0]['border']}")
+
+check('the social icons read against the footer',
+      contrast(rgb(filled['social'][0]['ink']), rgb(filled['bg'])) >= 3,
+      f"{contrast(rgb(filled['social'][0]['ink']), rgb(filled['bg']))}:1")
+
+hidden = run({'settings': {'show_social': False}}, 'no-social')
+check('and the whole row can be turned off',
+      len(hidden['social']) == 0, 'no social icons rendered')
 
 print(f"\n{sum(res)}/{len(res)} passed")
 sys.exit(0 if all(res) else 1)

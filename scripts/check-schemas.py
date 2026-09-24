@@ -121,7 +121,7 @@ def check(path):
     # a setting read in the body but never declared renders as nothing
     body = text[: text.index("{% schema %}")]
     declared = {s["id"] for s in schema.get("settings", []) if s.get("id")}
-    for used in sorted(set(re.findall(r"\bs\.([a-z_]+)", body))):
+    for used in sorted(set(re.findall(r"\bs\.([a-z0-9_]+)", body))):
         if used not in declared:
             problems.append(f"{path.name}: body reads s.{used}, which no setting declares")
 
@@ -133,7 +133,7 @@ def check(path):
     # ignore the warning.
     css = ''.join(re.findall(r"\{%\s*style\s*%\}(.*?)\{%\s*endstyle\s*%\}", body, re.S))
     css += ''.join(re.findall(r'style="(.*?)"', body, re.S))
-    for bare in sorted(set(re.findall(r"\{\{ s\.([a-z_]+)\s*\}\}", css))):
+    for bare in sorted(set(re.findall(r"\{\{ s\.([a-z0-9_]+)\s*\}\}", css))):
         problems.append(f"{path.name}: {{{{ s.{bare} }}}} has no `| default:` fallback")
 
     return problems

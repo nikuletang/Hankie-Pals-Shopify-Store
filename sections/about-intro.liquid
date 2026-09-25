@@ -100,6 +100,11 @@
   endcase
 
   case shape
+    when 'blob'
+      # Lopsided, each edge's radius pair summing to 100% -- the same shape
+      # language as the hero blob and the problem cards, pushed further than
+      # the pebble so the two options are told apart at a glance.
+      assign shape_css = '64% 36% 58% 42% / 42% 56% 44% 58%'
     when 'pebble'
       assign shape_css = '45% 55% 50% 50% / 55% 45% 55% 45%'
     when 'soft'
@@ -111,6 +116,11 @@
   endcase
 
   assign alt_text = s.image_alt | default: ''
+
+  assign motion = s.reveal | default: 'rise'
+  assign rev_dur = s.reveal_duration | default: 620
+  assign rev_stag = s.reveal_stagger | default: 110
+  assign rev_rise = s.reveal_distance | default: 18
 -%}
 
 {% style %}
@@ -304,6 +314,65 @@
     background: var(--hp-ai-pill-dot);
   }
 
+  /* --- Arriving -----------------------------------------------------------
+     The hidden start state exists only while the section carries
+     hp-ai--reveal, and the script drops that class the moment it cannot
+     animate. The failure mode is the words simply being there, never an
+     About page stuck at opacity 0. */
+  hp-ai-reveal { display: block; }
+
+  .hp-ai--reveal [data-reveal] { opacity: 0; }
+
+  .hp-ai--reveal [data-reveal].is-in {
+    opacity: 1;
+    animation: var(--hp-ai-anim) {{ rev_dur }}ms cubic-bezier(0.3, 0.8, 0.4, 1) both;
+  }
+
+  .hp-ai--fade [data-reveal].is-in { --hp-ai-anim: hp-ai-fade; }
+  .hp-ai--rise [data-reveal].is-in { --hp-ai-anim: hp-ai-rise; }
+
+  /* A pill is already held in place by a transform, so its keyframes have to
+     carry that transform too or the animation would drop it back to the
+     photograph's top-left corner. */
+  .hp-ai--reveal .hp-ai__pill.is-in { --hp-ai-anim: hp-ai-pill-in; }
+
+  @keyframes hp-ai-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes hp-ai-rise {
+    from { opacity: 0; transform: translateY({{ rev_rise }}px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes hp-ai-pill-in {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -50%) rotate(var(--tx)) scale(0.92);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) rotate(var(--tx)) scale(1);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hp-ai--reveal [data-reveal],
+    .hp-ai--reveal [data-reveal].is-in {
+      opacity: 1;
+      animation: none;
+      transform: none;
+    }
+
+    /* Except the pills, whose transform is their position rather than their
+       animation -- clearing it would move them off what they point at. */
+    .hp-ai--reveal .hp-ai__pill,
+    .hp-ai--reveal .hp-ai__pill.is-in {
+      transform: translate(-50%, -50%) rotate(var(--tx));
+    }
+  }
+
   @media screen and (max-width: 989px) {
     .hp-ai { padding: {{ pad_tm }}px 0 {{ pad_bm }}px; }
 
@@ -349,7 +418,7 @@
 {% endstyle %}
 
 <section
-  class="hp-ai hp-ai--eb-{{ eb_style }} hp-ai--{{ align }} hp-ai--m-{% if mobile == 'photo_above' %}above{% else %}below{% endif %}"
+  class="hp-ai hp-ai--eb-{{ eb_style }} hp-ai--{{ align }} hp-ai--m-{% if mobile == 'photo_above' %}above{% else %}below{% endif %}{% if motion != 'none' %} hp-ai--reveal hp-ai--{{ motion }}{% endif %}"
   style="
     --hp-ai-bg: {{ s.background_color | default: '#FCFBF6' }};
     --hp-ai-panel: {{ s.panel_color | default: '#E9F5DB' }};
@@ -378,6 +447,7 @@
     --hp-ai-ovm: {{ overlap_m }}px;
   "
 >
+  <hp-ai-reveal data-stagger="{{ rev_stag }}" data-duration="{{ rev_dur }}">
   <div class="hp-ai__inner">
     <div class="hp-ai__grid">
       <div class="hp-ai__panel">
@@ -387,18 +457,18 @@
 
         <div class="hp-ai__text">
           {%- if s.eyebrow != blank -%}
-            <p class="hp-ai__eyebrow">
+            <p class="hp-ai__eyebrow" data-reveal>
               <span class="hp-ai__eyebrow-dot" aria-hidden="true"></span>
               <span>{{ s.eyebrow | escape }}</span>
             </p>
           {%- endif -%}
 
           {%- if s.heading != blank -%}
-            <{{ tag }} class="hp-ai__heading">{{ s.heading | escape | newline_to_br }}</{{ tag }}>
+            <{{ tag }} class="hp-ai__heading" data-reveal>{{ s.heading | escape | newline_to_br }}</{{ tag }}>
           {%- endif -%}
 
           {%- if s.body != blank -%}
-            <div class="hp-ai__body">{{ s.body }}</div>
+            <div class="hp-ai__body" data-reveal>{{ s.body }}</div>
           {%- endif -%}
         </div>
       </div>
@@ -408,7 +478,7 @@
           <span class="hp-ai__pebble hp-ai__pebble--photo" aria-hidden="true"></span>
         {%- endif -%}
 
-        <div class="hp-ai__media">
+        <div class="hp-ai__media" data-reveal>
           {%- if s.image != blank -%}
             {{
               s.image
@@ -432,6 +502,7 @@
             <span
               class="hp-ai__pill"
               style="--px: {{ px }}%; --py: {{ py }}%; --tx: {{ tx }}deg;"
+              data-reveal
               {{ block.shopify_attributes }}
             >
               <span class="hp-ai__pill-dot" aria-hidden="true"></span>
@@ -442,7 +513,95 @@
       </figure>
     </div>
   </div>
+  </hp-ai-reveal>
 </section>
+
+<noscript>
+  <style>
+    .hp-ai--reveal [data-reveal] { opacity: 1; }
+  </style>
+</noscript>
+
+<script>
+  (function () {
+    if (customElements.get('hp-ai-reveal')) return;
+
+    customElements.define('hp-ai-reveal', class extends HTMLElement {
+      connectedCallback() {
+        // Anything unexpected in here ends with the words on screen, never
+        // with a section stuck at opacity 0.
+        try {
+          this.root = this.closest('.hp-ai');
+          this.items = this.querySelectorAll('[data-reveal]');
+
+          if (!this.root || !this.root.classList.contains('hp-ai--reveal')) return;
+          if (!this.items.length) return this.revealAll();
+          if (!('IntersectionObserver' in window)) return this.revealAll();
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            return this.revealAll();
+          }
+
+          this.stagger = parseInt(this.dataset.stagger, 10) || 0;
+          this.duration = parseInt(this.dataset.duration, 10) || 0;
+          this.timers = [];
+
+          this.observer = new IntersectionObserver(this.onIntersect.bind(this), {
+            rootMargin: '0px 0px -10% 0px',
+            threshold: 0
+          });
+          this.observer.observe(this);
+        } catch (e) {
+          this.revealAll();
+        }
+      }
+
+      // The theme editor tears a section down and rebuilds it on every change,
+      // so the observer has to go with it.
+      disconnectedCallback() {
+        if (this.observer) this.observer.disconnect();
+        this.clearTimers();
+      }
+
+      onIntersect(entries) {
+        var self = this;
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          self.play();
+          if (self.observer) self.observer.unobserve(self);
+        });
+      }
+
+      play() {
+        var self = this;
+        this.clearTimers();
+
+        Array.prototype.forEach.call(this.items, function (el, i) {
+          var delay = i * self.stagger;
+          el.style.animationDelay = delay + 'ms';
+          el.classList.add('is-in');
+
+          // Once this piece has arrived its delay has done its job. Left set,
+          // it would hold back anything that animates the element later.
+          self.timers.push(window.setTimeout(function () {
+            if (el.classList.contains('is-in')) el.style.animationDelay = '';
+          }, delay + self.duration + 80));
+        });
+      }
+
+      clearTimers() {
+        if (!this.timers) return;
+        this.timers.forEach(window.clearTimeout);
+        this.timers = [];
+      }
+
+      // The class the hidden start state hangs off, so dropping it cannot
+      // leave anything invisible.
+      revealAll() {
+        if (this.root) this.root.classList.remove('hp-ai--reveal');
+      }
+    });
+  })();
+</script>
 
 {% schema %}
 {
@@ -532,6 +691,7 @@
       "label": "Photo shape",
       "options": [
         { "value": "arch", "label": "Arch" },
+        { "value": "blob", "label": "Blob" },
         { "value": "pebble", "label": "Pebble" },
         { "value": "soft", "label": "Soft rectangle" },
         { "value": "circle", "label": "Circle" }
@@ -613,6 +773,33 @@
     { "type": "range", "id": "min_height", "label": "Minimum height", "unit": "px", "min": 320, "max": 700, "step": 10, "default": 460 },
     { "type": "range", "id": "padding_top", "label": "Top padding", "unit": "px", "min": 0, "max": 160, "step": 8, "default": 88 },
     { "type": "range", "id": "padding_bottom", "label": "Bottom padding", "unit": "px", "min": 0, "max": 160, "step": 8, "default": 88 },
+
+    { "type": "header", "content": "Animation" },
+    {
+      "type": "select",
+      "id": "reveal",
+      "label": "How the section arrives",
+      "options": [
+        { "value": "rise", "label": "Fade up" },
+        { "value": "fade", "label": "Fade only" },
+        { "value": "none", "label": "No animation" }
+      ],
+      "default": "rise",
+      "info": "Plays once, when the section scrolls into view. Anyone who has asked their device to reduce motion sees it arrive already in place."
+    },
+    { "type": "range", "id": "reveal_duration", "label": "Length", "unit": "ms", "min": 200, "max": 1200, "step": 20, "default": 620 },
+    {
+      "type": "range",
+      "id": "reveal_stagger",
+      "label": "Gap between pieces",
+      "unit": "ms",
+      "min": 0,
+      "max": 300,
+      "step": 10,
+      "default": 110,
+      "info": "The eyebrow, heading and paragraph arrive first, then the photo, then the labels on it. Set this to 0 and they all arrive together."
+    },
+    { "type": "range", "id": "reveal_distance", "label": "Rise distance", "unit": "px", "min": 0, "max": 60, "step": 2, "default": 18 },
 
     { "type": "header", "content": "Mobile" },
     {

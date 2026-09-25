@@ -8,6 +8,14 @@ that neither of those two facts ever costs the page a sideways scrollbar.
 
 The pills are placed by percentage of the photograph's own box, so their place
 has to hold at 1400px and at 390px alike.
+
+The section fades in, which every measurement of where something sits has to
+be held clear of: under a virtual time budget an animation advances some
+unpredictable way into its first frames, so a box measured while it is running
+is a box measured at neither end of it. Every geometry check below therefore
+renders with the reveal disabled -- the state a reduced-motion visitor gets,
+and the state the animation finishes in -- and the animation itself is
+measured separately, after it has had the time to finish.
 """
 import json, re, subprocess, sys, pathlib
 from PIL import Image, ImageDraw
@@ -17,6 +25,19 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 SECTION = ROOT / 'sections' / 'about-intro.liquid'
 HERE = ROOT / 'scripts'
 TMP = pathlib.Path('/tmp/claude-0')
+
+STILL = """<style>
+  .hp-ai--reveal [data-reveal],
+  .hp-ai--reveal [data-reveal].is-in {
+    opacity: 1 !important;
+    animation: none !important;
+    transform: none !important;
+  }
+  .hp-ai--reveal .hp-ai__pill,
+  .hp-ai--reveal .hp-ai__pill.is-in {
+    transform: translate(-50%, -50%) rotate(var(--tx)) !important;
+  }
+</style>"""
 
 PROBE = """
 function bx(e){if(!e)return null;var r=e.getBoundingClientRect();
@@ -68,28 +89,49 @@ function snap(d,w){
       return {box:bx(e), text:e.textContent.trim(),
               z:w.getComputedStyle(e).zIndex};}),
     hasButton: !!d.querySelector('.hp-ai a, .hp-ai button'),
+    revealClass: sec?sec.classList.contains('hp-ai--reveal'):null,
+    revealed:[].map.call(d.querySelectorAll('[data-reveal]'),function(e){
+      return {cls:e.className.replace(/hp-ai__/g,''), isIn:e.classList.contains('is-in'),
+              op:w.getComputedStyle(e).opacity,
+              tf:w.getComputedStyle(e).transform};}),
     docW:d.documentElement.scrollWidth, winW:w.innerWidth};
 }
 """
 
 
-def render(name, overrides):
+def render(name, overrides, still=True):
     page = TMP / f'ai-{name}.html'
     subprocess.run([sys.executable, str(HERE / 'render-section.py'), str(SECTION),
                     json.dumps(overrides or {}), str(page)], check=True,
                    capture_output=True)
+    if still:
+        page.write_text(page.read_text(encoding='utf-8').replace(
+            '</body>', STILL + '</body>'), encoding='utf-8')
     return page
 
 
-def run(name, width=1400, overrides=None):
-    page = render(name, overrides)
-    page.write_text(page.read_text(encoding='utf-8').replace('</body>',
+SETTLE = ("document.getAnimations().forEach(function(a){"
+          "try{a.finish();}catch(e){}});")
+
+
+def run(name, width=1400, overrides=None, still=True, wait=400, budget=6000,
+        flags=(), settle=False, sabotage=None):
+    page = render(name, overrides, still)
+    html = page.read_text(encoding='utf-8')
+    if sabotage:
+        # Runs before the section's own script, so the section meets the
+        # broken browser rather than being broken after the fact.
+        html = html.replace('<body>', f'<body><script>{sabotage}</script>', 1)
+    html = html.replace('</body>',
         '<script>' + PROBE +
-        "setTimeout(function(){document.title='RESULT'+JSON.stringify("
-        "snap(document,window));},400);</script></body>"), encoding='utf-8')
+        "setTimeout(function(){" + (SETTLE if settle else '') +
+        "document.title='RESULT'+JSON.stringify("
+        f"snap(document,window));}},{wait});</script></body>")
+    page.write_text(html, encoding='utf-8')
     dom = subprocess.run([CHROME, '--headless', '--no-sandbox', '--disable-gpu',
-        f'--window-size={width},1400', '--virtual-time-budget=6000', '--dump-dom',
-        'file://' + str(page)], capture_output=True, text=True, timeout=180).stdout
+        f'--window-size={width},1400', f'--virtual-time-budget={budget}', *flags,
+        '--dump-dom', 'file://' + str(page)],
+        capture_output=True, text=True, timeout=180).stdout
     m = re.search(r'<title>RESULT(.*?)</title>', dom, re.S)
     if not m:
         raise SystemExit('no measurement for ' + name)
@@ -408,6 +450,107 @@ deep = framed('phone-deep', 360, {'settings': dict(WITH_PHOTO['settings'],
 check('not even with the overlap and the pebbles pushed to their limits',
       deep['docW'] <= deep['winW'] + 1,
       f"document {deep['docW']}px in {deep['winW']}px")
+
+# ------------------------------------------------------------ the blob ----
+# Two organic shapes in one menu are only worth having if they are told apart,
+# so the blob has to be a different shape from the pebble rather than a second
+# name for it.
+shapes = {}
+for shape_name in ('arch', 'blob', 'pebble', 'soft', 'circle'):
+    shapes[shape_name] = run(f'shape-{shape_name}', overrides={'settings': dict(
+        WITH_PHOTO['settings'], photo_shape=shape_name)})['media']['radius']
+check('each photo shape is a different shape',
+      len(set(shapes.values())) == 5,
+      '; '.join(f"{k} {v}" for k, v in shapes.items()))
+check('and the blob is lopsided, where the pebble is nearly even',
+      shapes['blob'] != shapes['pebble']
+      and abs(float(shapes['blob'].split()[0].rstrip('%')) - 50)
+      > abs(float(shapes['pebble'].split()[0].rstrip('%')) - 50),
+      f"blob {shapes['blob']}, pebble {shapes['pebble']}")
+
+# ------------------------------------------------------ the section arrives --
+# The animation's only unacceptable failure is words that never appear, so
+# most of what follows is the same question asked of a different way for the
+# script not to run.
+anim = run('anim', overrides=WITH_PHOTO, still=False, wait=1200, budget=12000,
+           settle=True)
+order = [r['cls'].split()[0] for r in anim['revealed']]
+check('every piece of the section is marked to arrive',
+      len(anim['revealed']) == 6, f"{len(anim['revealed'])} pieces: {order}")
+check('the words arrive first, then the photo, then the labels on it',
+      order == ['eyebrow', 'heading', 'body', 'media', 'pill', 'pill'], f"{order}")
+check('the script marks every piece as arrived',
+      all(r['isIn'] for r in anim['revealed']),
+      f"is-in on {sum(r['isIn'] for r in anim['revealed'])} of {len(anim['revealed'])}")
+check('and the animation ends with not one piece left invisible',
+      all(float(r['op']) > 0.99 for r in anim['revealed']),
+      f"opacity {[r['op'] for r in anim['revealed']]}")
+check('a pill lands back on its mark rather than in the photo corner',
+      abs(anim['pills'][0]['box']['l'] + anim['pills'][0]['box']['w'] / 2
+          - (anim['media']['box']['l'] + 0.74 * anim['media']['box']['w'])) <= 4,
+      f"pill centre {round(anim['pills'][0]['box']['l'] + anim['pills'][0]['box']['w'] / 2)}"
+      f" against 74% of {anim['media']['box']['l']}-{anim['media']['box']['r']}")
+
+none = run('anim-none', overrides={'settings': dict(WITH_PHOTO['settings'],
+                                                    reveal='none')}, still=False)
+check('turning the animation off removes the hidden start state entirely',
+      none['revealClass'] is False
+      and all(float(r['op']) > 0.99 for r in none['revealed']),
+      f"reveal class {none['revealClass']}, opacity {[r['op'] for r in none['revealed']]}")
+
+reduced = run('anim-reduced', overrides=WITH_PHOTO, still=False,
+              flags=('--force-prefers-reduced-motion',))
+check('someone who has asked for less motion gets the section already in place',
+      all(float(r['op']) > 0.99 for r in reduced['revealed']),
+      f"opacity {[r['op'] for r in reduced['revealed']]}")
+
+# The check above passes through the script's own matchMedia branch, so on its
+# own it says nothing about the stylesheet. Taking customElements away stops
+# the script before it defines anything, which leaves the CSS as the only
+# thing standing between a reduced-motion visitor and an empty panel.
+css_only = run('anim-reduced-css', overrides=WITH_PHOTO, still=False,
+               flags=('--force-prefers-reduced-motion',),
+               sabotage='delete window.customElements;')
+check('and gets it from the stylesheet even if the script never runs at all',
+      css_only['revealClass'] is True
+      and all(float(r['op']) > 0.99 for r in css_only['revealed']),
+      f"reveal class still {css_only['revealClass']}, "
+      f"opacity {[r['op'] for r in css_only['revealed']]}")
+check('and the pills keep the transform that is their position, not their motion',
+      abs(reduced['pills'][0]['box']['l'] + reduced['pills'][0]['box']['w'] / 2
+          - (reduced['media']['box']['l'] + 0.74 * reduced['media']['box']['w'])) <= 4,
+      f"pill centre "
+      f"{round(reduced['pills'][0]['box']['l'] + reduced['pills'][0]['box']['w'] / 2)}"
+      f" against 74% of the photo")
+
+blind = run('anim-blind', overrides=WITH_PHOTO, still=False,
+            sabotage='delete window.IntersectionObserver;')
+check('a browser with no IntersectionObserver gets the words, not an empty panel',
+      blind['revealClass'] is False
+      and all(float(r['op']) > 0.99 for r in blind['revealed']),
+      f"reveal class {blind['revealClass']}, "
+      f"opacity {[r['op'] for r in blind['revealed']]}")
+
+broken = run('anim-broken', overrides=WITH_PHOTO, still=False,
+             sabotage='Object.defineProperty(window,"IntersectionObserver",'
+                      '{get:function(){throw new Error("boom");}});')
+check('and so does one where setting the observer up throws',
+      broken['revealClass'] is False
+      and all(float(r['op']) > 0.99 for r in broken['revealed']),
+      f"reveal class {broken['revealClass']}, "
+      f"opacity {[r['op'] for r in broken['revealed']]}")
+check('the section lays out the same way when the animation stands down',
+      blind['fig']['box']['l'] < blind['panel']['box']['r']
+      and blind['media']['box']['t'] < blind['panel']['box']['t'],
+      f"figure starts {blind['fig']['box']['l']}, panel ends {blind['panel']['box']['r']}")
+
+# The noscript block cannot be measured in a browser that runs the probe, so
+# this is a check on the file, and says so.
+source = SECTION.read_text(encoding='utf-8')
+check('and the file carries a noscript rule for a browser that runs no script',
+      '<noscript>' in source
+      and '.hp-ai--reveal [data-reveal] { opacity: 1; }' in source,
+      'noscript restores opacity on [data-reveal] (source check, not a render)')
 
 print(f"\n{sum(res)}/{len(res)} passed")
 sys.exit(0 if all(res) else 1)

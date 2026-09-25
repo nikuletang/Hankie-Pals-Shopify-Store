@@ -1,0 +1,665 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — About intro
+  ---------------------------------------------------------------------------
+  The opening statement of the About page: Totterful the company, not Hankie
+  Pals the product.
+
+  The words sit on a rounded panel and the photograph overhangs that panel's
+  inner edge, reaching back over it and standing taller than it at both ends.
+  That overlap is the whole point of the layout, and it is built from grid
+  tracks rather than absolute positioning, so nothing is taken out of flow and
+  the row is always as tall as its tallest child:
+
+      tracks   |  panel width - overlap  |  overlap  |  the rest  |
+      panel    |<--------------------------------- >|
+      figure               |<---------------------------------- >|
+
+  The figure comes after the panel in the source, so it paints on top without
+  a z-index. Both sit in the same grid row and are centred in it, so when the
+  photograph is the taller of the two it overhangs the panel evenly at the top
+  and the bottom. Make the copy long enough and the panel becomes the taller
+  one, at which point the overhang is gone -- raise Photo height to bring it
+  back.
+
+  There is deliberately no button here. A call to action turns a statement
+  about the company into a pitch for a product, which is the one thing this
+  section exists not to do.
+
+  Sizes are px: Dawn's root font-size is 62.5%, so rem renders at 62.5% of its
+  intended value. Every setting carries a `| default:`, because a setting
+  added after a section was saved reads nil.
+
+  A `| default:` binds to everything to its left, not to the nearest word, so
+  any value that needs one is hoisted into its own assign before it is used.
+
+  The richtext body sits in a <div>, never a <p>: richtext brings its own <p>,
+  and a <p> inside a <p> is closed early by the parser, which drops the words
+  out of the styled element and back to the theme's size.
+
+  Every selector is prefixed .hp-ai and every per-instance value arrives as an
+  inline custom property, so nothing here can reach another section.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+
+  assign panel_w = s.panel_width | default: 56
+  assign overlap = s.overlap | default: 72
+  assign overlap_m = s.overlap_mobile | default: 40
+  assign photo_h = s.photo_height | default: 460
+  assign min_h = s.min_height | default: 460
+
+  assign pad_t = s.padding_top | default: 88
+  assign pad_b = s.padding_bottom | default: 88
+  assign pad_tm = s.padding_top_mobile | default: 48
+  assign pad_bm = s.padding_bottom_mobile | default: 48
+
+  assign panel_pad = s.panel_padding | default: 48
+  assign panel_rad = s.panel_radius | default: 36
+  assign panel_line = s.panel_border_width | default: 1
+
+  assign head_size = s.heading_size | default: 56
+  assign head_size_m = s.heading_size_mobile | default: 34
+  assign body_size = s.body_size | default: 17
+  assign eyebrow_size = s.eyebrow_size | default: 13
+  assign pill_size = s.pill_size | default: 13
+
+  assign shadow_pct = s.photo_shadow | default: 28
+  assign shadow_a = shadow_pct | times: 0.01
+
+  assign peb_size = s.pebble_size | default: 260
+  assign peb_op_pct = s.pebble_opacity | default: 55
+  assign peb_op = peb_op_pct | times: 0.01
+  assign peb_x = s.pebble_x | default: 40
+  assign peb_y = s.pebble_y | default: 60
+  assign peb2_size = s.pebble2_size | default: 150
+  assign peb2_x = s.pebble2_x | default: -14
+  assign peb2_y = s.pebble2_y | default: 70
+
+  assign shape = s.photo_shape | default: 'arch'
+  assign ratio = s.photo_ratio | default: 'tall'
+  assign align = s.text_align | default: 'left'
+  assign eb_style = s.eyebrow_style | default: 'line'
+  assign mobile = s.mobile_layout | default: 'photo_below'
+  assign tag = s.heading_tag | default: 'h1'
+
+  # object-fit needs a box it can resolve against. The media box is given an
+  # explicit height on desktop and an aspect-ratio on a phone -- never
+  # height: 100%, which cannot resolve against an auto-sized grid row.
+  case ratio
+    when 'portrait'
+      assign ratio_css = '3 / 4'
+    when 'square'
+      assign ratio_css = '1 / 1'
+    when 'landscape'
+      assign ratio_css = '4 / 3'
+    else
+      assign ratio_css = '2 / 3'
+  endcase
+
+  case shape
+    when 'pebble'
+      assign shape_css = '45% 55% 50% 50% / 55% 45% 55% 45%'
+    when 'soft'
+      assign shape_css = '28px'
+    when 'circle'
+      assign shape_css = '50%'
+    else
+      assign shape_css = '50% 50% 24px 24px / 34% 34% 24px 24px'
+  endcase
+
+  assign alt_text = s.image_alt | default: ''
+-%}
+
+{% style %}
+  .hp-ai {
+    position: relative;
+    background: var(--hp-ai-bg);
+    padding: {{ pad_t }}px 0 {{ pad_b }}px;
+    /* clip, not hidden: hidden on one axis forces the other to scroll, and a
+       pebble hanging off the side must never widen the page. */
+    overflow-x: clip;
+  }
+
+  .hp-ai__inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 max(20px, 4vw);
+  }
+
+  /* The three tracks are what make the overlap. The middle one is the overlap
+     itself, shared by the panel and the figure; the panel's own width stays
+     exactly --hp-ai-pw because the first track is that width less the
+     overlap. */
+  .hp-ai__grid {
+    display: grid;
+    grid-template-columns:
+      calc(var(--hp-ai-pw) - var(--hp-ai-ov)) var(--hp-ai-ov) minmax(0, 1fr);
+    align-items: center;
+    min-height: {{ min_h }}px;
+  }
+
+  .hp-ai__panel {
+    grid-column: 1 / 3;
+    grid-row: 1;
+    position: relative;
+    z-index: 1;
+    padding: var(--hp-ai-panel-pad);
+    /* The photograph reaches back over this edge, so the words are held clear
+       of the overlap by the overlap's own width plus a little air. */
+    padding-inline-end: calc(var(--hp-ai-ov) + var(--hp-ai-panel-pad));
+    border: var(--hp-ai-panel-line-w) solid var(--hp-ai-panel-line);
+    border-radius: var(--hp-ai-panel-rad);
+    background: var(--hp-ai-panel);
+  }
+
+  .hp-ai__text {
+    position: relative;
+    z-index: 1;
+    text-align: {{ align }};
+  }
+
+  .hp-ai__eyebrow {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 0.62em;
+    margin: 0 0 18px;
+    color: var(--hp-ai-eyebrow);
+    font-family: var(--font-body-family, system-ui, sans-serif);
+    font-size: {{ eyebrow_size }}px;
+    font-weight: 500;
+    line-height: 1.35;
+    letter-spacing: 0.08em;
+  }
+
+  /* The default is a bare line rather than a capsule. This eyebrow is a
+     sentence, not a label, and a sentence in a tracked capsule either
+     overflows a phone or wraps into a lumpy two-line pill. */
+  .hp-ai--eb-capsule .hp-ai__eyebrow {
+    padding: 0.62em 1.15em;
+    border: 1px solid var(--hp-ai-eyebrow-line);
+    border-radius: 999px;
+    background: var(--hp-ai-eyebrow-bg);
+    letter-spacing: 0.05em;
+  }
+
+  .hp-ai__eyebrow-dot {
+    flex: none;
+    /* (line-height - dot) / 2, so the dot is centred on the first line
+       whether the eyebrow runs to one line or three. */
+    margin-block-start: 0.425em;
+    width: 0.5em;
+    height: 0.5em;
+    border-radius: 50%;
+    background: var(--hp-ai-eyebrow-dot);
+  }
+
+  .hp-ai__heading {
+    margin: 0;
+    color: var(--hp-ai-head);
+    font-family: var(--font-heading-family, Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: {{ head_size }}px;
+    line-height: 1.06;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  .hp-ai__body {
+    margin: 20px 0 0;
+    max-width: {{ s.body_max_width | default: 46 }}ch;
+    color: var(--hp-ai-body);
+    font-family: var(--font-body-family, system-ui, sans-serif);
+    font-size: {{ body_size }}px;
+    line-height: 1.6;
+  }
+
+  .hp-ai--center .hp-ai__body { margin-inline: auto; }
+  .hp-ai__body > :first-child { margin-top: 0; }
+  .hp-ai__body > :last-child { margin-bottom: 0; }
+
+  .hp-ai__figure {
+    grid-column: 2 / 4;
+    grid-row: 1;
+    position: relative;
+    margin: 0;
+  }
+
+  .hp-ai__media {
+    position: relative;
+    z-index: 2;
+    height: var(--hp-ai-photo-h);
+    overflow: hidden;
+    border-radius: var(--hp-ai-shape);
+    background: var(--hp-ai-ph);
+    box-shadow: 0 24px 48px rgba(47, 51, 38, {{ shadow_a }});
+  }
+
+  .hp-ai__media img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: {{ s.photo_focus | default: 'center' }};
+  }
+
+  .hp-ai__pebble {
+    position: absolute;
+    display: block;
+    border-radius: 45% 55% 50% 50% / 55% 45% 55% 45%;
+    background: var(--hp-ai-pebble);
+    opacity: var(--hp-ai-peb-op);
+    pointer-events: none;
+  }
+
+  .hp-ai__pebble--photo {
+    z-index: 0;
+    width: {{ peb_size }}px;
+    height: {{ peb_size }}px;
+    left: {{ peb_x }}%;
+    top: {{ peb_y }}%;
+  }
+
+  .hp-ai__pebble--panel {
+    z-index: 0;
+    width: {{ peb2_size }}px;
+    height: {{ peb2_size }}px;
+    left: {{ peb2_x }}%;
+    top: {{ peb2_y }}%;
+  }
+
+  /* A pill belongs to the photograph and is placed by percentage of the
+     photograph's own box, so it keeps its place beside whatever it points at
+     at every width. */
+  .hp-ai__pill {
+    position: absolute;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6em;
+    max-width: 78%;
+    padding: 0.62em 1.15em;
+    border: 1px solid var(--hp-ai-pill-line);
+    border-radius: 999px;
+    background: var(--hp-ai-pill-bg);
+    box-shadow: 0 4px 14px rgba(47, 51, 38, 0.1);
+    color: var(--hp-ai-pill-ink);
+    font-family: var(--font-heading-family, Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: {{ pill_size }}px;
+    line-height: 1.2;
+    text-align: left;
+    left: var(--px);
+    top: var(--py);
+    transform: translate(-50%, -50%) rotate(var(--tx));
+  }
+
+  .hp-ai__pill-dot {
+    flex: none;
+    width: 0.5em;
+    height: 0.5em;
+    border-radius: 50%;
+    background: var(--hp-ai-pill-dot);
+  }
+
+  @media screen and (max-width: 989px) {
+    .hp-ai { padding: {{ pad_tm }}px 0 {{ pad_bm }}px; }
+
+    .hp-ai__grid {
+      grid-template-columns: minmax(0, 1fr);
+      align-items: stretch;
+      min-height: 0;
+    }
+
+    /* Stacked, the overlap turns from sideways into vertical: the photograph
+       still bites into the panel, so the motif survives the breakpoint. */
+    .hp-ai__panel {
+      grid-column: 1;
+      grid-row: 2;
+      padding-inline-end: var(--hp-ai-panel-pad);
+    }
+
+    .hp-ai__figure {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .hp-ai--m-below .hp-ai__panel { grid-row: 1; }
+    .hp-ai--m-below .hp-ai__figure { grid-row: 2; }
+
+    .hp-ai--m-below .hp-ai__figure {
+      margin-top: calc(var(--hp-ai-ovm) * -1);
+    }
+
+    .hp-ai--m-above .hp-ai__panel {
+      margin-top: calc(var(--hp-ai-ovm) * -1);
+      padding-top: calc(var(--hp-ai-panel-pad) + var(--hp-ai-ovm));
+    }
+
+    .hp-ai__media {
+      height: auto;
+      aspect-ratio: var(--hp-ai-ratio);
+    }
+
+    .hp-ai__heading { font-size: {{ head_size_m }}px; }
+    .hp-ai__pill { max-width: 66%; font-size: calc({{ pill_size }}px - 1px); }
+  }
+{% endstyle %}
+
+<section
+  class="hp-ai hp-ai--eb-{{ eb_style }} hp-ai--{{ align }} hp-ai--m-{% if mobile == 'photo_above' %}above{% else %}below{% endif %}"
+  style="
+    --hp-ai-bg: {{ s.background_color | default: '#FCFBF6' }};
+    --hp-ai-panel: {{ s.panel_color | default: '#E9F5DB' }};
+    --hp-ai-panel-line: {{ s.panel_border_color | default: '#CFE1B9' }};
+    --hp-ai-head: {{ s.heading_color | default: '#2F3326' }};
+    --hp-ai-body: {{ s.body_color | default: '#5C6150' }};
+    --hp-ai-eyebrow: {{ s.eyebrow_color | default: '#5C6150' }};
+    --hp-ai-eyebrow-dot: {{ s.eyebrow_dot_color | default: '#D88B6D' }};
+    --hp-ai-eyebrow-bg: {{ s.eyebrow_background | default: '#FCFBF6' }};
+    --hp-ai-eyebrow-line: {{ s.eyebrow_border_color | default: '#CFE1B9' }};
+    --hp-ai-pill-bg: {{ s.pill_background | default: '#FCFBF6' }};
+    --hp-ai-pill-ink: {{ s.pill_color | default: '#2F3326' }};
+    --hp-ai-pill-line: {{ s.pill_border_color | default: '#CFE1B9' }};
+    --hp-ai-pill-dot: {{ s.pill_dot_color | default: '#ECA883' }};
+    --hp-ai-pebble: {{ s.pebble_color | default: '#CFE1B9' }};
+    --hp-ai-ph: {{ s.photo_placeholder_color | default: '#CFE1B9' }};
+    --hp-ai-pw: {{ panel_w }}%;
+    --hp-ai-ov: {{ overlap }}px;
+    --hp-ai-photo-h: {{ photo_h }}px;
+    --hp-ai-ratio: {{ ratio_css }};
+    --hp-ai-shape: {{ shape_css }};
+    --hp-ai-panel-rad: {{ panel_rad }}px;
+    --hp-ai-panel-pad: {{ panel_pad }}px;
+    --hp-ai-panel-line-w: {{ panel_line }}px;
+    --hp-ai-peb-op: {{ peb_op }};
+    --hp-ai-ovm: {{ overlap_m }}px;
+  "
+>
+  <div class="hp-ai__inner">
+    <div class="hp-ai__grid">
+      <div class="hp-ai__panel">
+        {%- if s.show_pebbles != false -%}
+          <span class="hp-ai__pebble hp-ai__pebble--panel" aria-hidden="true"></span>
+        {%- endif -%}
+
+        <div class="hp-ai__text">
+          {%- if s.eyebrow != blank -%}
+            <p class="hp-ai__eyebrow">
+              <span class="hp-ai__eyebrow-dot" aria-hidden="true"></span>
+              <span>{{ s.eyebrow | escape }}</span>
+            </p>
+          {%- endif -%}
+
+          {%- if s.heading != blank -%}
+            <{{ tag }} class="hp-ai__heading">{{ s.heading | escape | newline_to_br }}</{{ tag }}>
+          {%- endif -%}
+
+          {%- if s.body != blank -%}
+            <div class="hp-ai__body">{{ s.body }}</div>
+          {%- endif -%}
+        </div>
+      </div>
+
+      <figure class="hp-ai__figure">
+        {%- if s.show_pebbles != false -%}
+          <span class="hp-ai__pebble hp-ai__pebble--photo" aria-hidden="true"></span>
+        {%- endif -%}
+
+        <div class="hp-ai__media">
+          {%- if s.image != blank -%}
+            {{
+              s.image
+              | image_url: width: 1200
+              | image_tag:
+                loading: 'lazy',
+                widths: '400, 600, 800, 1000, 1200',
+                sizes: '(min-width: 990px) 44vw, 92vw',
+                alt: alt_text
+            }}
+          {%- endif -%}
+        </div>
+
+        {%- for block in section.blocks -%}
+          {%- liquid
+            assign px = block.settings.x | default: 70
+            assign py = block.settings.y | default: 18
+            assign tx = block.settings.rotate | default: 0
+          -%}
+          {%- if block.settings.text != blank -%}
+            <span
+              class="hp-ai__pill"
+              style="--px: {{ px }}%; --py: {{ py }}%; --tx: {{ tx }}deg;"
+              {{ block.shopify_attributes }}
+            >
+              <span class="hp-ai__pill-dot" aria-hidden="true"></span>
+              <span>{{ block.settings.text | escape }}</span>
+            </span>
+          {%- endif -%}
+        {%- endfor -%}
+      </figure>
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "About intro",
+  "tag": "section",
+  "class": "hp-about-intro-section",
+  "max_blocks": 3,
+  "settings": [
+    { "type": "header", "content": "Eyebrow" },
+    {
+      "type": "text",
+      "id": "eyebrow",
+      "label": "Eyebrow",
+      "default": "Made for their ‘I can do it myself’ era."
+    },
+    {
+      "type": "select",
+      "id": "eyebrow_style",
+      "label": "Eyebrow style",
+      "options": [
+        { "value": "line", "label": "Plain line with a dot" },
+        { "value": "capsule", "label": "In a capsule" }
+      ],
+      "default": "line",
+      "info": "A sentence-length eyebrow reads better as a plain line. A capsule suits two or three words."
+    },
+    { "type": "range", "id": "eyebrow_size", "label": "Eyebrow size", "unit": "px", "min": 10, "max": 20, "step": 1, "default": 13 },
+    { "type": "color", "id": "eyebrow_color", "label": "Eyebrow text", "default": "#5C6150" },
+    { "type": "color", "id": "eyebrow_dot_color", "label": "Eyebrow dot", "default": "#D88B6D" },
+    { "type": "color", "id": "eyebrow_background", "label": "Capsule fill", "default": "#FCFBF6" },
+    { "type": "color", "id": "eyebrow_border_color", "label": "Capsule outline", "default": "#CFE1B9" },
+
+    { "type": "header", "content": "Words" },
+    {
+      "type": "textarea",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Here's to the wobble.",
+      "info": "Line breaks are kept, so you can decide where each line turns."
+    },
+    {
+      "type": "select",
+      "id": "heading_tag",
+      "label": "Heading level",
+      "options": [
+        { "value": "h1", "label": "H1 — the page's main heading" },
+        { "value": "h2", "label": "H2" },
+        { "value": "h3", "label": "H3" }
+      ],
+      "default": "h1"
+    },
+    { "type": "range", "id": "heading_size", "label": "Heading size", "unit": "px", "min": 28, "max": 88, "step": 2, "default": 56 },
+    { "type": "color", "id": "heading_color", "label": "Heading colour", "default": "#2F3326" },
+    {
+      "type": "richtext",
+      "id": "body",
+      "label": "Paragraph",
+      "default": "<p>Totterful makes thoughtful little products for toddlers learning to do things themselves. Everyday milestones, with a bit more independence — and a bit less stress for everyone else.</p>"
+    },
+    { "type": "range", "id": "body_size", "label": "Paragraph size", "unit": "px", "min": 14, "max": 24, "step": 1, "default": 17 },
+    { "type": "range", "id": "body_max_width", "label": "Paragraph width", "unit": "ch", "min": 30, "max": 70, "step": 2, "default": 46 },
+    { "type": "color", "id": "body_color", "label": "Paragraph colour", "default": "#5C6150" },
+    {
+      "type": "select",
+      "id": "text_align",
+      "label": "Text alignment",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "center", "label": "Centred" }
+      ],
+      "default": "left"
+    },
+
+    { "type": "header", "content": "Panel" },
+    { "type": "color", "id": "panel_color", "label": "Panel fill", "default": "#E9F5DB" },
+    { "type": "color", "id": "panel_border_color", "label": "Panel outline", "default": "#CFE1B9" },
+    { "type": "range", "id": "panel_border_width", "label": "Panel outline width", "unit": "px", "min": 0, "max": 3, "step": 1, "default": 1 },
+    { "type": "range", "id": "panel_radius", "label": "Panel corner radius", "unit": "px", "min": 0, "max": 64, "step": 4, "default": 36 },
+    { "type": "range", "id": "panel_padding", "label": "Panel padding", "unit": "px", "min": 24, "max": 80, "step": 4, "default": 48 },
+
+    { "type": "header", "content": "Photo" },
+    { "type": "image_picker", "id": "image", "label": "Lifestyle photo" },
+    { "type": "text", "id": "image_alt", "label": "Photo alt text", "info": "Describe what is happening, for anyone who cannot see it." },
+    {
+      "type": "select",
+      "id": "photo_shape",
+      "label": "Photo shape",
+      "options": [
+        { "value": "arch", "label": "Arch" },
+        { "value": "pebble", "label": "Pebble" },
+        { "value": "soft", "label": "Soft rectangle" },
+        { "value": "circle", "label": "Circle" }
+      ],
+      "default": "arch"
+    },
+    {
+      "type": "select",
+      "id": "photo_ratio",
+      "label": "Photo shape on mobile",
+      "options": [
+        { "value": "tall", "label": "Tall (2:3)" },
+        { "value": "portrait", "label": "Portrait (3:4)" },
+        { "value": "square", "label": "Square" },
+        { "value": "landscape", "label": "Landscape (4:3)" }
+      ],
+      "default": "tall",
+      "info": "On desktop the photo uses the height below instead."
+    },
+    {
+      "type": "select",
+      "id": "photo_focus",
+      "label": "Photo focus",
+      "options": [
+        { "value": "center", "label": "Centre" },
+        { "value": "top", "label": "Top" },
+        { "value": "bottom", "label": "Bottom" },
+        { "value": "left", "label": "Left" },
+        { "value": "right", "label": "Right" }
+      ],
+      "default": "center",
+      "info": "Which part of the photo to keep when it is cropped to the shape."
+    },
+    { "type": "range", "id": "photo_height", "label": "Photo height", "unit": "px", "min": 280, "max": 620, "step": 10, "default": 460 },
+    { "type": "range", "id": "photo_shadow", "label": "Photo shadow", "unit": "%", "min": 0, "max": 60, "step": 4, "default": 28 },
+    { "type": "color", "id": "photo_placeholder_color", "label": "Colour before a photo is chosen", "default": "#CFE1B9" },
+
+    { "type": "header", "content": "Pebbles" },
+    { "type": "checkbox", "id": "show_pebbles", "label": "Show pebbles", "default": true },
+    { "type": "color", "id": "pebble_color", "label": "Pebble colour", "default": "#CFE1B9" },
+    { "type": "range", "id": "pebble_opacity", "label": "Pebble opacity", "unit": "%", "min": 0, "max": 100, "step": 5, "default": 55 },
+    { "type": "range", "id": "pebble_size", "label": "Photo pebble size", "unit": "px", "min": 100, "max": 420, "step": 10, "default": 260 },
+    { "type": "range", "id": "pebble_x", "label": "Photo pebble across", "unit": "%", "min": -40, "max": 60, "step": 5, "default": 40 },
+    { "type": "range", "id": "pebble_y", "label": "Photo pebble down", "unit": "%", "min": -40, "max": 60, "step": 5, "default": 60 },
+    { "type": "range", "id": "pebble2_size", "label": "Panel pebble size", "unit": "px", "min": 60, "max": 320, "step": 10, "default": 150 },
+    { "type": "range", "id": "pebble2_x", "label": "Panel pebble across", "unit": "%", "min": -40, "max": 60, "step": 2, "default": -14 },
+    { "type": "range", "id": "pebble2_y", "label": "Panel pebble down", "unit": "%", "min": -40, "max": 100, "step": 2, "default": 70 },
+
+    { "type": "header", "content": "Pill labels" },
+    { "type": "range", "id": "pill_size", "label": "Pill text size", "unit": "px", "min": 10, "max": 20, "step": 1, "default": 13 },
+    { "type": "color", "id": "pill_background", "label": "Pill fill", "default": "#FCFBF6" },
+    { "type": "color", "id": "pill_color", "label": "Pill text", "default": "#2F3326" },
+    { "type": "color", "id": "pill_border_color", "label": "Pill outline", "default": "#CFE1B9" },
+    { "type": "color", "id": "pill_dot_color", "label": "Pill dot", "default": "#ECA883" },
+
+    { "type": "header", "content": "Layout" },
+    { "type": "color", "id": "background_color", "label": "Section background", "default": "#FCFBF6" },
+    {
+      "type": "range",
+      "id": "panel_width",
+      "label": "Panel width",
+      "unit": "%",
+      "min": 40,
+      "max": 70,
+      "step": 2,
+      "default": 56
+    },
+    {
+      "type": "range",
+      "id": "overlap",
+      "label": "Photo overlap",
+      "unit": "px",
+      "min": 0,
+      "max": 180,
+      "step": 6,
+      "default": 72,
+      "info": "How far the photo reaches back over the panel."
+    },
+    { "type": "range", "id": "min_height", "label": "Minimum height", "unit": "px", "min": 320, "max": 700, "step": 10, "default": 460 },
+    { "type": "range", "id": "padding_top", "label": "Top padding", "unit": "px", "min": 0, "max": 160, "step": 8, "default": 88 },
+    { "type": "range", "id": "padding_bottom", "label": "Bottom padding", "unit": "px", "min": 0, "max": 160, "step": 8, "default": 88 },
+
+    { "type": "header", "content": "Mobile" },
+    {
+      "type": "select",
+      "id": "mobile_layout",
+      "label": "Mobile layout",
+      "options": [
+        { "value": "photo_below", "label": "Photo below the words" },
+        { "value": "photo_above", "label": "Photo above the words" }
+      ],
+      "default": "photo_below"
+    },
+    { "type": "range", "id": "heading_size_mobile", "label": "Heading size (mobile)", "unit": "px", "min": 22, "max": 56, "step": 2, "default": 34 },
+    {
+      "type": "range",
+      "id": "overlap_mobile",
+      "label": "Photo overlap (mobile)",
+      "unit": "px",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "default": 40,
+      "info": "Stacked, the overlap runs up and down instead of sideways."
+    },
+    { "type": "range", "id": "padding_top_mobile", "label": "Top padding (mobile)", "unit": "px", "min": 0, "max": 120, "step": 4, "default": 48 },
+    { "type": "range", "id": "padding_bottom_mobile", "label": "Bottom padding (mobile)", "unit": "px", "min": 0, "max": 120, "step": 4, "default": 48 }
+  ],
+  "blocks": [
+    {
+      "type": "pill",
+      "name": "Pill label",
+      "settings": [
+        { "type": "text", "id": "text", "label": "Label" },
+        { "type": "range", "id": "x", "label": "Across the photo", "unit": "%", "min": 0, "max": 100, "step": 1, "default": 70 },
+        { "type": "range", "id": "y", "label": "Down the photo", "unit": "%", "min": 0, "max": 100, "step": 1, "default": 18 },
+        { "type": "range", "id": "rotate", "label": "Tilt", "unit": "deg", "min": -12, "max": 12, "step": 1, "default": -4 }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "About intro",
+      "blocks": [
+        { "type": "pill", "settings": { "text": "Toddler-tested", "x": 74, "y": 16, "rotate": -4 } },
+        { "type": "pill", "settings": { "text": "Parent-approved", "x": 30, "y": 82, "rotate": 3 } }
+      ]
+    }
+  ]
+}
+{% endschema %}

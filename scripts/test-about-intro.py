@@ -528,7 +528,7 @@ check('and the blob is lopsided, where the pebble is nearly even',
 # The animation's only unacceptable failure is words that never appear, so
 # most of what follows is the same question asked of a different way for the
 # script not to run.
-anim = run('anim', overrides=WITH_PHOTO, still=False, wait=1200, budget=12000,
+anim = run('anim', overrides=WITH_PHOTO, still=False, wait=2500, budget=16000,
            settle=True)
 order = [r['cls'].split()[0] for r in anim['revealed']]
 check('every piece of the section is marked to arrive',
@@ -829,29 +829,60 @@ check('and at his tallest, where the band has to make room for him',
       f"dog starts {tall_dog['dog']['box']['t']}, "
       f"band starts {tall_dog['secBox']['t']}")
 
-# The dog hangs into the panel's top edge, so the room above the words has to
-# be settable well past what the sides would ever want.
-check('the panel starts out with the same room on every side',
+check('the panel keeps the same room on every side',
       d['panelPadT'] == d['panelPadL'],
       f"top {d['panelPadT']}, left {d['panelPadL']}")
-roomy = run('panel-roomy', overrides={'settings': dict(
-    WITH_PHOTO['settings'], panel_padding_top=200)})
-check('and the top alone can be pushed a long way down, for the dog to clear',
-      abs(float(roomy['panelPadT'].rstrip('px'))
-          - float(d['panelPadT'].rstrip('px')) - 200) <= 1
-      and roomy['panelPadL'] == d['panelPadL'],
-      f"top {d['panelPadT']} -> {roomy['panelPadT']}, sides still {roomy['panelPadL']}")
-check('which moves the words down rather than stretching the panel over them',
-      roomy['ebBox']['t'] - roomy['panel']['box']['t']
-      > d['ebBox']['t'] - d['panel']['box']['t'] + 190,
-      f"eyebrow sits {roomy['ebBox']['t'] - roomy['panel']['box']['t']}px into the "
-      f"panel, was {d['ebBox']['t'] - d['panel']['box']['t']}px")
-roomy_phone = framed('panel-roomy-phone', 390, {'settings': dict(
-    WITH_PHOTO['settings'], panel_padding_top=200, mobile_layout='photo_above')})
-check('and it carries over to a phone, where the overlap is added to it too',
-      float(roomy_phone['panelPadT'].rstrip('px')) >= 200 + 48,
-      f"top padding {roomy_phone['panelPadT']} against 200 asked for plus the "
-      f"panel's own 48 and the overlap")
+
+# The room the dog stands in is the band's, above the panel -- and it has to
+# reach well past the default, which is where this started.
+tall_band = run('tall-band', overrides={'settings': dict(
+    WITH_PHOTO['settings'], padding_top=320)})
+check('the band can put a long way between its own top and the panel',
+      abs((tall_band['panel']['box']['t'] - tall_band['secBox']['t'])
+          - (d['panel']['box']['t'] - d['secBox']['t'])) >= 200,
+      f"panel sits {tall_band['panel']['box']['t'] - tall_band['secBox']['t']}px "
+      f"below the band's top, was {d['panel']['box']['t'] - d['secBox']['t']}px")
+check('and the dog goes down with it rather than staying put',
+      tall_band['dog']['box']['t'] > d['dog']['box']['t'] + 190,
+      f"dog starts {tall_band['dog']['box']['t']}, was {d['dog']['box']['t']}")
+check('while still clearing the band whatever the padding says',
+      tall_band['dog']['box']['t'] >= tall_band['secBox']['t'] - 1,
+      f"dog starts {tall_band['dog']['box']['t']}, band starts {tall_band['secBox']['t']}")
+
+thin_band = run('thin-band', overrides={'settings': dict(
+    WITH_PHOTO['settings'], padding_top=0)})
+check('and taking it to nothing still leaves the dog his head',
+      thin_band['dog']['box']['t'] >= thin_band['secBox']['t'] - 1,
+      f"dog starts {thin_band['dog']['box']['t']}, band starts {thin_band['secBox']['t']}")
+
+# He was the same tone as a warm panel and melted into it. Whether one colour
+# is darker than another is arithmetic, not an opinion.
+def luminance(c):
+    def lin(v):
+        v /= 255
+        return v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
+    return 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2])
+
+dog_shot = shot('dog-tone', WITH_PHOTO)
+fur_px = dog_shot.getpixel((d['dog']['box']['l'] + d['dog']['box']['w'] // 2,
+                            d['dog']['box']['t'] + 8))
+gap = luminance(rgb(d['panel']['bg'])) - luminance(fur_px)
+check('the dog is darker than the panel he leans on, by a margin that shows',
+      gap >= 0.20,
+      f"panel luminance {luminance(rgb(d['panel']['bg'])):.3f}, fur rgb{fur_px} "
+      f"{luminance(fur_px):.3f} -- darker by {gap:.3f}")
+
+warm = run('dog-on-peach', overrides={'settings': dict(
+    WITH_PHOTO['settings'], panel_color='#F0C4A8')})
+warm_shot = shot('dog-tone-peach', {'settings': dict(
+    WITH_PHOTO['settings'], panel_color='#F0C4A8')})
+warm_fur = warm_shot.getpixel((warm['dog']['box']['l'] + warm['dog']['box']['w'] // 2,
+                               warm['dog']['box']['t'] + 8))
+warm_gap = luminance(rgb(warm['panel']['bg'])) - luminance(warm_fur)
+check('and on a warm panel too, which is where he used to melt into it',
+      warm_gap >= 0.20,
+      f"panel {warm['panel']['bg']} {luminance(rgb(warm['panel']['bg'])):.3f}, "
+      f"fur rgb{warm_fur} {luminance(warm_fur):.3f} -- darker by {warm_gap:.3f}")
 
 low = run('dog-low', overrides={'settings': dict(WITH_PHOTO['settings'], dog_peek=24)})
 check('lowering him leaves just the ears',

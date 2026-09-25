@@ -57,7 +57,6 @@
   assign pad_bm = s.padding_bottom_mobile | default: 48
 
   assign panel_pad = s.panel_padding | default: 48
-  assign panel_pad_top = s.panel_padding_top | default: 0
   assign panel_rad = s.panel_radius | default: 36
   assign panel_line = s.panel_border_width | default: 1
 
@@ -236,10 +235,6 @@
     /* The photograph reaches back over this edge, so the words are held clear
        of the overlap by the overlap's own width plus a little air. */
     padding-inline-end: calc(var(--hp-ai-ov) + var(--hp-ai-panel-pad));
-    /* The dog hangs into this edge, so the room the words need above them has
-       nothing to do with the room they need at the sides. Extra rather than
-       absolute, so changing the panel's padding still moves all four. */
-    padding-block-start: calc(var(--hp-ai-panel-pad) + var(--hp-ai-panel-pad-top));
     border: var(--hp-ai-panel-line-w) solid var(--hp-ai-panel-line);
     border-radius: var(--hp-ai-panel-rad);
     background: var(--hp-ai-panel);
@@ -650,9 +645,7 @@
     }
 
     .hp-ai--m-above .hp-ai__panel {
-      padding-top: calc(
-        var(--hp-ai-panel-pad) + var(--hp-ai-panel-pad-top) + var(--hp-ai-ovm)
-      );
+      padding-top: calc(var(--hp-ai-panel-pad) + var(--hp-ai-ovm));
     }
 
     .hp-ai__media {
@@ -714,14 +707,13 @@
     --hp-ai-dog-size: {{ dog_size }}px;
     --hp-ai-dog-peek: {{ dog_peek }}px;
     --hp-ai-dog-x: {{ dog_x }}%;
-    --hp-ai-dog-fur: {{ s.dog_color | default: '#ECA883' }};
-    --hp-ai-dog-ear: {{ s.dog_ear_color | default: '#D88B6D' }};
+    --hp-ai-dog-fur: {{ s.dog_color | default: '#D88B6D' }};
+    --hp-ai-dog-ear: {{ s.dog_ear_color | default: '#B8624A' }};
     --hp-ai-dog-snout: {{ s.dog_snout_color | default: '#FCFBF6' }};
     --hp-ai-dog-ink: {{ s.dog_ink_color | default: '#2F3326' }};
     --hp-ai-blink-every: {{ blink_every }}s;
     --hp-ai-panel-rad: {{ panel_rad }}px;
     --hp-ai-panel-pad: {{ panel_pad }}px;
-    --hp-ai-panel-pad-top: {{ panel_pad_top }}px;
     --hp-ai-panel-line-w: {{ panel_line }}px;
     --hp-ai-peb-op: {{ peb_op }};
     --hp-ai-ovm: {{ overlap_m }}px;
@@ -1017,18 +1009,7 @@
     { "type": "color", "id": "panel_border_color", "label": "Panel outline", "default": "#CFE1B9" },
     { "type": "range", "id": "panel_border_width", "label": "Panel outline width", "unit": "px", "min": 0, "max": 3, "step": 1, "default": 1 },
     { "type": "range", "id": "panel_radius", "label": "Panel corner radius", "unit": "px", "min": 0, "max": 64, "step": 4, "default": 36 },
-    { "type": "range", "id": "panel_padding", "label": "Panel padding", "unit": "px", "min": 24, "max": 160, "step": 4, "default": 48 },
-    {
-      "type": "range",
-      "id": "panel_padding_top",
-      "label": "Extra space at the top",
-      "unit": "px",
-      "min": 0,
-      "max": 280,
-      "step": 4,
-      "default": 0,
-      "info": "Added to the panel padding, on the top edge only. This is the one to reach for when the dog is hanging into the words."
-    },
+    { "type": "range", "id": "panel_padding", "label": "Panel padding", "unit": "px", "min": 24, "max": 80, "step": 4, "default": 48 },
     {
       "type": "range",
       "id": "panel_offset",
@@ -1200,8 +1181,8 @@
       "info": "How far he rises above the panel's top edge. Low and it is just ears; high and you get the whole head."
     },
     { "type": "range", "id": "dog_x", "label": "Where he stands", "unit": "%", "min": 0, "max": 100, "step": 1, "default": 50 },
-    { "type": "color", "id": "dog_color", "label": "Fur", "default": "#ECA883" },
-    { "type": "color", "id": "dog_ear_color", "label": "Ears", "default": "#D88B6D" },
+    { "type": "color", "id": "dog_color", "label": "Fur", "default": "#D88B6D" },
+    { "type": "color", "id": "dog_ear_color", "label": "Ears", "default": "#B8624A" },
     { "type": "color", "id": "dog_snout_color", "label": "Snout", "default": "#FCFBF6" },
     { "type": "color", "id": "dog_ink_color", "label": "Eyes and nose", "default": "#2F3326" },
     {
@@ -1292,8 +1273,18 @@
       "info": "How far the photo reaches back over the panel."
     },
     { "type": "range", "id": "min_height", "label": "Minimum height", "unit": "px", "min": 320, "max": 700, "step": 10, "default": 460 },
-    { "type": "range", "id": "padding_top", "label": "Top padding", "unit": "px", "min": 0, "max": 160, "step": 8, "default": 88 },
-    { "type": "range", "id": "padding_bottom", "label": "Bottom padding", "unit": "px", "min": 0, "max": 160, "step": 8, "default": 88 },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "label": "Top padding",
+      "unit": "px",
+      "min": 0,
+      "max": 320,
+      "step": 8,
+      "default": 88,
+      "info": "The room above the panel, which is where the dog stands. The band never gives him less than he needs, whatever this says."
+    },
+    { "type": "range", "id": "padding_bottom", "label": "Bottom padding", "unit": "px", "min": 0, "max": 320, "step": 8, "default": 88 },
 
     { "type": "header", "content": "Animation" },
     {

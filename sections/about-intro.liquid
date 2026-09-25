@@ -45,10 +45,10 @@
 {%- liquid
   assign s = section.settings
 
-  assign panel_w = s.panel_width | default: 56
+  assign panel_w = s.panel_width | default: 50
   assign overlap = s.overlap | default: 72
   assign overlap_m = s.overlap_mobile | default: 40
-  assign photo_h = s.photo_height | default: 460
+  assign photo_h = s.photo_height | default: 550
   assign min_h = s.min_height | default: 460
 
   assign pad_t = s.padding_top | default: 88
@@ -64,6 +64,7 @@
   assign head_size_m = s.heading_size_mobile | default: 34
   assign body_size = s.body_size | default: 17
   assign eyebrow_size = s.eyebrow_size | default: 13
+  assign eyebrow_weight = s.eyebrow_weight | default: 700
   assign pill_size = s.pill_size | default: 13
 
   assign shadow_pct = s.photo_shadow | default: 28
@@ -85,10 +86,15 @@
 
   assign p1_w = s.photo_width | default: 76
   assign p2_w = s.photo2_width | default: 50
-  assign photo2_h = s.photo2_height | default: 300
+  assign photo2_h = s.photo2_height | default: 360
   assign p2_over = s.photo2_overlap | default: 30
   assign photo_up = s.photo_offset | default: 0
   assign panel_up = s.panel_offset | default: 0
+
+  assign dog_size = s.dog_size | default: 130
+  assign dog_peek = s.dog_peek | default: 84
+  assign dog_x = s.dog_x | default: 50
+  assign blink_every = s.dog_blink_every | default: 6
 
   # The two photographs overlap sideways by however much their widths come to
   # over the full width. Both ranges start where their sum is 100, so the
@@ -194,8 +200,10 @@
     overflow-x: clip;
   }
 
+  .hp-ai--dog { padding-top: max({{ pad_t }}px, calc(var(--hp-ai-dog-peek) + 16px)); }
+
   .hp-ai__inner {
-    max-width: 1200px;
+    max-width: {{ s.max_width | default: 1280 }}px;
     margin: 0 auto;
     padding: 0 max(20px, 4vw);
   }
@@ -212,12 +220,17 @@
     min-height: {{ min_h }}px;
   }
 
-  .hp-ai__panel {
+  .hp-ai__panel-wrap {
     grid-column: 1 / 3;
     grid-row: 1;
     position: relative;
     z-index: 1;
     transform: translateY(var(--hp-ai-panel-up));
+  }
+
+  .hp-ai__panel {
+    position: relative;
+    z-index: 1;
     padding: var(--hp-ai-panel-pad);
     /* The photograph reaches back over this edge, so the words are held clear
        of the overlap by the overlap's own width plus a little air. */
@@ -239,9 +252,9 @@
     gap: 0.62em;
     margin: 0 0 18px;
     color: var(--hp-ai-eyebrow);
-    font-family: var(--font-body-family, system-ui, sans-serif);
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
     font-size: {{ eyebrow_size }}px;
-    font-weight: 500;
+    font-weight: {{ eyebrow_weight }};
     line-height: 1.35;
     letter-spacing: 0.08em;
   }
@@ -271,7 +284,7 @@
   .hp-ai__heading {
     margin: 0;
     color: var(--hp-ai-head);
-    font-family: var(--font-heading-family, Georgia, serif);
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
     font-weight: var(--font-heading-weight, 700);
     font-size: {{ head_size }}px;
     line-height: 1.06;
@@ -283,7 +296,7 @@
     margin: 20px 0 0;
     max-width: {{ s.body_max_width | default: 46 }}ch;
     color: var(--hp-ai-body);
-    font-family: var(--font-body-family, system-ui, sans-serif);
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
     font-size: {{ body_size }}px;
     line-height: 1.6;
   }
@@ -310,6 +323,10 @@
     grid-column: 2 / 4;
     grid-row: 1;
     position: relative;
+    /* Above the panel's wrapper. The nudge below is a transform, which makes
+       this a stacking context -- so without a z-index of its own the whole
+       picture side would sit at auto and the panel would paint over it. */
+    z-index: 2;
     display: grid;
     grid-template-columns:
       max(0%, calc(100% - var(--hp-ai-p2w)))
@@ -398,7 +415,7 @@
     background: var(--hp-ai-pill-bg);
     box-shadow: 0 4px 14px rgba(47, 51, 38, 0.1);
     color: var(--hp-ai-pill-ink);
-    font-family: var(--font-heading-family, Georgia, serif);
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
     font-weight: var(--font-heading-weight, 700);
     font-size: {{ pill_size }}px;
     line-height: 1.2;
@@ -414,6 +431,118 @@
     height: 0.5em;
     border-radius: 50%;
     background: var(--hp-ai-pill-dot);
+  }
+
+
+  /* --- The dog over the panel ---------------------------------------------
+     He is a sibling of the panel rather than a child, sat below it, so the
+     panel's own top edge is what crops him. Raising or lowering him is
+     therefore a matter of how much shows, not of masks or clipping.
+
+     Everything inside him is a percentage of his own width, so one size
+     setting moves the whole animal and nothing has to be kept in step. */
+  .hp-ai__dog {
+    position: absolute;
+    z-index: 0;
+    left: var(--hp-ai-dog-x);
+    top: calc(var(--hp-ai-dog-peek) * -1);
+    width: var(--hp-ai-dog-size);
+    aspect-ratio: 1 / 0.82;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  .hp-ai__dog-head {
+    position: absolute;
+    inset: 0;
+    background: var(--hp-ai-dog-fur);
+    border-radius: 48% 52% 44% 56% / 52% 52% 48% 48%;
+  }
+
+  /* Wider at the bottom than the top, so it reads as hanging rather than
+     standing -- the same outline the pal panel's dog ears use. */
+  .hp-ai__dog-ear {
+    position: absolute;
+    top: 9%;
+    width: 30%;
+    aspect-ratio: 1 / 2.1;
+    background: var(--hp-ai-dog-ear);
+    /* Narrow where it joins the head, wide and round at the tip, which is
+       what makes it hang rather than stand. */
+    border-radius: 46% 54% 50% 50% / 22% 22% 78% 78%;
+  }
+
+  .hp-ai__dog-ear--l {
+    left: -11%;
+    transform-origin: 50% 0;
+    transform: rotate(-11deg);
+  }
+
+  .hp-ai__dog-ear--r {
+    right: -11%;
+    transform-origin: 50% 0;
+    transform: rotate(11deg);
+  }
+
+  .hp-ai__dog-eye {
+    position: absolute;
+    top: 36%;
+    width: 13%;
+    aspect-ratio: 1;
+    background: var(--hp-ai-dog-ink);
+    border-radius: 50%;
+  }
+
+  .hp-ai__dog-eye--l { left: 26%; }
+  .hp-ai__dog-eye--r { left: 61%; }
+
+  /* The catchlight, up and to the left, which is what stops the eyes reading
+     as two holes. */
+  .hp-ai__dog-eye::after {
+    content: "";
+    position: absolute;
+    left: 26%;
+    top: 20%;
+    width: 32%;
+    aspect-ratio: 1;
+    background: #FFFFFF;
+    border-radius: 50%;
+  }
+
+  .hp-ai__dog-snout {
+    position: absolute;
+    left: 50%;
+    top: 56%;
+    width: 46%;
+    aspect-ratio: 1 / 0.72;
+    transform: translateX(-50%);
+    background: var(--hp-ai-dog-snout);
+    border-radius: 50%;
+  }
+
+  .hp-ai__dog-nose {
+    position: absolute;
+    left: 50%;
+    top: 14%;
+    width: 42%;
+    aspect-ratio: 2.1 / 1;
+    transform: translateX(-50%);
+    background: var(--hp-ai-dog-ink);
+    border-radius: 50%;
+  }
+
+  /* A blink is a squash, not a fade: the eye keeps its width and loses its
+     height for about a tenth of a second, which is what a real blink does.
+     Both eyes carry the same animation with no delay, so they blink together.
+     Neither eye is held in place by a transform, so the keyframes are free to
+     use one. */
+  .hp-ai--dog-blink .hp-ai__dog-eye {
+    animation: hp-ai-blink var(--hp-ai-blink-every) infinite;
+  }
+
+  @keyframes hp-ai-blink {
+    0%, 93%, 100% { transform: scaleY(1); }
+    95.5%, 96.5% { transform: scaleY(0.08); }
   }
 
   /* --- Arriving -----------------------------------------------------------
@@ -460,6 +589,8 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .hp-ai--dog-blink .hp-ai__dog-eye { animation: none; }
+
     .hp-ai--reveal [data-reveal],
     .hp-ai--reveal [data-reveal].is-in {
       opacity: 1;
@@ -478,6 +609,10 @@
   @media screen and (max-width: 989px) {
     .hp-ai { padding: {{ pad_tm }}px 0 {{ pad_bm }}px; }
 
+    .hp-ai--dog {
+      padding-top: max({{ pad_tm }}px, calc(var(--hp-ai-dog-peek) * 0.72 + 16px));
+    }
+
     .hp-ai__grid {
       grid-template-columns: minmax(0, 1fr);
       align-items: stretch;
@@ -486,26 +621,30 @@
 
     /* Stacked, the overlap turns from sideways into vertical: the photograph
        still bites into the panel, so the motif survives the breakpoint. */
-    .hp-ai__panel {
+    .hp-ai__panel-wrap {
       grid-column: 1;
       grid-row: 2;
-      padding-inline-end: var(--hp-ai-panel-pad);
     }
+
+    .hp-ai__panel { padding-inline-end: var(--hp-ai-panel-pad); }
 
     .hp-ai__figure {
       grid-column: 1;
       grid-row: 1;
     }
 
-    .hp-ai--m-below .hp-ai__panel { grid-row: 1; }
+    .hp-ai--m-below .hp-ai__panel-wrap { grid-row: 1; }
     .hp-ai--m-below .hp-ai__figure { grid-row: 2; }
 
     .hp-ai--m-below .hp-ai__figure {
       margin-top: calc(var(--hp-ai-ovm) * -1);
     }
 
-    .hp-ai--m-above .hp-ai__panel {
+    .hp-ai--m-above .hp-ai__panel-wrap {
       margin-top: calc(var(--hp-ai-ovm) * -1);
+    }
+
+    .hp-ai--m-above .hp-ai__panel {
       padding-top: calc(var(--hp-ai-panel-pad) + var(--hp-ai-ovm));
     }
 
@@ -522,7 +661,12 @@
     /* Nudging either side makes room beside the other. Stacked, there is
        nothing to make room for. */
     .hp-ai__figure,
-    .hp-ai__panel { transform: none; }
+    .hp-ai__panel-wrap { transform: none; }
+
+    .hp-ai__dog {
+      width: calc(var(--hp-ai-dog-size) * 0.72);
+      top: calc(var(--hp-ai-dog-peek) * -0.72);
+    }
 
     .hp-ai__heading { font-size: {{ head_size_m }}px; }
     .hp-ai__pill { max-width: 66%; font-size: calc({{ pill_size }}px - 1px); }
@@ -530,7 +674,7 @@
 {% endstyle %}
 
 <section
-  class="hp-ai hp-ai--eb-{{ eb_style }} hp-ai--{{ align }} hp-ai--m-{% if mobile == 'photo_above' %}above{% else %}below{% endif %}{% if motion != 'none' %} hp-ai--reveal hp-ai--{{ motion }}{% endif %}"
+  class="hp-ai hp-ai--eb-{{ eb_style }} hp-ai--{{ align }} hp-ai--m-{% if mobile == 'photo_above' %}above{% else %}below{% endif %}{% if motion != 'none' %} hp-ai--reveal hp-ai--{{ motion }}{% endif %}{% if s.show_dog != false %} hp-ai--dog{% if s.dog_blink != false %} hp-ai--dog-blink{% endif %}{% endif %}"
   style="
     --hp-ai-bg: {{ s.background_color | default: '#FCFBF6' }};
     --hp-ai-panel: {{ s.panel_color | default: '#E9F5DB' }};
@@ -560,6 +704,14 @@
     --hp-ai-ovy: {{ p2_over }}%;
     --hp-ai-photo-up: {{ photo_up }}px;
     --hp-ai-panel-up: {{ panel_up }}px;
+    --hp-ai-dog-size: {{ dog_size }}px;
+    --hp-ai-dog-peek: {{ dog_peek }}px;
+    --hp-ai-dog-x: {{ dog_x }}%;
+    --hp-ai-dog-fur: {{ s.dog_color | default: '#ECA883' }};
+    --hp-ai-dog-ear: {{ s.dog_ear_color | default: '#D88B6D' }};
+    --hp-ai-dog-snout: {{ s.dog_snout_color | default: '#FCFBF6' }};
+    --hp-ai-dog-ink: {{ s.dog_ink_color | default: '#2F3326' }};
+    --hp-ai-blink-every: {{ blink_every }}s;
     --hp-ai-panel-rad: {{ panel_rad }}px;
     --hp-ai-panel-pad: {{ panel_pad }}px;
     --hp-ai-panel-line-w: {{ panel_line }}px;
@@ -570,6 +722,26 @@
   <hp-ai-reveal data-stagger="{{ rev_stag }}" data-duration="{{ rev_dur }}">
   <div class="hp-ai__inner">
     <div class="hp-ai__grid">
+      <div class="hp-ai__panel-wrap">
+      {%- comment -%}
+        He is drawn before the panel and sits below it, so the panel's own
+        top edge is what crops him. Nothing about him is read out: he is a
+        decoration, and the words beside him already say everything.
+      {%- endcomment -%}
+      {%- if s.show_dog != false -%}
+        <span class="hp-ai__dog" aria-hidden="true">
+          <span class="hp-ai__dog-head">
+            <span class="hp-ai__dog-eye hp-ai__dog-eye--l"></span>
+            <span class="hp-ai__dog-eye hp-ai__dog-eye--r"></span>
+            <span class="hp-ai__dog-snout">
+              <span class="hp-ai__dog-nose"></span>
+            </span>
+          </span>
+          <span class="hp-ai__dog-ear hp-ai__dog-ear--l"></span>
+          <span class="hp-ai__dog-ear hp-ai__dog-ear--r"></span>
+        </span>
+      {%- endif -%}
+
       <div class="hp-ai__panel">
         {%- if s.show_pebbles != false -%}
           <span class="hp-ai__pebble hp-ai__pebble--panel" aria-hidden="true"></span>
@@ -591,6 +763,7 @@
             <div class="hp-ai__body" data-reveal>{{ s.body }}</div>
           {%- endif -%}
         </div>
+      </div>
       </div>
 
       <figure class="hp-ai__figure">
@@ -772,6 +945,19 @@
       "info": "A sentence-length eyebrow reads better as a plain line. A capsule suits two or three words."
     },
     { "type": "range", "id": "eyebrow_size", "label": "Eyebrow size", "unit": "px", "min": 10, "max": 20, "step": 1, "default": 13 },
+    {
+      "type": "select",
+      "id": "eyebrow_weight",
+      "label": "Eyebrow weight",
+      "options": [
+        { "value": "400", "label": "Regular" },
+        { "value": "500", "label": "Medium" },
+        { "value": "600", "label": "Semibold" },
+        { "value": "700", "label": "Bold" }
+      ],
+      "default": "700",
+      "info": "The body font, which is Quicksand unless the theme says otherwise. A weight a static font does not have gets faked by the browser and looks smeared -- a variable font has them all."
+    },
     { "type": "color", "id": "eyebrow_color", "label": "Eyebrow text", "default": "#5C6150" },
     { "type": "color", "id": "eyebrow_dot_color", "label": "Eyebrow dot", "default": "#D88B6D" },
     { "type": "color", "id": "eyebrow_background", "label": "Capsule fill", "default": "#FCFBF6" },
@@ -879,7 +1065,7 @@
       "default": "center",
       "info": "Which part of the photo to keep when it is cropped to the shape."
     },
-    { "type": "range", "id": "photo_height", "label": "Photo height", "unit": "px", "min": 280, "max": 620, "step": 10, "default": 460 },
+    { "type": "range", "id": "photo_height", "label": "Photo height", "unit": "px", "min": 280, "max": 760, "step": 10, "default": 550 },
     {
       "type": "range",
       "id": "photo_width",
@@ -951,7 +1137,7 @@
       ],
       "default": "center"
     },
-    { "type": "range", "id": "photo2_height", "label": "Second photo height", "unit": "px", "min": 160, "max": 480, "step": 10, "default": 300 },
+    { "type": "range", "id": "photo2_height", "label": "Second photo height", "unit": "px", "min": 160, "max": 560, "step": 10, "default": 360 },
     {
       "type": "range",
       "id": "photo2_width",
@@ -974,6 +1160,40 @@
       "info": "A share of the second photo's own width, so the overlap keeps its proportion on a phone."
     },
 
+    { "type": "header", "content": "The dog over the panel" },
+    {
+      "type": "checkbox",
+      "id": "show_dog",
+      "label": "Show the dog",
+      "default": true,
+      "info": "He sits behind the panel, so the panel's own top edge is what crops him."
+    },
+    { "type": "range", "id": "dog_size", "label": "How big he is", "unit": "px", "min": 70, "max": 260, "step": 5, "default": 130 },
+    {
+      "type": "range",
+      "id": "dog_peek",
+      "label": "How much of him shows",
+      "unit": "px",
+      "min": 0,
+      "max": 240,
+      "step": 4,
+      "default": 84,
+      "info": "How far he rises above the panel's top edge. Low and it is just ears; high and you get the whole head."
+    },
+    { "type": "range", "id": "dog_x", "label": "Where he stands", "unit": "%", "min": 0, "max": 100, "step": 1, "default": 50 },
+    { "type": "color", "id": "dog_color", "label": "Fur", "default": "#ECA883" },
+    { "type": "color", "id": "dog_ear_color", "label": "Ears", "default": "#D88B6D" },
+    { "type": "color", "id": "dog_snout_color", "label": "Snout", "default": "#FCFBF6" },
+    { "type": "color", "id": "dog_ink_color", "label": "Eyes and nose", "default": "#2F3326" },
+    {
+      "type": "checkbox",
+      "id": "dog_blink",
+      "label": "Let him blink",
+      "default": true,
+      "info": "A squash rather than a fade, which is what a real blink looks like. Skipped for anyone asking for reduced motion."
+    },
+    { "type": "range", "id": "dog_blink_every", "label": "Blink every", "unit": "s", "min": 2, "max": 14, "step": 1, "default": 6 },
+
     { "type": "header", "content": "Pebbles" },
     { "type": "checkbox", "id": "show_pebbles", "label": "Show pebbles", "default": true },
     { "type": "color", "id": "pebble_color", "label": "Pebble colour", "default": "#CFE1B9" },
@@ -993,6 +1213,7 @@
     { "type": "color", "id": "pill_dot_color", "label": "Pill dot", "default": "#ECA883" },
 
     { "type": "header", "content": "Layout" },
+    { "type": "range", "id": "max_width", "label": "Content width", "unit": "px", "min": 960, "max": 1600, "step": 20, "default": 1280 },
     { "type": "color", "id": "background_color", "label": "Section background", "default": "#FCFBF6" },
     { "type": "image_picker", "id": "background_image", "label": "Section background image" },
     {
@@ -1035,10 +1256,10 @@
       "id": "panel_width",
       "label": "Panel width",
       "unit": "%",
-      "min": 40,
+      "min": 36,
       "max": 70,
       "step": 2,
-      "default": 56
+      "default": 50
     },
     {
       "type": "range",

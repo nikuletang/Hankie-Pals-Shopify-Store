@@ -102,6 +102,22 @@ function snap(d,w){
       return i?{box:bx(i), fit:w.getComputedStyle(i).objectFit,
                 alt:i.getAttribute('alt')}:null;})(),
     figBox:bx(d.querySelector('.hp-ai__figure')),
+    dog:(function(){var g=d.querySelector('.hp-ai__dog');if(!g)return null;
+      var c=w.getComputedStyle(g);
+      var eye=d.querySelector('.hp-ai__dog-eye');
+      return {box:bx(g), z:c.zIndex, events:c.pointerEvents,
+              hidden:g.getAttribute('aria-hidden'),
+              ears:d.querySelectorAll('.hp-ai__dog-ear').length,
+              eyes:d.querySelectorAll('.hp-ai__dog-eye').length,
+              nose:!!d.querySelector('.hp-ai__dog-nose'),
+              eyeAnim:eye?w.getComputedStyle(eye).animationName:null,
+              eyeDur:eye?w.getComputedStyle(eye).animationDuration:null};})(),
+    ebWeight:eb?w.getComputedStyle(eb).fontWeight:null,
+    pillFamily:(function(){var q=d.querySelector('.hp-ai__pill');
+      return q?w.getComputedStyle(q).fontFamily:null;})(),
+    ebFamily:eb?w.getComputedStyle(eb).fontFamily:null,
+    headBox:bx(head),
+    panelPadL:panel?w.getComputedStyle(panel).paddingLeft:null,
     hasButton: !!d.querySelector('.hp-ai a, .hp-ai button'),
     revealClass: sec?sec.classList.contains('hp-ai--reveal'):null,
     revealed:[].map.call(d.querySelectorAll('[data-reveal]'),function(e){
@@ -284,7 +300,7 @@ check('the photo paints over the panel rather than under it',
 # --------------------------------------------------------- the panel width --
 inner_w = d['panel']['box']['w'] + (d['fig']['box']['r'] - d['panel']['box']['r'])
 check('the panel takes the share of the row the setting asks for',
-      abs(round(100 * d['panel']['box']['w'] / inner_w) - 56) <= 2,
+      abs(round(100 * d['panel']['box']['w'] / inner_w) - 50) <= 2,
       f"panel {d['panel']['box']['w']}px of {inner_w}px")
 
 wide = run('wide-panel', overrides={'settings': dict(WITH_PHOTO['settings'],
@@ -309,8 +325,8 @@ check('the shape is an arch by default, not a rectangle',
 check('the shape clips the photo inside it',
       d['media']['overflow'] == 'hidden', f"overflow {d['media']['overflow']}")
 check('the photo box has a height object-fit can resolve against',
-      d['img']['box']['h'] > 0 and abs(d['img']['box']['h'] - 460) <= 2,
-      f"{d['img']['box']['w']}x{d['img']['box']['h']}px against a 460px setting")
+      d['img']['box']['h'] > 0 and abs(d['img']['box']['h'] - 550) <= 2,
+      f"{d['img']['box']['w']}x{d['img']['box']['h']}px against a 550px setting")
 check('the alt text you type is the alt text that ships',
       d['img']['alt'] == 'A toddler holding a Hankie Pal', f"alt {d['img']['alt']!r}")
 check('the photo carries a shadow, so it lifts off the panel',
@@ -320,7 +336,7 @@ check('the photo carries a shadow, so it lifts off the panel',
 
 no_photo = run('no-photo', overrides={})
 check('before a photo is chosen the shape still holds its place',
-      no_photo['media']['box']['h'] > 400 and no_photo['img'] is None,
+      no_photo['media']['box']['h'] > 480 and no_photo['img'] is None,
       f"empty media box {no_photo['media']['box']['w']}x{no_photo['media']['box']['h']}px")
 
 focus = run('focus-top', overrides={'settings': dict(WITH_PHOTO['settings'],
@@ -644,9 +660,9 @@ check('the second photo has a shape of its own',
 check('and clips to it',
       two['media2']['overflow'] == 'hidden', f"overflow {two['media2']['overflow']}")
 check('the stage grows to hold both, less their overlap',
-      abs(two['figBox']['h'] - (460 + 300 - (two['media']['box']['b']
+      abs(two['figBox']['h'] - (550 + 360 - (two['media']['box']['b']
                                              - two['media2']['box']['t']))) <= 2,
-      f"stage {two['figBox']['h']}px for 460 + 300 less "
+      f"stage {two['figBox']['h']}px for 550 + 360 less "
       f"{two['media']['box']['b'] - two['media2']['box']['t']}px of overlap")
 
 # "Further up" is a claim about where the photograph sits against the words,
@@ -725,6 +741,118 @@ check('and an opacity that reads nil shows the picture rather than burying it',
 check('a background image never lets the section widen the page',
       bgi['docW'] <= bgi['winW'] + 1,
       f"document {bgi['docW']}px in {bgi['winW']}px")
+
+# ------------------------------------------------------------- the eyebrow --
+check('the eyebrow is bold',
+      d['ebWeight'] == '700', f"weight {d['ebWeight']}")
+check('and set in the body font rather than the heading one',
+      d['ebFamily'] and d['ebFamily'] != (d['pillFamily'] or ''),
+      f"eyebrow {d['ebFamily']}, pills {d['pillFamily']}")
+check('whose fallback names Quicksand, for a theme that has set no body font',
+      'var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif)'
+      in SECTION.read_text(encoding='utf-8'),
+      'the declared stack falls back to Quicksand (source check, not a render)')
+
+# The panel is narrower than it was, so a heading that no longer fits inside
+# it is a live risk rather than a theoretical one.
+check('the heading fits inside the panel it sits in',
+      d['headBox']['r'] <= d['panel']['box']['r']
+      - float(d['panel']['padEnd'].rstrip('px')) + 2
+      and d['headBox']['l'] >= d['panel']['box']['l'] - 2,
+      f"heading {d['headBox']['l']}-{d['headBox']['r']}, panel content ends "
+      f"{round(d['panel']['box']['r'] - float(d['panel']['padEnd'].rstrip('px')))}")
+
+# ----------------------------------------------------------------- the dog --
+check('a dog is drawn over the panel',
+      d['dog'] is not None and d['dog']['ears'] == 2 and d['dog']['eyes'] == 2
+      and d['dog']['nose'],
+      f"{d['dog']['ears']} ears, {d['dog']['eyes']} eyes, nose {d['dog']['nose']}"
+      if d['dog'] else 'no dog')
+check('he is decoration: never read out, never clickable',
+      d['dog']['hidden'] == 'true' and d['dog']['events'] == 'none',
+      f"aria-hidden {d['dog']['hidden']}, pointer-events {d['dog']['events']}")
+check('he rises above the panel by the amount the setting asks for',
+      abs((d['panel']['box']['t'] - d['dog']['box']['t']) - 84) <= 2,
+      f"{d['panel']['box']['t'] - d['dog']['box']['t']}px above the panel, "
+      f"setting 84px")
+check('and hangs down behind it rather than stopping at its edge',
+      d['dog']['box']['b'] > d['panel']['box']['t'] + 10,
+      f"dog ends {d['dog']['box']['b']}, panel starts {d['panel']['box']['t']}")
+
+# He stands where the photograph used to paint over him. That is a claim about
+# which of two boxes is in front, so it is settled in pixels.
+dog_img = shot('dog-crop', WITH_PHOTO)
+cx = d['dog']['box']['l'] + d['dog']['box']['w'] // 2
+above = dog_img.getpixel((cx, d['panel']['box']['t'] - 12))
+below = dog_img.getpixel((cx, d['panel']['box']['t'] + 12))
+check("the panel's own top edge is what crops him",
+      abs(above[0] - 252) + abs(above[1] - 251) + abs(above[2] - 246) > 40
+      and abs(below[0] - 233) < 12 and abs(below[1] - 245) < 12
+      and abs(below[2] - 219) < 12,
+      f"the dog is rgb{above} above the panel edge and the panel is rgb{below} "
+      f"below it, where he would otherwise carry on")
+check('and he stands clear of the photo rather than behind it',
+      d['dog']['box']['r'] < d['media']['box']['l'],
+      f"dog ends {d['dog']['box']['r']}, photo starts {d['media']['box']['l']}")
+
+# --------------------------------------------- the photo over the panel ----
+# Which of the two is in front is a claim about paint order, and every box
+# measurement agrees whichever way round it is. It needs a pixel.
+over_ov = {'settings': dict(WITH_PHOTO['settings'], image=str(FRONT_1),
+                            photo_shape='soft', show_dog=False)}
+over = run('photo-over-panel', overrides=over_ov)
+over_img = shot('photo-over-shot', over_ov)
+ox = (over['media']['box']['l'] + over['panel']['box']['r']) // 2
+oy = (max(over['media']['box']['t'], over['panel']['box']['t'])
+      + min(over['media']['box']['b'], over['panel']['box']['b'])) // 2
+seen = over_img.getpixel((ox, oy))
+check('the photo paints in front of the panel, not behind it',
+      abs(seen[0] - 220) < 60 and abs(seen[1] - 40) < 70,
+      f"where the two overlap, at {ox},{oy}, the pixel is rgb{seen} -- "
+      f"the photo is red, the panel is pale green")
+
+# Stacked, the panel is the first thing in the band, so a dog tall enough to
+# clear its top edge clears the band's too and gets cut off by it.
+check('the whole of him is inside the band, not cut off by its top edge',
+      d['dog']['box']['t'] >= d['secBox']['t'] - 1,
+      f"dog starts {d['dog']['box']['t']}, band starts {d['secBox']['t']}")
+dog_phone = framed('dog-phone', 390, WITH_PHOTO)
+check('on a phone too, where the panel is the first thing in the band',
+      dog_phone['dog']['box']['t'] >= dog_phone['secBox']['t'] - 1,
+      f"dog starts {dog_phone['dog']['box']['t']}, "
+      f"band starts {dog_phone['secBox']['t']}")
+tall_dog = framed('dog-phone-tall', 390, {'settings': dict(
+    WITH_PHOTO['settings'], dog_size=260, dog_peek=240)})
+check('and at his tallest, where the band has to make room for him',
+      tall_dog['dog']['box']['t'] >= tall_dog['secBox']['t'] - 1,
+      f"dog starts {tall_dog['dog']['box']['t']}, "
+      f"band starts {tall_dog['secBox']['t']}")
+
+low = run('dog-low', overrides={'settings': dict(WITH_PHOTO['settings'], dog_peek=24)})
+check('lowering him leaves just the ears',
+      abs((low['panel']['box']['t'] - low['dog']['box']['t']) - 24) <= 2,
+      f"{low['panel']['box']['t'] - low['dog']['box']['t']}px above the panel")
+
+no_dog = run('no-dog', overrides={'settings': dict(WITH_PHOTO['settings'],
+                                                   show_dog=False)})
+check('and he can be sent away entirely',
+      no_dog['dog'] is None, 'no dog rendered')
+
+check('he blinks, and a blink is a squash rather than a fade',
+      d['dog']['eyeAnim'] == 'hp-ai-blink' and d['dog']['eyeDur'] == '6s',
+      f"{d['dog']['eyeAnim']} every {d['dog']['eyeDur']}")
+
+still_dog = run('dog-still', overrides={'settings': dict(WITH_PHOTO['settings'],
+                                                         dog_blink=False)})
+check('the blink can be turned off while he stays',
+      still_dog['dog'] is not None and still_dog['dog']['eyeAnim'] == 'none',
+      f"dog present, animation {still_dog['dog']['eyeAnim']}")
+
+calm = run('dog-reduced', overrides=WITH_PHOTO, still=False,
+           flags=('--force-prefers-reduced-motion',),
+           sabotage='delete window.customElements;')
+check('and anyone asking for less motion gets a dog that holds still',
+      calm['dog']['eyeAnim'] == 'none', f"animation {calm['dog']['eyeAnim']}")
 
 print(f"\n{sum(res)}/{len(res)} passed")
 sys.exit(0 if all(res) else 1)

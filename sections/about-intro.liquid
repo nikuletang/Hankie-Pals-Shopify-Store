@@ -57,6 +57,7 @@
   assign pad_bm = s.padding_bottom_mobile | default: 48
 
   assign panel_pad = s.panel_padding | default: 48
+  assign panel_pad_top = s.panel_padding_top | default: 0
   assign panel_rad = s.panel_radius | default: 36
   assign panel_line = s.panel_border_width | default: 1
 
@@ -235,6 +236,10 @@
     /* The photograph reaches back over this edge, so the words are held clear
        of the overlap by the overlap's own width plus a little air. */
     padding-inline-end: calc(var(--hp-ai-ov) + var(--hp-ai-panel-pad));
+    /* The dog hangs into this edge, so the room the words need above them has
+       nothing to do with the room they need at the sides. Extra rather than
+       absolute, so changing the panel's padding still moves all four. */
+    padding-block-start: calc(var(--hp-ai-panel-pad) + var(--hp-ai-panel-pad-top));
     border: var(--hp-ai-panel-line-w) solid var(--hp-ai-panel-line);
     border-radius: var(--hp-ai-panel-rad);
     background: var(--hp-ai-panel);
@@ -645,7 +650,9 @@
     }
 
     .hp-ai--m-above .hp-ai__panel {
-      padding-top: calc(var(--hp-ai-panel-pad) + var(--hp-ai-ovm));
+      padding-top: calc(
+        var(--hp-ai-panel-pad) + var(--hp-ai-panel-pad-top) + var(--hp-ai-ovm)
+      );
     }
 
     .hp-ai__media {
@@ -714,6 +721,7 @@
     --hp-ai-blink-every: {{ blink_every }}s;
     --hp-ai-panel-rad: {{ panel_rad }}px;
     --hp-ai-panel-pad: {{ panel_pad }}px;
+    --hp-ai-panel-pad-top: {{ panel_pad_top }}px;
     --hp-ai-panel-line-w: {{ panel_line }}px;
     --hp-ai-peb-op: {{ peb_op }};
     --hp-ai-ovm: {{ overlap_m }}px;
@@ -1009,7 +1017,18 @@
     { "type": "color", "id": "panel_border_color", "label": "Panel outline", "default": "#CFE1B9" },
     { "type": "range", "id": "panel_border_width", "label": "Panel outline width", "unit": "px", "min": 0, "max": 3, "step": 1, "default": 1 },
     { "type": "range", "id": "panel_radius", "label": "Panel corner radius", "unit": "px", "min": 0, "max": 64, "step": 4, "default": 36 },
-    { "type": "range", "id": "panel_padding", "label": "Panel padding", "unit": "px", "min": 24, "max": 80, "step": 4, "default": 48 },
+    { "type": "range", "id": "panel_padding", "label": "Panel padding", "unit": "px", "min": 24, "max": 160, "step": 4, "default": 48 },
+    {
+      "type": "range",
+      "id": "panel_padding_top",
+      "label": "Extra space at the top",
+      "unit": "px",
+      "min": 0,
+      "max": 280,
+      "step": 4,
+      "default": 0,
+      "info": "Added to the panel padding, on the top edge only. This is the one to reach for when the dog is hanging into the words."
+    },
     {
       "type": "range",
       "id": "panel_offset",

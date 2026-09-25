@@ -118,6 +118,7 @@ function snap(d,w){
     ebFamily:eb?w.getComputedStyle(eb).fontFamily:null,
     headBox:bx(head),
     panelPadL:panel?w.getComputedStyle(panel).paddingLeft:null,
+    panelPadT:panel?w.getComputedStyle(panel).paddingTop:null,
     hasButton: !!d.querySelector('.hp-ai a, .hp-ai button'),
     revealClass: sec?sec.classList.contains('hp-ai--reveal'):null,
     revealed:[].map.call(d.querySelectorAll('[data-reveal]'),function(e){
@@ -827,6 +828,30 @@ check('and at his tallest, where the band has to make room for him',
       tall_dog['dog']['box']['t'] >= tall_dog['secBox']['t'] - 1,
       f"dog starts {tall_dog['dog']['box']['t']}, "
       f"band starts {tall_dog['secBox']['t']}")
+
+# The dog hangs into the panel's top edge, so the room above the words has to
+# be settable well past what the sides would ever want.
+check('the panel starts out with the same room on every side',
+      d['panelPadT'] == d['panelPadL'],
+      f"top {d['panelPadT']}, left {d['panelPadL']}")
+roomy = run('panel-roomy', overrides={'settings': dict(
+    WITH_PHOTO['settings'], panel_padding_top=200)})
+check('and the top alone can be pushed a long way down, for the dog to clear',
+      abs(float(roomy['panelPadT'].rstrip('px'))
+          - float(d['panelPadT'].rstrip('px')) - 200) <= 1
+      and roomy['panelPadL'] == d['panelPadL'],
+      f"top {d['panelPadT']} -> {roomy['panelPadT']}, sides still {roomy['panelPadL']}")
+check('which moves the words down rather than stretching the panel over them',
+      roomy['ebBox']['t'] - roomy['panel']['box']['t']
+      > d['ebBox']['t'] - d['panel']['box']['t'] + 190,
+      f"eyebrow sits {roomy['ebBox']['t'] - roomy['panel']['box']['t']}px into the "
+      f"panel, was {d['ebBox']['t'] - d['panel']['box']['t']}px")
+roomy_phone = framed('panel-roomy-phone', 390, {'settings': dict(
+    WITH_PHOTO['settings'], panel_padding_top=200, mobile_layout='photo_above')})
+check('and it carries over to a phone, where the overlap is added to it too',
+      float(roomy_phone['panelPadT'].rstrip('px')) >= 200 + 48,
+      f"top padding {roomy_phone['panelPadT']} against 200 asked for plus the "
+      f"panel's own 48 and the overlap")
 
 low = run('dog-low', overrides={'settings': dict(WITH_PHOTO['settings'], dog_peek=24)})
 check('lowering him leaves just the ears',

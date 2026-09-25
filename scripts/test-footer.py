@@ -77,7 +77,6 @@ setTimeout(function () {
       return { tag: e.tagName, href: e.getAttribute('href'),
                name: (e.querySelector('.hp-ft__sr') || {}).textContent || null,
                hidden: e.getAttribute('aria-hidden'),
-               ph: e.classList.contains('hp-ft__social-link--ph'),
                border: getComputedStyle(e).borderTopWidth,
                ink: getComputedStyle(e).color,
                box: box(e) };
@@ -250,18 +249,19 @@ check('and they stand down where the columns reach the edges',
       f"display {[p['display'] for p in small['pebbles']]} at 500px")
 
 # -------------------------------------------------------------- the social --
-check('with no links set, the row shows placeholders so it still reads',
-      len(d['social']) == 6 and all(s['ph'] for s in d['social']),
-      f"{len(d['social'])} icons, all placeholders")
-check('and a placeholder is not a link, nor read out',
-      all(s['tag'] != 'A' and s['hidden'] == 'true' for s in d['social']),
-      'every placeholder is a span, aria-hidden')
+check('with no link filled in, not one icon shows',
+      len(d['social']) == 0, f"{len(d['social'])} icons rendered")
+check('and the row itself is gone, not left empty',
+      d['socialBox'] is None, 'no .hp-ft__social in the markup')
 
 filled = run({'settings': {'social_instagram': 'https://instagram.com/totterful',
                            'social_tiktok': 'https://tiktok.com/@totterful'}}, 'social')
-check('filling one link drops the placeholders and shows only what is set',
-      len(filled['social']) == 2 and all(s['tag'] == 'A' for s in filled['social']),
-      f"{len(filled['social'])} icons, all real links")
+check('the two links filled in show, and the four blank ones do not',
+      len(filled['social']) == 2, f"{len(filled['social'])} icons rendered")
+check('and every icon that shows is a real link',
+      all(s['tag'] == 'A' and s['href'] and s['hidden'] is None
+          for s in filled['social']),
+      f"{[(s['tag'], s['href'], s['hidden']) for s in filled['social']]}")
 check('and each is named for a screen reader',
       [s['name'] for s in filled['social']] == ['Instagram', 'TikTok'],
       f"{[s['name'] for s in filled['social']]}")

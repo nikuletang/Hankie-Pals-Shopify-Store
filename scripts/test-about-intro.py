@@ -48,6 +48,8 @@ function snap(d,w){
   var panel=d.querySelector('.hp-ai__panel');
   var fig=d.querySelector('.hp-ai__figure');
   var media=d.querySelector('.hp-ai__media');
+  var photo=d.querySelector('.hp-ai__photo');
+  var media2=d.querySelector('.hp-ai__media--2');
   var img=d.querySelector('.hp-ai__media img');
   var head=d.querySelector('.hp-ai__heading');
   var eb=d.querySelector('.hp-ai__eyebrow');
@@ -55,6 +57,9 @@ function snap(d,w){
   return {
     secBox:bx(sec), secOverflow:sec?w.getComputedStyle(sec).overflowX:null,
     secBg:sec?w.getComputedStyle(sec).backgroundColor:null,
+    secImage:sec?w.getComputedStyle(sec).backgroundImage:null,
+    secSize:sec?w.getComputedStyle(sec).backgroundSize:null,
+    secRepeat:sec?w.getComputedStyle(sec).backgroundRepeat:null,
     panel:panel?{box:bx(panel), bg:w.getComputedStyle(panel).backgroundColor,
                  radius:w.getComputedStyle(panel).borderTopLeftRadius,
                  padEnd:w.getComputedStyle(panel).paddingInlineEnd,
@@ -88,6 +93,15 @@ function snap(d,w){
     pills:[].map.call(d.querySelectorAll('.hp-ai__pill'),function(e){
       return {box:bx(e), text:e.textContent.trim(),
               z:w.getComputedStyle(e).zIndex};}),
+    photoZ:photo?w.getComputedStyle(photo).zIndex:null,
+    photoBox:bx(photo),
+    media2:media2?{box:bx(media2), radius:w.getComputedStyle(media2).borderTopLeftRadius,
+                   z:w.getComputedStyle(media2).zIndex,
+                   overflow:w.getComputedStyle(media2).overflow}:null,
+    img2Fit:(function(){var i=d.querySelector('.hp-ai__media--2 img');
+      return i?{box:bx(i), fit:w.getComputedStyle(i).objectFit,
+                alt:i.getAttribute('alt')}:null;})(),
+    figBox:bx(d.querySelector('.hp-ai__figure')),
     hasButton: !!d.querySelector('.hp-ai a, .hp-ai button'),
     revealClass: sec?sec.classList.contains('hp-ai--reveal'):null,
     revealed:[].map.call(d.querySelectorAll('[data-reveal]'),function(e){
@@ -161,6 +175,19 @@ def framed(name, width=390, overrides=None):
     return json.loads(m.group(1))
 
 
+def shot(name, overrides, width=1400, height=1000):
+    """A screenshot of the section at rest. Which of two overlapping boxes is
+    in front is a claim about paint order, and paint order is only visible in
+    pixels -- every box measurement agrees whichever one is on top."""
+    page = render(name, overrides, still=True)
+    out = TMP / f'ai-{name}.png'
+    subprocess.run([CHROME, '--headless', '--no-sandbox', '--disable-gpu',
+        f'--window-size={width},{height}', '--virtual-time-budget=6000',
+        f'--screenshot={out}', 'file://' + str(page)],
+        capture_output=True, timeout=180)
+    return Image.open(out).convert('RGB')
+
+
 res = []
 def check(label, ok, detail):
     res.append(bool(ok))
@@ -193,7 +220,14 @@ def banded(path):
     return path
 
 
+def plain(path, size, fill):
+    Image.new('RGB', size, fill).save(path)
+    return path
+
+
 PHOTO = banded(TMP / 'ai-photo.png')
+PHOTO2 = plain(TMP / 'ai-photo2.png', (600, 600), (120, 160, 110))
+PATTERN = plain(TMP / 'ai-pattern.png', (200, 200), (210, 225, 195))
 WITH_PHOTO = {'settings': {'image': str(PHOTO), 'image_alt': 'A toddler holding a Hankie Pal'}}
 
 d = run('default', overrides=WITH_PHOTO)
@@ -332,9 +366,9 @@ check('they are decorative: never read out, never clickable',
       'aria-hidden and pointer-events none on both')
 check('the photo pebble sits behind the panel, not on its face',
       int(d['pebbles'][1]['z'] or 0) < int(d['panel']['z'] or 0)
-      and int(d['panel']['z'] or 0) < int(d['media']['z'] or 0),
+      and int(d['panel']['z'] or 0) < int(d['photoZ'] or 0),
       f"pebble z {d['pebbles'][1]['z']}, panel z {d['panel']['z']}, "
-      f"photo z {d['media']['z']}")
+      f"photo z {d['photoZ']}")
 check('their opacity is the setting, not a guess',
       all(abs(float(p['op']) - 0.55) < 0.01 for p in d['pebbles']),
       f"opacity {[p['op'] for p in d['pebbles']]}")
@@ -359,10 +393,13 @@ check('and it stays inside the band rather than leaning on the next section',
 # ---------------------------------------------------------------- the pills --
 check('the preset ships two pill labels on the photo',
       len(d['pills']) == 2, f"{len(d['pills'])} pills")
-check('each pill sits over the photo, not beside it',
-      all(p['box']['l'] >= d['media']['box']['l'] - 60
-          and p['box']['r'] <= d['media']['box']['r'] + 60 for p in d['pills']),
-      f"photo spans {d['media']['box']['l']}-{d['media']['box']['r']}")
+check('each pill sits on the photo, not hanging off it',
+      all(p['box']['l'] >= d['media']['box']['l'] - 2
+          and p['box']['r'] <= d['media']['box']['r'] + 2
+          and p['box']['t'] >= d['media']['box']['t'] - 2
+          and p['box']['b'] <= d['media']['box']['b'] + 2 for p in d['pills']),
+      f"pills {[(p['box']['l'], p['box']['r']) for p in d['pills']]} "
+      f"against a photo spanning {d['media']['box']['l']}-{d['media']['box']['r']}")
 check('and over it rather than under it',
       all(int(p['z']) > 1 for p in d['pills']), f"pill z {[p['z'] for p in d['pills']]}")
 
@@ -421,9 +458,11 @@ check('the eyebrow really does wrap at phone width',
 check('and its dot stays on the first line rather than drifting to the middle',
       abs(dot_mid - line1_mid) <= 2,
       f"dot centre {round(dot_mid)}, first line centre {round(line1_mid)}")
-check('every pill stays on the photo at phone width',
-      all(p['box']['l'] >= p390['media']['box']['l'] - 30
-          and p['box']['r'] <= p390['media']['box']['r'] + 30 for p in p390['pills']),
+check('every pill stays on the photo at phone width too',
+      all(p['box']['l'] >= p390['media']['box']['l'] - 2
+          and p['box']['r'] <= p390['media']['box']['r'] + 2
+          and p['box']['t'] >= p390['media']['box']['t'] - 2
+          and p['box']['b'] <= p390['media']['box']['b'] + 2 for p in p390['pills']),
       f"pills {[(p['box']['l'], p['box']['r']) for p in p390['pills']]} "
       f"against photo {p390['media']['box']['l']}-{p390['media']['box']['r']}")
 
@@ -487,9 +526,9 @@ check('and the animation ends with not one piece left invisible',
       f"opacity {[r['op'] for r in anim['revealed']]}")
 check('a pill lands back on its mark rather than in the photo corner',
       abs(anim['pills'][0]['box']['l'] + anim['pills'][0]['box']['w'] / 2
-          - (anim['media']['box']['l'] + 0.74 * anim['media']['box']['w'])) <= 4,
+          - (anim['media']['box']['l'] + 0.70 * anim['media']['box']['w'])) <= 4,
       f"pill centre {round(anim['pills'][0]['box']['l'] + anim['pills'][0]['box']['w'] / 2)}"
-      f" against 74% of {anim['media']['box']['l']}-{anim['media']['box']['r']}")
+      f" against 70% of {anim['media']['box']['l']}-{anim['media']['box']['r']}")
 
 none = run('anim-none', overrides={'settings': dict(WITH_PHOTO['settings'],
                                                     reveal='none')}, still=False)
@@ -518,10 +557,10 @@ check('and gets it from the stylesheet even if the script never runs at all',
       f"opacity {[r['op'] for r in css_only['revealed']]}")
 check('and the pills keep the transform that is their position, not their motion',
       abs(reduced['pills'][0]['box']['l'] + reduced['pills'][0]['box']['w'] / 2
-          - (reduced['media']['box']['l'] + 0.74 * reduced['media']['box']['w'])) <= 4,
+          - (reduced['media']['box']['l'] + 0.70 * reduced['media']['box']['w'])) <= 4,
       f"pill centre "
       f"{round(reduced['pills'][0]['box']['l'] + reduced['pills'][0]['box']['w'] / 2)}"
-      f" against 74% of the photo")
+      f" against 70% of the photo")
 
 blind = run('anim-blind', overrides=WITH_PHOTO, still=False,
             sabotage='delete window.IntersectionObserver;')
@@ -551,6 +590,141 @@ check('and the file carries a noscript rule for a browser that runs no script',
       '<noscript>' in source
       and '.hp-ai--reveal [data-reveal] { opacity: 1; }' in source,
       'noscript restores opacity on [data-reveal] (source check, not a render)')
+
+# ------------------------------------------------------- the second photo --
+# Without one the stage is the first photograph and nothing else, so the
+# section does not open a hole for a picture that may never arrive.
+check('with no second photo chosen, none is drawn',
+      d['media2'] is None and abs(d['figBox']['h'] - d['media']['box']['h']) <= 1,
+      f"figure {d['figBox']['h']}px tall against a {d['media']['box']['h']}px photo")
+
+two = run('two-photos', overrides={'settings': dict(
+    WITH_PHOTO['settings'], image_2=str(PHOTO2), image_2_alt='A Hankie Pal close up')})
+check('choosing one draws it',
+      two['media2'] is not None and two['img2Fit'] is not None,
+      f"second photo {two['media2']['box']['w']}x{two['media2']['box']['h']}px"
+      if two['media2'] else 'nothing drawn')
+check('and its alt text is the one you typed',
+      two['img2Fit']['alt'] == 'A Hankie Pal close up', f"alt {two['img2Fit']['alt']!r}")
+check('it sits below the first photo',
+      two['media2']['box']['t'] > two['media']['box']['t']
+      and two['media2']['box']['b'] > two['media']['box']['b'],
+      f"second {two['media2']['box']['t']}-{two['media2']['box']['b']}, "
+      f"first {two['media']['box']['t']}-{two['media']['box']['b']}")
+check('and to its right',
+      two['media2']['box']['l'] > two['media']['box']['l']
+      and two['media2']['box']['r'] > two['media']['box']['r'],
+      f"second {two['media2']['box']['l']}-{two['media2']['box']['r']}, "
+      f"first {two['media']['box']['l']}-{two['media']['box']['r']}")
+check('overlapping it in both directions rather than sitting clear of it',
+      two['media2']['box']['t'] < two['media']['box']['b']
+      and two['media2']['box']['l'] < two['media']['box']['r'],
+      f"overlap {two['media']['box']['b'] - two['media2']['box']['t']}px down, "
+      f"{two['media']['box']['r'] - two['media2']['box']['l']}px across")
+# Two flat colours and two square-ish shapes, so the overlap is a solid
+# rectangle of one colour or the other rather than two curves meeting.
+FRONT_1 = plain(TMP / 'ai-front1.png', (600, 900), (220, 40, 40))
+FRONT_2 = plain(TMP / 'ai-front2.png', (600, 600), (30, 90, 220))
+front_ov = {'settings': dict(WITH_PHOTO['settings'], image=str(FRONT_1),
+                             image_2=str(FRONT_2), photo_shape='soft',
+                             photo2_shape='soft', photo2_overlap=25)}
+front = run('front-boxes', overrides=front_ov)
+px_img = shot('front-shot', front_ov)
+box1, box2 = front['media']['box'], front['media2']['box']
+sx = (max(box1['l'], box2['l']) + min(box1['r'], box2['r'])) // 2
+sy = (max(box1['t'], box2['t']) + min(box1['b'], box2['b'])) // 2
+sampled = px_img.getpixel((sx, sy))
+check('and in front of it, not behind',
+      abs(sampled[2] - 220) < 60 and abs(sampled[0] - 30) < 60,
+      f"the overlap at {sx},{sy} is rgb{sampled} -- the second photo is blue, "
+      f"the first is red")
+check('the second photo has a shape of its own',
+      two['media2']['radius'] != two['media']['radius'],
+      f"second {two['media2']['radius']}, first {two['media']['radius']}")
+check('and clips to it',
+      two['media2']['overflow'] == 'hidden', f"overflow {two['media2']['overflow']}")
+check('the stage grows to hold both, less their overlap',
+      abs(two['figBox']['h'] - (460 + 300 - (two['media']['box']['b']
+                                             - two['media2']['box']['t']))) <= 2,
+      f"stage {two['figBox']['h']}px for 460 + 300 less "
+      f"{two['media']['box']['b'] - two['media2']['box']['t']}px of overlap")
+
+# "Further up" is a claim about where the photograph sits against the words,
+# so it is measured against the words.
+gap_one = d['panel']['box']['t'] - d['media']['box']['t']
+gap_two = two['panel']['box']['t'] - two['media']['box']['t']
+check('adding the second photo lifts the first one clear of the words',
+      gap_two > gap_one,
+      f"first photo starts {gap_two}px above the panel, was {gap_one}px")
+
+up = run('nudged', overrides={'settings': dict(
+    WITH_PHOTO['settings'], image_2=str(PHOTO2), photo_offset=-60)})
+check('and the nudge lifts the pair further still',
+      abs((two['media']['box']['t'] - up['media']['box']['t']) - 60) <= 2,
+      f"moved {two['media']['box']['t'] - up['media']['box']['t']}px against a 60px nudge")
+check('the pills ride up with the photo they belong to',
+      abs((two['pills'][0]['box']['t'] - up['pills'][0]['box']['t']) - 60) <= 2,
+      f"pill moved {two['pills'][0]['box']['t'] - up['pills'][0]['box']['t']}px")
+
+wide2 = run('wide-second', overrides={'settings': dict(
+    WITH_PHOTO['settings'], image_2=str(PHOTO2), photo_width=90, photo2_width=70)})
+check('widening both photos deepens the overlap rather than breaking the grid',
+      wide2['media2'] is not None
+      and (wide2['media']['box']['r'] - wide2['media2']['box']['l'])
+      > (two['media']['box']['r'] - two['media2']['box']['l'])
+      and wide2['media']['box']['w'] > two['media']['box']['w'],
+      f"overlap {two['media']['box']['r'] - two['media2']['box']['l']}"
+      f"->{wide2['media']['box']['r'] - wide2['media2']['box']['l']}px")
+
+p2phone = framed('two-phone', 390, {'settings': dict(
+    WITH_PHOTO['settings'], image_2=str(PHOTO2))})
+check('both photos survive the phone, still overlapping',
+      p2phone['media2'] is not None
+      and p2phone['media2']['box']['t'] < p2phone['media']['box']['b']
+      and p2phone['media2']['box']['l'] > p2phone['media']['box']['l'],
+      f"second {p2phone['media2']['box']['l']}-{p2phone['media2']['box']['r']} "
+      f"x {p2phone['media2']['box']['t']}-{p2phone['media2']['box']['b']}")
+check('and neither one widens the page there',
+      p2phone['docW'] <= p2phone['winW'] + 1,
+      f"document {p2phone['docW']}px in {p2phone['winW']}px")
+
+# --------------------------------------------------- the background image --
+check('with no background image the band is a flat colour',
+      d['secBg'] is not None and 'url' not in (d.get('secImage') or 'none'),
+      f"background {d['secBg']}")
+
+bgi = run('bg-image', overrides={'settings': dict(
+    WITH_PHOTO['settings'], background_image=str(PATTERN))})
+check('an uploaded one is drawn behind the section',
+      'url' in (bgi['secImage'] or ''), f"{(bgi['secImage'] or '')[:46]}")
+check('under a wash of the background colour, so the words keep their contrast',
+      (bgi['secImage'] or '').count('gradient') == 1,
+      'one gradient layer over the picture')
+check('it fills the band by default',
+      bgi['secSize'].split(',')[0].strip() == 'cover', f"size {bgi['secSize']}")
+
+tile = run('bg-tile', overrides={'settings': dict(
+    WITH_PHOTO['settings'], background_image=str(PATTERN),
+    background_image_size='tile', background_image_scale=200)})
+check('and can be a tiled pattern instead, at the size asked for',
+      'repeat' in tile['secRepeat'] and '200px' in tile['secSize'],
+      f"repeat {tile['secRepeat']}, size {tile['secSize']}")
+
+faded = run('bg-faded', overrides={'settings': dict(
+    WITH_PHOTO['settings'], background_image=str(PATTERN), background_opacity=0)})
+check('turning it to nothing puts the background colour back over it',
+      faded['secImage'] != bgi['secImage'],
+      'the wash changed with the setting')
+
+nil_op = run('bg-nil', overrides={'settings': dict(
+    WITH_PHOTO['settings'], background_image=str(PATTERN), background_opacity=None)})
+check('and an opacity that reads nil shows the picture rather than burying it',
+      nil_op['secImage'] == bgi['secImage'],
+      'a setting added after the section was saved still draws the picture')
+
+check('a background image never lets the section widen the page',
+      bgi['docW'] <= bgi['winW'] + 1,
+      f"document {bgi['docW']}px in {bgi['winW']}px")
 
 print(f"\n{sum(res)}/{len(res)} passed")
 sys.exit(0 if all(res) else 1)

@@ -80,6 +80,29 @@
 
   assign shape = s.photo_shape | default: 'arch'
   assign ratio = s.photo_ratio | default: 'tall'
+  assign shape2 = s.photo2_shape | default: 'blob'
+  assign ratio2 = s.photo2_ratio | default: 'square'
+
+  assign p1_w = s.photo_width | default: 76
+  assign p2_w = s.photo2_width | default: 50
+  assign photo2_h = s.photo2_height | default: 300
+  assign p2_over = s.photo2_overlap | default: 30
+  assign photo_up = s.photo_offset | default: 0
+  assign panel_up = s.panel_offset | default: 0
+
+  # The two photographs overlap sideways by however much their widths come to
+  # over the full width. Both ranges start where their sum is 100, so the
+  # middle track can never be asked for a negative width -- which would not
+  # clamp, it would throw the whole grid-template-columns away.
+  assign ovx = p1_w | plus: p2_w | minus: 100
+
+  # A background image, washed with the section's own colour so the words keep
+  # their contrast. The filter chain is split because `| default:` binds to
+  # everything to its left, not to the nearest word.
+  assign bg_op = s.background_opacity | default: 100
+  assign bg_fade = 100 | minus: bg_op | times: 0.01
+  assign bg_base = s.background_color | default: '#FCFBF6'
+  assign bg_wash = bg_base | color_modify: 'alpha', bg_fade
   assign align = s.text_align | default: 'left'
   assign eb_style = s.eyebrow_style | default: 'line'
   assign mobile = s.mobile_layout | default: 'photo_below'
@@ -99,6 +122,30 @@
       assign ratio_css = '2 / 3'
   endcase
 
+  case ratio2
+    when 'portrait'
+      assign ratio2_css = '3 / 4'
+    when 'tall'
+      assign ratio2_css = '2 / 3'
+    when 'landscape'
+      assign ratio2_css = '4 / 3'
+    else
+      assign ratio2_css = '1 / 1'
+  endcase
+
+  case shape2
+    when 'arch'
+      assign shape2_css = '50% 50% 24px 24px / 34% 34% 24px 24px'
+    when 'pebble'
+      assign shape2_css = '45% 55% 50% 50% / 55% 45% 55% 45%'
+    when 'soft'
+      assign shape2_css = '28px'
+    when 'circle'
+      assign shape2_css = '50%'
+    else
+      assign shape2_css = '64% 36% 58% 42% / 42% 56% 44% 58%'
+  endcase
+
   case shape
     when 'blob'
       # Lopsided, each edge's radius pair summing to 100% -- the same shape
@@ -116,6 +163,7 @@
   endcase
 
   assign alt_text = s.image_alt | default: ''
+  assign alt_text_2 = s.image_2_alt | default: ''
 
   assign motion = s.reveal | default: 'rise'
   assign rev_dur = s.reveal_duration | default: 620
@@ -126,7 +174,20 @@
 {% style %}
   .hp-ai {
     position: relative;
+    {%- if s.background_image != blank %}
+    /* The wash is the section's own colour at the opacity the picture is not
+       using, laid over it -- so turning the picture down puts the colour back
+       rather than letting the words lose their contrast to it. */
+    background-color: {{ bg_base }};
+    background-image:
+      linear-gradient({{ bg_wash }}, {{ bg_wash }}),
+      url({{ s.background_image | image_url: width: 2200 }});
+    background-size: {% if s.background_image_size == 'cover' %}cover, cover{% else %}auto, {{ s.background_image_scale | default: 420 }}px{% endif %};
+    background-position: {{ s.background_image_position | default: 'center center' }};
+    background-repeat: {% if s.background_image_size == 'cover' %}no-repeat, no-repeat{% else %}repeat, repeat{% endif %};
+    {%- else %}
     background: var(--hp-ai-bg);
+    {%- endif %}
     padding: {{ pad_t }}px 0 {{ pad_b }}px;
     /* clip, not hidden: hidden on one axis forces the other to scroll, and a
        pebble hanging off the side must never widen the page. */
@@ -156,6 +217,7 @@
     grid-row: 1;
     position: relative;
     z-index: 1;
+    transform: translateY(var(--hp-ai-panel-up));
     padding: var(--hp-ai-panel-pad);
     /* The photograph reaches back over this edge, so the words are held clear
        of the overlap by the overlap's own width plus a little air. */
@@ -230,21 +292,57 @@
   .hp-ai__body > :first-child { margin-top: 0; }
   .hp-ai__body > :last-child { margin-bottom: 0; }
 
+  /* The figure is its own overlap grid, built the same way the panel and the
+     photograph are: three columns where the middle one is the sideways
+     overlap and both photographs span it.
+
+         tracks   |  100% - p2 width  |  overlap  |  the rest  |
+         photo 1  |<------------------------ >|
+         photo 2               |<------------------------ >|
+
+     The second photograph is pulled up into the first by a negative top
+     margin rather than by a third row, which keeps both in flow -- so the
+     stage is as tall as the two of them less their overlap, with no height
+     to keep in step by hand. The margin is a percentage, which resolves
+     against the figure's width, so the overlap stays in proportion on a
+     phone instead of needing a second number. */
   .hp-ai__figure {
     grid-column: 2 / 4;
     grid-row: 1;
     position: relative;
+    display: grid;
+    grid-template-columns:
+      max(0%, calc(100% - var(--hp-ai-p2w)))
+      max(0%, var(--hp-ai-ovx))
+      minmax(0, 1fr);
     margin: 0;
+    transform: translateY(var(--hp-ai-photo-up));
+  }
+
+  .hp-ai__photo {
+    position: relative;
+    z-index: 2;
+    grid-column: 1 / 3;
+    grid-row: 1;
   }
 
   .hp-ai__media {
     position: relative;
-    z-index: 2;
     height: var(--hp-ai-photo-h);
     overflow: hidden;
     border-radius: var(--hp-ai-shape);
     background: var(--hp-ai-ph);
     box-shadow: 0 24px 48px rgba(47, 51, 38, {{ shadow_a }});
+  }
+
+  .hp-ai__media--2 {
+    position: relative;
+    z-index: 2;
+    grid-column: 2 / 4;
+    grid-row: 2;
+    margin-block-start: calc(var(--hp-ai-ovy) * -1);
+    height: var(--hp-ai-photo2-h);
+    border-radius: var(--hp-ai-shape2);
   }
 
   .hp-ai__media img {
@@ -253,6 +351,10 @@
     height: 100%;
     object-fit: cover;
     object-position: {{ s.photo_focus | default: 'center' }};
+  }
+
+  .hp-ai__media--2 img {
+    object-position: {{ s.photo2_focus | default: 'center' }};
   }
 
   .hp-ai__pebble {
@@ -412,6 +514,16 @@
       aspect-ratio: var(--hp-ai-ratio);
     }
 
+    .hp-ai__media--2 {
+      height: auto;
+      aspect-ratio: var(--hp-ai-ratio2);
+    }
+
+    /* Nudging either side makes room beside the other. Stacked, there is
+       nothing to make room for. */
+    .hp-ai__figure,
+    .hp-ai__panel { transform: none; }
+
     .hp-ai__heading { font-size: {{ head_size_m }}px; }
     .hp-ai__pill { max-width: 66%; font-size: calc({{ pill_size }}px - 1px); }
   }
@@ -438,8 +550,16 @@
     --hp-ai-pw: {{ panel_w }}%;
     --hp-ai-ov: {{ overlap }}px;
     --hp-ai-photo-h: {{ photo_h }}px;
+    --hp-ai-photo2-h: {{ photo2_h }}px;
     --hp-ai-ratio: {{ ratio_css }};
+    --hp-ai-ratio2: {{ ratio2_css }};
     --hp-ai-shape: {{ shape_css }};
+    --hp-ai-shape2: {{ shape2_css }};
+    --hp-ai-p2w: {{ p2_w }}%;
+    --hp-ai-ovx: {{ ovx }}%;
+    --hp-ai-ovy: {{ p2_over }}%;
+    --hp-ai-photo-up: {{ photo_up }}px;
+    --hp-ai-panel-up: {{ panel_up }}px;
     --hp-ai-panel-rad: {{ panel_rad }}px;
     --hp-ai-panel-pad: {{ panel_pad }}px;
     --hp-ai-panel-line-w: {{ panel_line }}px;
@@ -478,38 +598,61 @@
           <span class="hp-ai__pebble hp-ai__pebble--photo" aria-hidden="true"></span>
         {%- endif -%}
 
-        <div class="hp-ai__media" data-reveal>
-          {%- if s.image != blank -%}
-            {{
-              s.image
-              | image_url: width: 1200
-              | image_tag:
-                loading: 'lazy',
-                widths: '400, 600, 800, 1000, 1200',
-                sizes: '(min-width: 990px) 44vw, 92vw',
-                alt: alt_text
-            }}
-          {%- endif -%}
+        <div class="hp-ai__photo">
+          <div class="hp-ai__media" data-reveal>
+            {%- if s.image != blank -%}
+              {{
+                s.image
+                | image_url: width: 1200
+                | image_tag:
+                  loading: 'lazy',
+                  widths: '400, 600, 800, 1000, 1200',
+                  sizes: '(min-width: 990px) 34vw, 72vw',
+                  alt: alt_text
+              }}
+            {%- endif -%}
+          </div>
+
+          {%- for block in section.blocks -%}
+            {%- liquid
+              assign px = block.settings.x | default: 70
+              assign py = block.settings.y | default: 18
+              assign tx = block.settings.rotate | default: 0
+            -%}
+            {%- if block.settings.text != blank -%}
+              <span
+                class="hp-ai__pill"
+                style="--px: {{ px }}%; --py: {{ py }}%; --tx: {{ tx }}deg;"
+                data-reveal
+                {{ block.shopify_attributes }}
+              >
+                <span class="hp-ai__pill-dot" aria-hidden="true"></span>
+                <span>{{ block.settings.text | escape }}</span>
+              </span>
+            {%- endif -%}
+          {%- endfor -%}
         </div>
 
-        {%- for block in section.blocks -%}
-          {%- liquid
-            assign px = block.settings.x | default: 70
-            assign py = block.settings.y | default: 18
-            assign tx = block.settings.rotate | default: 0
-          -%}
-          {%- if block.settings.text != blank -%}
-            <span
-              class="hp-ai__pill"
-              style="--px: {{ px }}%; --py: {{ py }}%; --tx: {{ tx }}deg;"
-              data-reveal
-              {{ block.shopify_attributes }}
-            >
-              <span class="hp-ai__pill-dot" aria-hidden="true"></span>
-              <span>{{ block.settings.text | escape }}</span>
-            </span>
-          {%- endif -%}
-        {%- endfor -%}
+        {%- comment -%}
+          The second photograph is drawn only when there is one. An empty
+          shape held open for a picture that may never arrive reads as a
+          fault rather than as a placeholder, and the stage closes back up to
+          the first photograph's height without it.
+        {%- endcomment -%}
+        {%- if s.image_2 != blank -%}
+          <div class="hp-ai__media hp-ai__media--2" data-reveal>
+            {{
+              s.image_2
+              | image_url: width: 900
+              | image_tag:
+                loading: 'lazy',
+                widths: '300, 450, 600, 750, 900',
+                sizes: '(min-width: 990px) 22vw, 48vw',
+                alt: alt_text_2
+            }}
+          </div>
+        {%- endif -%}
+
       </figure>
     </div>
   </div>
@@ -681,6 +824,17 @@
     { "type": "range", "id": "panel_border_width", "label": "Panel outline width", "unit": "px", "min": 0, "max": 3, "step": 1, "default": 1 },
     { "type": "range", "id": "panel_radius", "label": "Panel corner radius", "unit": "px", "min": 0, "max": 64, "step": 4, "default": 36 },
     { "type": "range", "id": "panel_padding", "label": "Panel padding", "unit": "px", "min": 24, "max": 80, "step": 4, "default": 48 },
+    {
+      "type": "range",
+      "id": "panel_offset",
+      "label": "Nudge the panel up",
+      "unit": "px",
+      "min": -120,
+      "max": 120,
+      "step": 4,
+      "default": 0,
+      "info": "With a second photo the picture side is the taller of the two, so this decides where the words sit against it."
+    },
 
     { "type": "header", "content": "Photo" },
     { "type": "image_picker", "id": "image", "label": "Lifestyle photo" },
@@ -726,8 +880,99 @@
       "info": "Which part of the photo to keep when it is cropped to the shape."
     },
     { "type": "range", "id": "photo_height", "label": "Photo height", "unit": "px", "min": 280, "max": 620, "step": 10, "default": 460 },
+    {
+      "type": "range",
+      "id": "photo_width",
+      "label": "Photo width",
+      "unit": "%",
+      "min": 60,
+      "max": 95,
+      "step": 1,
+      "default": 76,
+      "info": "Of the space beside the panel. The rest is where the second photo sits."
+    },
+    {
+      "type": "range",
+      "id": "photo_offset",
+      "label": "Nudge the photo up",
+      "unit": "px",
+      "min": -120,
+      "max": 60,
+      "step": 4,
+      "default": 0,
+      "info": "Negative lifts it. Stacked on a phone this is ignored, since there is nothing to make room for."
+    },
     { "type": "range", "id": "photo_shadow", "label": "Photo shadow", "unit": "%", "min": 0, "max": 60, "step": 4, "default": 28 },
     { "type": "color", "id": "photo_placeholder_color", "label": "Colour before a photo is chosen", "default": "#CFE1B9" },
+
+    { "type": "header", "content": "Second photo" },
+    {
+      "type": "image_picker",
+      "id": "image_2",
+      "label": "Second photo",
+      "info": "Sits below the first and to its right, overlapping it. Leave this empty and it is left out entirely -- the stage closes back up to one photo."
+    },
+    { "type": "text", "id": "image_2_alt", "label": "Second photo alt text" },
+    {
+      "type": "select",
+      "id": "photo2_shape",
+      "label": "Second photo shape",
+      "options": [
+        { "value": "arch", "label": "Arch" },
+        { "value": "blob", "label": "Blob" },
+        { "value": "pebble", "label": "Pebble" },
+        { "value": "soft", "label": "Soft rectangle" },
+        { "value": "circle", "label": "Circle" }
+      ],
+      "default": "blob"
+    },
+    {
+      "type": "select",
+      "id": "photo2_ratio",
+      "label": "Second photo shape on mobile",
+      "options": [
+        { "value": "square", "label": "Square" },
+        { "value": "tall", "label": "Tall (2:3)" },
+        { "value": "portrait", "label": "Portrait (3:4)" },
+        { "value": "landscape", "label": "Landscape (4:3)" }
+      ],
+      "default": "square"
+    },
+    {
+      "type": "select",
+      "id": "photo2_focus",
+      "label": "Second photo focus",
+      "options": [
+        { "value": "center", "label": "Centre" },
+        { "value": "top", "label": "Top" },
+        { "value": "bottom", "label": "Bottom" },
+        { "value": "left", "label": "Left" },
+        { "value": "right", "label": "Right" }
+      ],
+      "default": "center"
+    },
+    { "type": "range", "id": "photo2_height", "label": "Second photo height", "unit": "px", "min": 160, "max": 480, "step": 10, "default": 300 },
+    {
+      "type": "range",
+      "id": "photo2_width",
+      "label": "Second photo width",
+      "unit": "%",
+      "min": 40,
+      "max": 70,
+      "step": 1,
+      "default": 50
+    },
+    {
+      "type": "range",
+      "id": "photo2_overlap",
+      "label": "How far it rides up over the first",
+      "unit": "%",
+      "min": 0,
+      "max": 60,
+      "step": 1,
+      "default": 30,
+      "info": "A share of the second photo's own width, so the overlap keeps its proportion on a phone."
+    },
 
     { "type": "header", "content": "Pebbles" },
     { "type": "checkbox", "id": "show_pebbles", "label": "Show pebbles", "default": true },
@@ -749,6 +994,42 @@
 
     { "type": "header", "content": "Layout" },
     { "type": "color", "id": "background_color", "label": "Section background", "default": "#FCFBF6" },
+    { "type": "image_picker", "id": "background_image", "label": "Section background image" },
+    {
+      "type": "select",
+      "id": "background_image_size",
+      "label": "Background image size",
+      "options": [
+        { "value": "tile", "label": "Tiled pattern" },
+        { "value": "cover", "label": "Fill the band" }
+      ],
+      "default": "cover"
+    },
+    { "type": "range", "id": "background_image_scale", "label": "Tile size", "unit": "px", "min": 80, "max": 900, "step": 20, "default": 420 },
+    {
+      "type": "select",
+      "id": "background_image_position",
+      "label": "Background image position",
+      "options": [
+        { "value": "center center", "label": "Centre" },
+        { "value": "center top", "label": "Top" },
+        { "value": "center bottom", "label": "Bottom" },
+        { "value": "left center", "label": "Left" },
+        { "value": "right center", "label": "Right" }
+      ],
+      "default": "center center"
+    },
+    {
+      "type": "range",
+      "id": "background_opacity",
+      "label": "Background image strength",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "default": 100,
+      "info": "Turning it down washes the background colour back over the picture, so the words keep their contrast."
+    },
     {
       "type": "range",
       "id": "panel_width",
@@ -843,8 +1124,8 @@
     {
       "name": "About intro",
       "blocks": [
-        { "type": "pill", "settings": { "text": "Toddler-tested", "x": 74, "y": 16, "rotate": -4 } },
-        { "type": "pill", "settings": { "text": "Parent-approved", "x": 30, "y": 82, "rotate": 3 } }
+        { "type": "pill", "settings": { "text": "Toddler-tested", "x": 70, "y": 12, "rotate": -4 } },
+        { "type": "pill", "settings": { "text": "Parent-approved", "x": 46, "y": 80, "rotate": 3 } }
       ]
     }
   ]

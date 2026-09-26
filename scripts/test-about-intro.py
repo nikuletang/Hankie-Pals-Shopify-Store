@@ -849,6 +849,31 @@ check('while still clearing the band whatever the padding says',
       tall_band['dog']['box']['t'] >= tall_band['secBox']['t'] - 1,
       f"dog starts {tall_band['dog']['box']['t']}, band starts {tall_band['secBox']['t']}")
 
+# Stacked, the panel is the first thing in the band and the dog stands right
+# under the header, so the room above it matters more on a phone than it does
+# on a desktop -- not less.
+tall_phone = framed('tall-band-phone', 390, {'settings': dict(
+    WITH_PHOTO['settings'], padding_top_mobile=320)})
+check('the band can do the same on a phone, where it matters most',
+      (tall_phone['panel']['box']['t'] - tall_phone['secBox']['t'])
+      - (p390['panel']['box']['t'] - p390['secBox']['t']) >= 200,
+      f"panel sits {tall_phone['panel']['box']['t'] - tall_phone['secBox']['t']}px "
+      f"below the band's top, was {p390['panel']['box']['t'] - p390['secBox']['t']}px")
+check('and the dog goes down with it there too',
+      tall_phone['dog']['box']['t'] > p390['dog']['box']['t'] + 190,
+      f"dog starts {tall_phone['dog']['box']['t']}, was {p390['dog']['box']['t']}")
+
+# The two checks above prove the value reaches the layout, not that the slider
+# lets you pick it: the renderer takes whatever it is handed and never clamps
+# to a schema range, so a range's own limits can only be read off the schema.
+schema = json.loads(re.search(r'{% schema %}(.*?){% endschema %}',
+                              SECTION.read_text(encoding='utf-8'), re.S).group(1))
+ranges = {r['id']: r for r in schema['settings'] if r.get('id')}
+check('and the mobile slider reaches as far as the desktop one',
+      ranges['padding_top_mobile']['max'] >= ranges['padding_top']['max'],
+      f"mobile tops out at {ranges['padding_top_mobile']['max']}px, desktop at "
+      f"{ranges['padding_top']['max']}px (schema check, not a render)")
+
 thin_band = run('thin-band', overrides={'settings': dict(
     WITH_PHOTO['settings'], padding_top=0)})
 check('and taking it to nothing still leaves the dog his head',

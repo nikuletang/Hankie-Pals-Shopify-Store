@@ -1,0 +1,803 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — Contact
+  ---------------------------------------------------------------------------
+  A replacement for Dawn's contact form section. The plumbing is Shopify's own
+  {% form 'contact' %}, so delivery, the success round trip and the error list
+  all work the way they already did; only the layout and the paint are ours.
+
+  Two columns: what someone wants to know before they write on the left, the
+  form on a card on the right. On a phone they stack, words first.
+
+  The form's own class is set on a wrapper rather than on the form tag. Shopify
+  puts the class on the <form> it emits, but the rendering used by the checks
+  reduces {% form %} to a bare <form>, so a class set there would be styled on
+  the store and unstyled under test -- which is the one place a difference is
+  worth avoiding.
+
+  Field ids carry the section id. Two of these on one page would otherwise
+  share ids, and a label would point at the wrong box.
+
+  Inputs are 16px at the smallest. Below that iOS Safari zooms the page in when
+  a field takes focus and never zooms back out.
+
+  Sizes are px: Dawn's root font-size is 62.5%, so rem renders at 62.5% of its
+  intended value. Every setting carries a `| default:`, because a setting added
+  after a section was saved reads nil.
+
+  A `| default:` binds to everything to its left, not to the nearest word, so
+  any value needing one is hoisted into its own assign first.
+
+  The richtext body sits in a <div>, never a <p>: richtext brings its own <p>,
+  and a <p> inside a <p> is closed early by the parser.
+
+  Every selector is prefixed .hp-ct and every per-instance value arrives as an
+  inline custom property, so nothing here can reach another section.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+  assign uid = section.id
+
+  assign card_pad = s.card_padding | default: 40
+  assign card_rad = s.card_radius | default: 28
+  assign card_line = s.card_border_width | default: 2
+  assign field_rad = s.field_radius | default: 60
+  assign field_line = s.field_border_width | default: 2
+  assign rows = s.message_rows | default: 5
+
+  assign head_size = s.heading_size | default: 52
+  assign head_size_m = s.heading_size_mobile | default: 34
+  assign body_size = s.body_size | default: 17
+  assign eyebrow_size = s.eyebrow_size | default: 13
+  assign eyebrow_weight = s.eyebrow_weight | default: 700
+  assign label_size = s.label_size | default: 13
+
+  assign side_w = s.side_width | default: 42
+  assign col_gap = s.column_gap | default: 56
+  assign pad_t = s.padding_top | default: 88
+  assign pad_b = s.padding_bottom | default: 88
+  assign pad_tm = s.padding_top_mobile | default: 56
+  assign pad_bm = s.padding_bottom_mobile | default: 56
+
+  assign shadow_pct = s.card_shadow | default: 22
+  assign shadow_a = shadow_pct | times: 0.01
+
+  assign peb_size = s.pebble_size | default: 280
+  assign peb_op_pct = s.pebble_opacity | default: 45
+  assign peb_op = peb_op_pct | times: 0.01
+
+  assign dog_size = s.dog_size | default: 120
+  assign dog_peek = s.dog_peek | default: 76
+  assign dog_x = s.dog_x | default: 50
+  assign blink_every = s.dog_blink_every | default: 6
+
+  assign tag = s.heading_tag | default: 'h1'
+  assign name_label = s.name_label | default: 'Your name'
+  assign email_label = s.email_label | default: 'Email'
+  assign phone_label = s.phone_label | default: 'Phone (optional)'
+  assign message_label = s.message_label | default: 'What can we help with?'
+-%}
+
+{{ 'hp-button.css' | asset_url | stylesheet_tag }}
+
+{% style %}
+  .hp-ct {
+    position: relative;
+    background: var(--hp-ct-bg);
+    padding: {{ pad_t }}px 0 {{ pad_b }}px;
+    /* clip, not hidden: hidden on one axis forces the other to scroll, and a
+       pebble hanging off the side must never widen the page. */
+    overflow-x: clip;
+  }
+
+  .hp-ct--dog { padding-top: max({{ pad_t }}px, calc(var(--hp-ct-dog-peek) + 16px)); }
+
+  .hp-ct__inner {
+    position: relative;
+    z-index: 1;
+    max-width: {{ s.max_width | default: 1180 }}px;
+    margin: 0 auto;
+    padding: 0 max(20px, 4vw);
+  }
+
+  .hp-ct__grid {
+    display: grid;
+    grid-template-columns: var(--hp-ct-side) minmax(0, 1fr);
+    align-items: start;
+    gap: {{ col_gap }}px;
+  }
+
+  /* --- The words ---------------------------------------------------------- */
+  .hp-ct__eyebrow {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 0.62em;
+    margin: 0 0 18px;
+    color: var(--hp-ct-eyebrow);
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-size: {{ eyebrow_size }}px;
+    font-weight: {{ eyebrow_weight }};
+    line-height: 1.35;
+    letter-spacing: 0.08em;
+  }
+
+  .hp-ct__eyebrow-dot {
+    flex: none;
+    /* (line-height - dot) / 2, so the dot sits on the first line however many
+       lines the eyebrow runs to. */
+    margin-block-start: 0.425em;
+    width: 0.5em;
+    height: 0.5em;
+    border-radius: 50%;
+    background: var(--hp-ct-eyebrow-dot);
+  }
+
+  .hp-ct__heading {
+    margin: 0;
+    color: var(--hp-ct-head);
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    font-size: {{ head_size }}px;
+    line-height: 1.06;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  .hp-ct__body {
+    margin: 18px 0 0;
+    max-width: 42ch;
+    color: var(--hp-ct-body);
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-size: {{ body_size }}px;
+    line-height: 1.6;
+  }
+
+  .hp-ct__body > :first-child { margin-top: 0; }
+  .hp-ct__body > :last-child { margin-bottom: 0; }
+
+  /* --- The email beside it ------------------------------------------------ */
+  .hp-ct__direct {
+    margin: 28px 0 0;
+    padding: 18px 22px;
+    border: 2px dashed var(--hp-ct-direct-line);
+    border-radius: 20px;
+    background: var(--hp-ct-direct-bg);
+  }
+
+  .hp-ct__direct-label {
+    display: block;
+    margin: 0 0 4px;
+    color: var(--hp-ct-body);
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-size: {{ label_size }}px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .hp-ct__direct-link {
+    color: var(--hp-ct-direct-ink);
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-size: {{ body_size }}px;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-thickness: 2px;
+  }
+
+  .hp-ct__direct-link:focus-visible {
+    outline: 3px solid var(--hp-ct-direct-ink);
+    outline-offset: 3px;
+  }
+
+  /* --- The card ----------------------------------------------------------- */
+  .hp-ct__cardwrap { position: relative; }
+
+  .hp-ct__card {
+    position: relative;
+    z-index: 1;
+    padding: {{ card_pad }}px;
+    border: {{ card_line }}px solid var(--hp-ct-card-line);
+    border-radius: {{ card_rad }}px;
+    background: var(--hp-ct-card);
+    box-shadow: 0 18px 40px rgba(47, 51, 38, {{ shadow_a }});
+  }
+
+  .hp-ct__fields {
+    display: grid;
+    gap: {{ s.field_gap | default: 18 }}px;
+  }
+
+  .hp-ct__field { display: grid; gap: 7px; }
+
+  .hp-ct__label {
+    color: var(--hp-ct-label);
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-size: {{ label_size }}px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .hp-ct__req { color: var(--hp-ct-req); }
+
+  .hp-ct__input,
+  .hp-ct__area {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 14px 20px;
+    border: {{ field_line }}px solid var(--hp-ct-field-line);
+    background: var(--hp-ct-field-bg);
+    color: var(--hp-ct-field-ink);
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    /* 16px is a floor, not a preference: below it iOS Safari zooms the page in
+       when the field takes focus, and never zooms back out. */
+    font-size: 16px;
+    line-height: 1.35;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .hp-ct__input { border-radius: {{ field_rad }}px; }
+
+  .hp-ct__area {
+    /* A pill-shaped textarea cuts the corners off the first and last lines, so
+       this one is only ever rounded. */
+    border-radius: {{ s.area_radius | default: 22 }}px;
+    min-height: {{ rows | times: 26 | plus: 28 }}px;
+    resize: vertical;
+  }
+
+  /* Firefox dims placeholders on its own, which takes them under contrast. */
+  .hp-ct__input::placeholder,
+  .hp-ct__area::placeholder {
+    color: var(--hp-ct-field-hint);
+    opacity: 1;
+  }
+
+  .hp-ct__input:focus-visible,
+  .hp-ct__area:focus-visible {
+    outline: 3px solid var(--hp-ct-field-line);
+    outline-offset: 3px;
+  }
+
+  .hp-ct__send { margin-top: {{ s.button_gap | default: 26 }}px; }
+
+  /* --- What came back ----------------------------------------------------- */
+  .hp-ct__note {
+    margin: 0 0 22px;
+    padding: 16px 20px;
+    border: 2px solid var(--hp-ct-note-line);
+    border-radius: 18px;
+    background: var(--hp-ct-note-bg);
+    color: var(--hp-ct-note-ink);
+    font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+    font-size: {{ body_size }}px;
+    line-height: 1.5;
+  }
+
+  .hp-ct__note--bad {
+    border-color: var(--hp-ct-bad-line);
+    background: var(--hp-ct-bad-bg);
+    color: var(--hp-ct-bad-ink);
+  }
+
+  /* --- The pebbles -------------------------------------------------------- */
+  .hp-ct__pebble {
+    position: absolute;
+    z-index: 0;
+    display: block;
+    border-radius: 45% 55% 50% 50% / 55% 45% 55% 45%;
+    background: var(--hp-ct-pebble);
+    opacity: {{ peb_op }};
+    pointer-events: none;
+    width: {{ peb_size }}px;
+    height: {{ peb_size }}px;
+  }
+
+  .hp-ct__pebble--l {
+    left: {{ s.pebble_x | default: -6 }}%;
+    top: {{ s.pebble_y | default: 54 }}%;
+  }
+
+  .hp-ct__pebble--r {
+    width: {{ peb_size | times: 0.6 | round }}px;
+    height: {{ peb_size | times: 0.6 | round }}px;
+    left: {{ s.pebble2_x | default: 88 }}%;
+    top: {{ s.pebble2_y | default: 8 }}%;
+  }
+
+  /* --- The dog over the card ---------------------------------------------- */
+  .hp-ct__dog {
+    position: absolute;
+    z-index: 0;
+    left: var(--hp-ct-dog-x);
+    top: calc(var(--hp-ct-dog-peek) * -1);
+    width: var(--hp-ct-dog-size);
+    aspect-ratio: 1 / 0.82;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  .hp-ct__dog-head {
+    position: absolute;
+    inset: 0;
+    background: var(--hp-ct-dog-fur);
+    border-radius: 48% 52% 44% 56% / 52% 52% 48% 48%;
+  }
+
+  .hp-ct__dog-ear {
+    position: absolute;
+    top: 9%;
+    width: 30%;
+    aspect-ratio: 1 / 2.1;
+    background: var(--hp-ct-dog-ear);
+    border-radius: 46% 54% 50% 50% / 22% 22% 78% 78%;
+  }
+
+  .hp-ct__dog-ear--l { left: -11%; transform-origin: 50% 0; transform: rotate(-11deg); }
+  .hp-ct__dog-ear--r { right: -11%; transform-origin: 50% 0; transform: rotate(11deg); }
+
+  .hp-ct__dog-eye {
+    position: absolute;
+    top: 36%;
+    width: 13%;
+    aspect-ratio: 1;
+    background: var(--hp-ct-dog-ink);
+    border-radius: 50%;
+  }
+
+  .hp-ct__dog-eye--l { left: 26%; }
+  .hp-ct__dog-eye--r { left: 61%; }
+
+  .hp-ct__dog-eye::after {
+    content: "";
+    position: absolute;
+    left: 26%;
+    top: 20%;
+    width: 32%;
+    aspect-ratio: 1;
+    background: #FFFFFF;
+    border-radius: 50%;
+  }
+
+  .hp-ct__dog-snout {
+    position: absolute;
+    left: 50%;
+    top: 56%;
+    width: 46%;
+    aspect-ratio: 1 / 0.72;
+    transform: translateX(-50%);
+    background: var(--hp-ct-dog-snout);
+    border-radius: 50%;
+  }
+
+  .hp-ct__dog-nose {
+    position: absolute;
+    left: 50%;
+    top: 14%;
+    width: 42%;
+    aspect-ratio: 2.1 / 1;
+    transform: translateX(-50%);
+    background: var(--hp-ct-dog-ink);
+    border-radius: 50%;
+  }
+
+  /* A blink is a squash, not a fade: the eye keeps its width and loses its
+     height for about a tenth of a second, which is what a real blink does. */
+  .hp-ct--dog-blink .hp-ct__dog-eye {
+    animation: hp-ct-blink var(--hp-ct-blink-every) infinite;
+  }
+
+  @keyframes hp-ct-blink {
+    0%, 93%, 100% { transform: scaleY(1); }
+    95.5%, 96.5% { transform: scaleY(0.08); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hp-ct--dog-blink .hp-ct__dog-eye { animation: none; }
+  }
+
+  @media screen and (max-width: 989px) {
+    .hp-ct { padding: {{ pad_tm }}px 0 {{ pad_bm }}px; }
+
+    .hp-ct--dog {
+      padding-top: max({{ pad_tm }}px, calc(var(--hp-ct-dog-peek) * 0.72 + 16px));
+    }
+
+    .hp-ct__grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: {{ s.column_gap_mobile | default: 36 }}px;
+    }
+
+    .hp-ct__heading { font-size: {{ head_size_m }}px; }
+    .hp-ct__card { padding: {{ card_pad | times: 0.75 | round }}px; }
+
+    .hp-ct__dog {
+      width: calc(var(--hp-ct-dog-size) * 0.72);
+      top: calc(var(--hp-ct-dog-peek) * -0.72);
+    }
+
+    /* Stacked, the words sit directly above the card and he rises into them.
+       The card moves down by what he rises, so he has his own room. */
+    .hp-ct--dog .hp-ct__cardwrap {
+      margin-top: calc(var(--hp-ct-dog-peek) * 0.72);
+    }
+
+    .hp-ct__pebble--r { display: none; }
+  }
+{% endstyle %}
+
+<section
+  class="hp-ct{% if s.show_dog != false %} hp-ct--dog{% if s.dog_blink != false %} hp-ct--dog-blink{% endif %}{% endif %}"
+  style="
+    --hp-ct-bg: {{ s.background_color | default: '#E9F5DB' }};
+    --hp-ct-head: {{ s.heading_color | default: '#2F3326' }};
+    --hp-ct-body: {{ s.body_color | default: '#5C6150' }};
+    --hp-ct-eyebrow: {{ s.eyebrow_color | default: '#5C6150' }};
+    --hp-ct-eyebrow-dot: {{ s.eyebrow_dot_color | default: '#D88B6D' }};
+    --hp-ct-card: {{ s.card_color | default: '#FCFBF6' }};
+    --hp-ct-card-line: {{ s.card_border_color | default: '#2F3326' }};
+    --hp-ct-label: {{ s.label_color | default: '#2F3326' }};
+    --hp-ct-req: {{ s.required_color | default: '#C25B3A' }};
+    --hp-ct-field-bg: {{ s.field_color | default: '#FFFFFF' }};
+    --hp-ct-field-line: {{ s.field_border_color | default: '#2F3326' }};
+    --hp-ct-field-ink: {{ s.field_text_color | default: '#2F3326' }};
+    --hp-ct-field-hint: {{ s.field_hint_color | default: '#5C6150' }};
+    --hp-ct-direct-bg: {{ s.direct_bg | default: 'rgba(0,0,0,0)' }};
+    --hp-ct-direct-line: {{ s.direct_line | default: '#B5C99A' }};
+    --hp-ct-direct-ink: {{ s.direct_ink | default: '#2F3326' }};
+    --hp-ct-note-bg: {{ s.success_bg | default: '#E9F5DB' }};
+    --hp-ct-note-line: {{ s.success_line | default: '#B5C99A' }};
+    --hp-ct-note-ink: {{ s.success_ink | default: '#2F3326' }};
+    --hp-ct-bad-bg: {{ s.error_bg | default: '#FBE7DF' }};
+    --hp-ct-bad-line: {{ s.error_line | default: '#C25B3A' }};
+    --hp-ct-bad-ink: {{ s.error_ink | default: '#7A2E14' }};
+    --hp-ct-pebble: {{ s.pebble_color | default: '#CFE1B9' }};
+    --hp-ct-side: {{ side_w }}%;
+    --hp-ct-dog-size: {{ dog_size }}px;
+    --hp-ct-dog-peek: {{ dog_peek }}px;
+    --hp-ct-dog-x: {{ dog_x }}%;
+    --hp-ct-dog-fur: {{ s.dog_color | default: '#D88B6D' }};
+    --hp-ct-dog-ear: {{ s.dog_ear_color | default: '#B8624A' }};
+    --hp-ct-dog-snout: {{ s.dog_snout_color | default: '#FCFBF6' }};
+    --hp-ct-dog-ink: {{ s.dog_ink_color | default: '#2F3326' }};
+    --hp-ct-blink-every: {{ blink_every }}s;
+  "
+>
+  {%- if s.show_pebbles != false -%}
+    <span class="hp-ct__pebble hp-ct__pebble--l" aria-hidden="true"></span>
+    <span class="hp-ct__pebble hp-ct__pebble--r" aria-hidden="true"></span>
+  {%- endif -%}
+
+  <div class="hp-ct__inner">
+    <div class="hp-ct__grid">
+      <div class="hp-ct__side">
+        {%- if s.eyebrow != blank -%}
+          <p class="hp-ct__eyebrow">
+            <span class="hp-ct__eyebrow-dot" aria-hidden="true"></span>
+            <span>{{ s.eyebrow | escape }}</span>
+          </p>
+        {%- endif -%}
+
+        {%- if s.heading != blank -%}
+          <{{ tag }} class="hp-ct__heading">{{ s.heading | escape | newline_to_br }}</{{ tag }}>
+        {%- endif -%}
+
+        {%- if s.body != blank -%}
+          <div class="hp-ct__body">{{ s.body }}</div>
+        {%- endif -%}
+
+        {%- comment -%}
+          Drawn only when there is an address. An empty box labelled "or email
+          us" with nothing in it reads as a fault.
+        {%- endcomment -%}
+        {%- if s.email_address != blank -%}
+          <div class="hp-ct__direct">
+            <span class="hp-ct__direct-label">
+              {{- s.direct_label | default: 'Or email us' | escape -}}
+            </span>
+            <a class="hp-ct__direct-link" href="mailto:{{ s.email_address }}">
+              {{- s.email_address -}}
+            </a>
+          </div>
+        {%- endif -%}
+      </div>
+
+      <div class="hp-ct__cardwrap">
+        {%- if s.show_dog != false -%}
+          <span class="hp-ct__dog" aria-hidden="true">
+            <span class="hp-ct__dog-head">
+              <span class="hp-ct__dog-eye hp-ct__dog-eye--l"></span>
+              <span class="hp-ct__dog-eye hp-ct__dog-eye--r"></span>
+              <span class="hp-ct__dog-snout">
+                <span class="hp-ct__dog-nose"></span>
+              </span>
+            </span>
+            <span class="hp-ct__dog-ear hp-ct__dog-ear--l"></span>
+            <span class="hp-ct__dog-ear hp-ct__dog-ear--r"></span>
+          </span>
+        {%- endif -%}
+
+        <div class="hp-ct__card">
+          {%- if form.posted_successfully? -%}
+            <p class="hp-ct__note" role="status">
+              {{- s.success_message | default: 'Thank you — that reached us. We read every one and will write back.' | escape -}}
+            </p>
+          {%- endif -%}
+
+          {%- if form.errors -%}
+            <p class="hp-ct__note hp-ct__note--bad" role="alert">
+              {{ form.errors | default_errors }}
+            </p>
+          {%- endif -%}
+
+          <div class="hp-ct__formwrap">
+            {%- form 'contact' -%}
+              <div class="hp-ct__fields">
+                {%- if s.show_name != false -%}
+                  <div class="hp-ct__field">
+                    <label class="hp-ct__label" for="hp-ct-name-{{ uid }}">
+                      {{- name_label | escape -}}
+                    </label>
+                    <input
+                      class="hp-ct__input"
+                      id="hp-ct-name-{{ uid }}"
+                      type="text"
+                      name="contact[name]"
+                      value="{{ form.name }}"
+                      autocomplete="name"
+                    >
+                  </div>
+                {%- endif -%}
+
+                <div class="hp-ct__field">
+                  <label class="hp-ct__label" for="hp-ct-email-{{ uid }}">
+                    {{ email_label | escape }}
+                    <span class="hp-ct__req" aria-hidden="true">*</span>
+                  </label>
+                  <input
+                    class="hp-ct__input"
+                    id="hp-ct-email-{{ uid }}"
+                    type="email"
+                    name="contact[email]"
+                    value="{{ form.email }}"
+                    autocomplete="email"
+                    autocorrect="off"
+                    autocapitalize="off"
+                    spellcheck="false"
+                    required
+                  >
+                </div>
+
+                {%- if s.show_phone != false -%}
+                  <div class="hp-ct__field">
+                    <label class="hp-ct__label" for="hp-ct-phone-{{ uid }}">
+                      {{- phone_label | escape -}}
+                    </label>
+                    <input
+                      class="hp-ct__input"
+                      id="hp-ct-phone-{{ uid }}"
+                      type="tel"
+                      name="contact[phone]"
+                      value="{{ form.phone }}"
+                      autocomplete="tel"
+                    >
+                  </div>
+                {%- endif -%}
+
+                <div class="hp-ct__field">
+                  <label class="hp-ct__label" for="hp-ct-body-{{ uid }}">
+                    {{ message_label | escape }}
+                    {% if s.message_required %}<span class="hp-ct__req" aria-hidden="true">*</span>{% endif %}
+                  </label>
+                  <textarea
+                    class="hp-ct__area"
+                    id="hp-ct-body-{{ uid }}"
+                    name="contact[body]"
+                    rows="{{ rows }}"
+                    {% if s.message_required %}required{% endif %}
+                  >{{ form.body }}</textarea>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                class="hp-btn hp-ct__send"
+                style="
+                  --hp-btn-bg: {{ s.btn_fill | default: '#D88B6D' }};
+                  --hp-btn-ink: {{ s.btn_ink | default: '#2F3326' }};
+                  --hp-btn-line: {{ s.btn_line | default: '#2F3326' }};
+                "
+              >
+                {{- s.button_label | default: 'Send it over' | escape -}}
+              </button>
+            {%- endform -%}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "Totterful contact",
+  "tag": "section",
+  "class": "hp-contact-section",
+  "settings": [
+    { "type": "header", "content": "Words beside the form" },
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow", "default": "We read every one." },
+    { "type": "range", "id": "eyebrow_size", "label": "Eyebrow size", "unit": "px", "min": 10, "max": 20, "step": 1, "default": 13 },
+    {
+      "type": "select",
+      "id": "eyebrow_weight",
+      "label": "Eyebrow weight",
+      "options": [
+        { "value": "400", "label": "Regular" },
+        { "value": "500", "label": "Medium" },
+        { "value": "600", "label": "Semibold" },
+        { "value": "700", "label": "Bold" }
+      ],
+      "default": "700"
+    },
+    { "type": "color", "id": "eyebrow_color", "label": "Eyebrow text", "default": "#5C6150" },
+    { "type": "color", "id": "eyebrow_dot_color", "label": "Eyebrow dot", "default": "#D88B6D" },
+    {
+      "type": "textarea",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Say hello.",
+      "info": "Line breaks are kept. If you use this, hide Dawn's own page title so the page does not say it twice."
+    },
+    {
+      "type": "select",
+      "id": "heading_tag",
+      "label": "Heading level",
+      "options": [
+        { "value": "h1", "label": "H1 — the page's main heading" },
+        { "value": "h2", "label": "H2" },
+        { "value": "h3", "label": "H3" }
+      ],
+      "default": "h1"
+    },
+    { "type": "range", "id": "heading_size", "label": "Heading size", "unit": "px", "min": 28, "max": 80, "step": 2, "default": 52 },
+    { "type": "color", "id": "heading_color", "label": "Heading colour", "default": "#2F3326" },
+    {
+      "type": "richtext",
+      "id": "body",
+      "label": "Paragraph",
+      "default": "<p>Questions about a Pal, an order on its way, or something we have not thought of yet — it all comes to the same inbox.</p>"
+    },
+    { "type": "range", "id": "body_size", "label": "Paragraph size", "unit": "px", "min": 14, "max": 24, "step": 1, "default": 17 },
+    { "type": "color", "id": "body_color", "label": "Paragraph colour", "default": "#5C6150" },
+
+    { "type": "header", "content": "Or email us" },
+    {
+      "type": "text",
+      "id": "email_address",
+      "label": "Email address",
+      "info": "Leave this empty and the whole box is left out."
+    },
+    { "type": "text", "id": "direct_label", "label": "Label above it", "default": "Or email us" },
+    { "type": "color", "id": "direct_bg", "label": "Box fill", "default": "rgba(0,0,0,0)" },
+    { "type": "color", "id": "direct_line", "label": "Box outline", "default": "#B5C99A" },
+    { "type": "color", "id": "direct_ink", "label": "Address colour", "default": "#2F3326" },
+
+    { "type": "header", "content": "The card" },
+    { "type": "color", "id": "card_color", "label": "Card fill", "default": "#FCFBF6" },
+    { "type": "color", "id": "card_border_color", "label": "Card outline", "default": "#2F3326" },
+    { "type": "range", "id": "card_border_width", "label": "Card outline width", "unit": "px", "min": 0, "max": 4, "step": 1, "default": 2 },
+    { "type": "range", "id": "card_radius", "label": "Card corner radius", "unit": "px", "min": 0, "max": 56, "step": 2, "default": 28 },
+    { "type": "range", "id": "card_padding", "label": "Card padding", "unit": "px", "min": 20, "max": 72, "step": 4, "default": 40 },
+    { "type": "range", "id": "card_shadow", "label": "Card shadow", "unit": "%", "min": 0, "max": 60, "step": 2, "default": 22 },
+
+    { "type": "header", "content": "The fields" },
+    { "type": "checkbox", "id": "show_name", "label": "Ask for a name", "default": true },
+    { "type": "checkbox", "id": "show_phone", "label": "Ask for a phone number", "default": true },
+    {
+      "type": "checkbox",
+      "id": "message_required",
+      "label": "Make the message required",
+      "default": true,
+      "info": "An email address with no message is almost always a mis-send."
+    },
+    { "type": "text", "id": "name_label", "label": "Name label", "default": "Your name" },
+    { "type": "text", "id": "email_label", "label": "Email label", "default": "Email" },
+    { "type": "text", "id": "phone_label", "label": "Phone label", "default": "Phone (optional)" },
+    { "type": "text", "id": "message_label", "label": "Message label", "default": "What can we help with?" },
+    { "type": "range", "id": "message_rows", "label": "Message box height", "unit": "rws", "min": 3, "max": 12, "step": 1, "default": 5 },
+    { "type": "range", "id": "label_size", "label": "Label size", "unit": "px", "min": 10, "max": 18, "step": 1, "default": 13 },
+    { "type": "range", "id": "field_gap", "label": "Space between fields", "unit": "px", "min": 8, "max": 40, "step": 2, "default": 18 },
+    {
+      "type": "range",
+      "id": "field_radius",
+      "label": "Field corner radius",
+      "unit": "px",
+      "min": 0,
+      "max": 60,
+      "step": 2,
+      "default": 60,
+      "info": "A field is about 52px tall, so anything past 26 is already the pill the rest of the site uses."
+    },
+    { "type": "range", "id": "area_radius", "label": "Message box radius", "unit": "px", "min": 0, "max": 40, "step": 2, "default": 22 },
+    { "type": "range", "id": "field_border_width", "label": "Field outline width", "unit": "px", "min": 1, "max": 4, "step": 1, "default": 2 },
+    { "type": "color", "id": "field_color", "label": "Field fill", "default": "#FFFFFF" },
+    { "type": "color", "id": "field_border_color", "label": "Field outline", "default": "#2F3326" },
+    { "type": "color", "id": "field_text_color", "label": "Field text", "default": "#2F3326" },
+    { "type": "color", "id": "field_hint_color", "label": "Placeholder text", "default": "#5C6150" },
+    { "type": "color", "id": "label_color", "label": "Label colour", "default": "#2F3326" },
+    { "type": "color", "id": "required_color", "label": "Required mark", "default": "#C25B3A" },
+
+    { "type": "header", "content": "The button" },
+    { "type": "text", "id": "button_label", "label": "Label", "default": "Send it over" },
+    { "type": "range", "id": "button_gap", "label": "Space above it", "unit": "px", "min": 8, "max": 60, "step": 2, "default": 26 },
+    { "type": "color", "id": "btn_fill", "label": "Button fill", "default": "#D88B6D" },
+    { "type": "color", "id": "btn_ink", "label": "Button text", "default": "#2F3326" },
+    { "type": "color", "id": "btn_line", "label": "Button outline and shadow", "default": "#2F3326" },
+
+    { "type": "header", "content": "What comes back" },
+    {
+      "type": "text",
+      "id": "success_message",
+      "label": "After it sends",
+      "default": "Thank you — that reached us. We read every one and will write back."
+    },
+    { "type": "color", "id": "success_bg", "label": "Confirmation fill", "default": "#E9F5DB" },
+    { "type": "color", "id": "success_line", "label": "Confirmation outline", "default": "#B5C99A" },
+    { "type": "color", "id": "success_ink", "label": "Confirmation text", "default": "#2F3326" },
+    { "type": "color", "id": "error_bg", "label": "Problem fill", "default": "#FBE7DF" },
+    { "type": "color", "id": "error_line", "label": "Problem outline", "default": "#C25B3A" },
+    { "type": "color", "id": "error_ink", "label": "Problem text", "default": "#7A2E14" },
+
+    { "type": "header", "content": "The dog over the card" },
+    { "type": "checkbox", "id": "show_dog", "label": "Show the dog", "default": true },
+    { "type": "range", "id": "dog_size", "label": "How big he is", "unit": "px", "min": 70, "max": 240, "step": 5, "default": 120 },
+    {
+      "type": "range",
+      "id": "dog_peek",
+      "label": "How much of him shows",
+      "unit": "px",
+      "min": 0,
+      "max": 220,
+      "step": 4,
+      "default": 76,
+      "info": "How far he rises above the card's top edge. Low and it is just ears; high and you get the whole head."
+    },
+    { "type": "range", "id": "dog_x", "label": "Where he stands", "unit": "%", "min": 0, "max": 100, "step": 1, "default": 50 },
+    { "type": "color", "id": "dog_color", "label": "Fur", "default": "#D88B6D" },
+    { "type": "color", "id": "dog_ear_color", "label": "Ears", "default": "#B8624A" },
+    { "type": "color", "id": "dog_snout_color", "label": "Snout", "default": "#FCFBF6" },
+    { "type": "color", "id": "dog_ink_color", "label": "Eyes and nose", "default": "#2F3326" },
+    { "type": "checkbox", "id": "dog_blink", "label": "Let him blink", "default": true },
+    { "type": "range", "id": "dog_blink_every", "label": "Blink every", "unit": "s", "min": 2, "max": 14, "step": 1, "default": 6 },
+
+    { "type": "header", "content": "The pebbles" },
+    { "type": "checkbox", "id": "show_pebbles", "label": "Show pebbles", "default": true },
+    { "type": "color", "id": "pebble_color", "label": "Pebble colour", "default": "#CFE1B9" },
+    { "type": "range", "id": "pebble_opacity", "label": "Pebble opacity", "unit": "%", "min": 0, "max": 100, "step": 5, "default": 45 },
+    { "type": "range", "id": "pebble_size", "label": "Pebble size", "unit": "px", "min": 120, "max": 460, "step": 10, "default": 280 },
+    { "type": "range", "id": "pebble_x", "label": "Left pebble across", "unit": "%", "min": -30, "max": 100, "step": 2, "default": -6 },
+    { "type": "range", "id": "pebble_y", "label": "Left pebble down", "unit": "%", "min": -20, "max": 100, "step": 2, "default": 54 },
+    { "type": "range", "id": "pebble2_x", "label": "Right pebble across", "unit": "%", "min": -30, "max": 100, "step": 2, "default": 88 },
+    { "type": "range", "id": "pebble2_y", "label": "Right pebble down", "unit": "%", "min": -20, "max": 100, "step": 2, "default": 8 },
+
+    { "type": "header", "content": "Layout" },
+    { "type": "color", "id": "background_color", "label": "Section background", "default": "#E9F5DB" },
+    { "type": "range", "id": "max_width", "label": "Content width", "unit": "px", "min": 900, "max": 1500, "step": 20, "default": 1180 },
+    { "type": "range", "id": "side_width", "label": "Width of the words column", "unit": "%", "min": 28, "max": 60, "step": 2, "default": 42 },
+    { "type": "range", "id": "column_gap", "label": "Gap between the columns", "unit": "px", "min": 16, "max": 120, "step": 4, "default": 56 },
+    { "type": "range", "id": "padding_top", "label": "Top padding", "unit": "px", "min": 0, "max": 320, "step": 8, "default": 88 },
+    { "type": "range", "id": "padding_bottom", "label": "Bottom padding", "unit": "px", "min": 0, "max": 320, "step": 8, "default": 88 },
+
+    { "type": "header", "content": "Mobile" },
+    { "type": "range", "id": "heading_size_mobile", "label": "Heading size (mobile)", "unit": "px", "min": 22, "max": 56, "step": 2, "default": 34 },
+    { "type": "range", "id": "column_gap_mobile", "label": "Gap between the columns (mobile)", "unit": "px", "min": 12, "max": 80, "step": 4, "default": 36 },
+    { "type": "range", "id": "padding_top_mobile", "label": "Top padding (mobile)", "unit": "px", "min": 0, "max": 320, "step": 4, "default": 56 },
+    { "type": "range", "id": "padding_bottom_mobile", "label": "Bottom padding (mobile)", "unit": "px", "min": 0, "max": 320, "step": 4, "default": 56 }
+  ],
+  "presets": [{ "name": "Totterful contact" }]
+}
+{% endschema %}

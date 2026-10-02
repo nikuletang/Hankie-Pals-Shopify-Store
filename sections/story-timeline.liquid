@@ -1,0 +1,818 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — Story timeline
+  ---------------------------------------------------------------------------
+  Four blob cards in a staircase, with a dotted line winding between them.
+
+  The positions in the brief are four fixed numbers. They are generated from
+  the step's index here instead, so the dotted path can be generated from the
+  same numbers and the two cannot drift -- and so adding a fifth or sixth step
+  places itself rather than landing on top of the fourth. The rule reproduces
+  the brief's four exactly:
+
+      left  = 30 or 80 on the odd steps, 690 or 660 on the even ones
+      top   = 40 + index * 300, less 10 on the second
+      stage = (steps - 1) * 300 + 590 tall
+
+  The connector is one path through every card's centre, leaving each card
+  horizontally and arriving at the next the same way, which is what gives the
+  outward swing between them. It is drawn in viewBox units over the same
+  1200-wide grid the cards are placed on, so it hits their middles whatever
+  the section is scaled to.
+
+  Positions and blob sizes are percentages of the stage, which carries an
+  aspect-ratio, so the staircase scales between 990px and 1440px. The card's
+  contents stay in px: at the narrow end the blob is still 396px across and
+  the content is 270px, so there is room, and text that scaled with the
+  container would be 11px by 990.
+
+  Sizes are px: Dawn's root font-size is 62.5%, so rem renders at 62.5% of its
+  intended value. Every setting carries a `| default:`, because a setting
+  added after a section was saved reads nil.
+
+  A `| default:` binds to everything to its left, not to the nearest word, so
+  any value needing one is hoisted into its own assign first.
+
+  Every selector is prefixed .hp-st and every per-instance value arrives as an
+  inline custom property, so nothing here can reach another section.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+  assign steps = section.blocks
+  assign n = steps.size
+
+  assign pad_t = s.padding_top | default: 120
+  assign pad_b = s.padding_bottom | default: 150
+  assign head_gap = s.header_gap | default: 64
+  assign stage_w = 1200
+  assign card_w = 480
+  assign card_h = 460
+
+  # (steps - 1) * 300 + 590 -- the brief's 1490 at four steps, and room for
+  # the tail of the line below the last card at any other count.
+  assign lead = s.lead_in | default: 90
+  assign gaps = n | minus: 1
+  if gaps < 0
+    assign gaps = 0
+  endif
+  assign stage_h = gaps | times: 300 | plus: 590 | plus: lead
+
+  assign head_size = s.heading_size | default: 40
+  assign head_size_m = s.heading_size_mobile | default: 30
+  assign sub_size = s.subheading_size | default: 16
+  assign title_size = s.title_size | default: 22
+  assign body_size = s.body_size | default: 14
+  assign photo_size = s.photo_size | default: 170
+  assign photo_size_m = s.photo_size_mobile | default: 140
+
+  assign line_color = s.line_color | default: '#86a868'
+  assign dot_start = s.start_dot_color | default: '#93b276'
+  assign dot_end = s.end_dot_color | default: '#e06e4c'
+  assign line_w = s.line_width | default: 6
+
+  assign motion = true
+  if s.animate == false
+    assign motion = false
+  endif
+-%}
+
+{%- comment -%}
+  The card centres, and the path through them, built once here so the markup
+  below and the connector read the same numbers.
+{%- endcomment -%}
+{%- liquid
+  assign lefts = ''
+  assign tops = ''
+  assign rots = ''
+  assign cxs = ''
+  assign cys = ''
+
+  for block in steps
+    assign i = forloop.index0
+    assign m4 = i | modulo: 4
+    assign m2 = i | modulo: 2
+
+    if m2 == 0
+      if m4 == 0
+        assign lx = 30
+      else
+        assign lx = 80
+      endif
+    else
+      if m4 == 1
+        assign lx = 690
+      else
+        assign lx = 660
+      endif
+    endif
+
+    assign ty = i | times: 300 | plus: 40 | plus: lead
+    if m4 == 1
+      assign ty = ty | minus: 10
+    endif
+
+    case m4
+      when 0
+        assign rt = '-2.5'
+      when 1
+        assign rt = '2'
+      when 2
+        assign rt = '1.5'
+      else
+        assign rt = '-2'
+    endcase
+
+    assign lefts = lefts | append: lx | append: ','
+    assign tops = tops | append: ty | append: ','
+    assign rots = rots | append: rt | append: ','
+    assign cxs = cxs | append: lx | plus: 0 | append: ''
+    assign cx = lx | plus: 240
+    assign cy = ty | plus: 230
+    assign cxs = cxs | append: ''
+    assign cys = cys | append: ''
+  endfor
+
+  assign left_list = lefts | split: ','
+  assign top_list = tops | split: ','
+  assign rot_list = rots | split: ','
+-%}
+
+{%- liquid
+  # One cubic per gap, leaving a card horizontally and arriving at the next
+  # the same way. The lead-in drops from above the first card and the tail
+  # curls down past the last.
+  assign path = ''
+  assign first_left = left_list[0] | plus: 0
+  assign first_top = top_list[0] | plus: 0
+  assign fcx = first_left | plus: 240
+  assign fcy = first_top | plus: 230
+  assign lead_x = fcx | plus: 54
+  assign lead_y = 18
+  assign c1y = fcy | minus: lead_y | times: 40 | divided_by: 100 | plus: lead_y
+  assign c2y = fcy | minus: lead_y | times: 72 | divided_by: 100 | plus: lead_y
+
+  assign path = path | append: 'M ' | append: lead_x | append: ' ' | append: lead_y
+  assign c1x = fcx | minus: 30
+  assign c2x = fcx | minus: 215
+  assign path = path | append: ' C ' | append: c1x | append: ' ' | append: c1y
+  assign path = path | append: ', ' | append: c2x | append: ' ' | append: c2y
+  assign path = path | append: ', ' | append: fcx | append: ' ' | append: fcy
+
+  for block in steps
+    unless forloop.first
+      assign i = forloop.index0
+      assign j = i | minus: 1
+      assign px = left_list[j] | plus: 240
+      assign py = top_list[j] | plus: 230
+      assign qx = left_list[i] | plus: 240
+      assign qy = top_list[i] | plus: 230
+      assign span = qx | minus: px
+      assign dx = span | times: 58 | divided_by: 100
+      assign h1 = px | plus: dx
+      assign h2 = qx | minus: dx
+      assign path = path | append: ' C ' | append: h1 | append: ' ' | append: py
+      assign path = path | append: ', ' | append: h2 | append: ' ' | append: qy
+      assign path = path | append: ', ' | append: qx | append: ' ' | append: qy
+    endunless
+  endfor
+
+  assign last_i = n | minus: 1
+  assign lcx = left_list[last_i] | plus: 240
+  assign lcy = top_list[last_i] | plus: 230
+  assign t1x = lcx | plus: 150
+  assign t1y = lcy | plus: 80
+  assign t2x = lcx | plus: 200
+  assign t2y = lcy | plus: 180
+  assign tex = lcx | plus: 180
+  assign tey = lcy | plus: 250
+  assign path = path | append: ' C ' | append: t1x | append: ' ' | append: t1y
+  assign path = path | append: ', ' | append: t2x | append: ' ' | append: t2y
+  assign path = path | append: ', ' | append: tex | append: ' ' | append: tey
+-%}
+
+{% style %}
+  .hp-st {
+    --hp-st-bg: {{ s.background_color | default: '#e8f0e0' }};
+    --hp-st-ink: {{ s.ink_color | default: '#2f3427' }};
+    --hp-st-body: {{ s.body_color | default: '#5e6152' }};
+    --hp-st-card: {{ s.card_color | default: '#ffffff' }};
+    --hp-st-photo-bg: {{ s.photo_placeholder | default: '#ddd6cb' }};
+    --hp-st-dot: {{ s.eyebrow_dot_color | default: '#e06e4c' }};
+
+    /* The brief names Bitter and Lexend. The theme already loads its own two
+       families, so those come first and these are the fallback -- a second
+       pair downloaded for one section would not match the rest of the site. */
+    --hp-st-display: var(--font-heading-family, Bitter, "Chubbo", Georgia, serif);
+    --hp-st-body-font: var(--font-body-family, Lexend, "Quicksand", ui-rounded, system-ui, sans-serif);
+
+    position: relative;
+    background: var(--hp-st-bg);
+    padding: {{ pad_t }}px 0 {{ pad_b }}px;
+    overflow-x: clip;
+  }
+
+  .hp-st__inner { padding: 0 max(20px, 4vw); }
+
+  /* --- The header --------------------------------------------------------- */
+  .hp-st__head {
+    max-width: 560px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .hp-st__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 18px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: {{ s.eyebrow_bg | default: '#ffffff' }};
+    color: {{ s.eyebrow_color | default: '#2f3427' }};
+    font-family: var(--hp-st-display);
+    font-weight: 700;
+    font-size: 10px;
+    line-height: 1.2;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .hp-st__eyebrow::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--hp-st-dot);
+  }
+
+  .hp-st__heading {
+    margin: 0;
+    color: var(--hp-st-ink);
+    font-family: var(--hp-st-display);
+    font-weight: 800;
+    font-size: {{ head_size }}px;
+    line-height: 1.16;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
+  .hp-st__sub {
+    max-width: 520px;
+    margin: 16px auto 0;
+    color: var(--hp-st-body);
+    font-family: var(--hp-st-body-font);
+    font-weight: 300;
+    font-size: {{ sub_size }}px;
+    line-height: 1.6;
+  }
+
+  /* --- The staircase ------------------------------------------------------ */
+  .hp-st__stage {
+    position: relative;
+    max-width: {{ stage_w }}px;
+    margin: {{ head_gap }}px auto 0;
+    /* The cards are placed in percentages of this box, so it has to keep its
+       shape for the vertical ones to mean anything. */
+    aspect-ratio: {{ stage_w }} / {{ stage_h }};
+    padding: 0;
+    list-style: none;
+  }
+
+  .hp-st__line {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  .hp-st__path {
+    fill: none;
+    stroke: {{ line_color }};
+    stroke-width: {{ line_w }};
+    stroke-linecap: round;
+    /* A zero-length dash with a round cap is a dot. */
+    stroke-dasharray: 0 18;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .hp-st__step {
+    position: absolute;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: {{ card_w | times: 10000 | divided_by: stage_w | divided_by: 100.0 }}%;
+    min-height: {{ card_h | times: 10000 | divided_by: stage_h | divided_by: 100.0 }}%;
+    padding: 44px 0;
+    left: var(--x);
+    top: var(--y);
+    transform: rotate(var(--r));
+  }
+
+  .hp-st__blob,
+  .hp-st__back {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--shape);
+  }
+
+  .hp-st__back {
+    z-index: 0;
+    transform: translate(var(--bx), 16px);
+    border-radius: var(--back-shape);
+    background: var(--back);
+  }
+
+  .hp-st__blob {
+    z-index: 1;
+    border: 2px solid var(--hp-st-ink);
+    background: var(--hp-st-card);
+  }
+
+  .hp-st__body {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    width: {{ s.content_width | default: 270 }}px;
+    max-width: 100%;
+    text-align: center;
+  }
+
+  .hp-st__photo {
+    width: {{ photo_size }}px;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: 50%;
+    background: var(--hp-st-photo-bg);
+  }
+
+  .hp-st__photo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .hp-st__label {
+    display: inline-block;
+    padding: 6px 12px;
+    border: 1.5px solid var(--hp-st-ink);
+    border-radius: 999px;
+    background: var(--label);
+    color: var(--hp-st-ink);
+    font-family: var(--hp-st-display);
+    font-weight: 700;
+    font-size: 10px;
+    line-height: 1.2;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .hp-st__title {
+    margin: 0;
+    color: var(--hp-st-ink);
+    font-family: var(--hp-st-display);
+    font-weight: 800;
+    font-size: {{ title_size }}px;
+    line-height: 1.27;
+  }
+
+  .hp-st__text {
+    margin: 0;
+    color: var(--hp-st-body);
+    font-family: var(--hp-st-body-font);
+    font-weight: 300;
+    font-size: {{ body_size }}px;
+    line-height: 1.57;
+  }
+
+  /* --- Arriving ----------------------------------------------------------- */
+  /* The hidden start hangs off a class the script adds, so a browser that
+     never runs it shows the whole staircase rather than nothing. */
+  .hp-st--motion .hp-st__step {
+    opacity: 0;
+    transform: rotate(var(--r)) translateY(16px);
+    transition: opacity 520ms ease, transform 520ms cubic-bezier(0.33, 1, 0.68, 1);
+  }
+
+  .hp-st--motion .hp-st__step.is-in {
+    opacity: 1;
+    transform: rotate(var(--r)) translateY(0);
+  }
+
+  .hp-st--motion .hp-st__line {
+    opacity: 0;
+    transition: opacity 900ms ease;
+  }
+
+  .hp-st--motion .hp-st__line.is-in { opacity: 1; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hp-st--motion .hp-st__step,
+    .hp-st--motion .hp-st__step.is-in {
+      opacity: 1;
+      transform: rotate(var(--r));
+      transition: none;
+    }
+
+    .hp-st--motion .hp-st__line,
+    .hp-st--motion .hp-st__line.is-in { opacity: 1; transition: none; }
+  }
+
+  /* --- Stacked ------------------------------------------------------------ */
+  @media screen and (max-width: 989px) {
+    .hp-st { padding: {{ s.padding_top_mobile | default: 72 }}px 0 {{ s.padding_bottom_mobile | default: 88 }}px; }
+
+    .hp-st__stage {
+      position: relative;
+      aspect-ratio: auto;
+      max-width: 460px;
+      margin-top: {{ s.header_gap_mobile | default: 44 }}px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: {{ s.row_gap_mobile | default: 56 }}px;
+    }
+
+    /* The curve is drawn over a grid the cards no longer sit on, so it goes
+       and a wobbling vertical line of the same dots takes its place. */
+    .hp-st__line { display: none; }
+
+    .hp-st__stage::before {
+      content: "";
+      position: absolute;
+      z-index: 0;
+      top: 10px;
+      bottom: 10px;
+      left: 50%;
+      width: 6px;
+      margin-left: -3px;
+      background-image: radial-gradient(
+        circle at 50% 50%, {{ line_color }} 0 3px, rgba(0, 0, 0, 0) 3.5px);
+      background-size: 6px 18px;
+      background-repeat: repeat-y;
+      opacity: 0.9;
+    }
+
+    .hp-st__step {
+      position: relative;
+      z-index: 1;
+      left: auto;
+      top: auto;
+      width: 90%;
+      max-width: 420px;
+      min-height: 0;
+      padding: 16% 0;
+      margin-inline-start: var(--jitter);
+      transform: rotate(var(--r));
+    }
+
+    .hp-st__blob,
+    .hp-st__back { position: absolute; inset: 0; }
+
+    .hp-st__body {
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      padding: 0 20%;
+    }
+
+    .hp-st__photo { width: {{ photo_size_m }}px; }
+    .hp-st__heading { font-size: {{ head_size_m }}px; }
+  }
+{% endstyle %}
+
+<section class="hp-st{% if motion %} hp-st--motion{% endif %}" data-hp-st>
+  <div class="hp-st__inner">
+    <div class="hp-st__head">
+      {%- if s.eyebrow != blank -%}
+        <p class="hp-st__eyebrow">{{ s.eyebrow | escape }}</p>
+      {%- endif -%}
+      {%- if s.heading != blank -%}
+        <h2 class="hp-st__heading">{{ s.heading | escape }}</h2>
+      {%- endif -%}
+      {%- if s.subheading != blank -%}
+        <p class="hp-st__sub">{{ s.subheading | escape }}</p>
+      {%- endif -%}
+    </div>
+
+    <ol class="hp-st__stage">
+      {%- if n > 1 -%}
+        <svg
+          class="hp-st__line"
+          viewBox="0 0 {{ stage_w }} {{ stage_h }}"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path class="hp-st__path" d="{{ path }}"/>
+          <circle cx="{{ lead_x }}" cy="20" r="9" fill="{{ dot_start }}"/>
+          <circle cx="{{ tex }}" cy="{{ tey }}" r="9" fill="{{ dot_end }}"/>
+        </svg>
+      {%- endif -%}
+
+      {%- for block in steps -%}
+        {%- liquid
+          assign i = forloop.index0
+          assign m4 = i | modulo: 4
+          assign m2 = i | modulo: 2
+
+          assign lx = left_list[i] | plus: 0
+          assign ty = top_list[i] | plus: 0
+          assign xpc = lx | times: 10000 | divided_by: stage_w
+          assign ypc = ty | times: 10000 | divided_by: stage_h
+
+          case m4
+            when 0
+              assign shape = '58% 42% 55% 45% / 48% 55% 45% 52%'
+              assign back_shape = '52% 48% 60% 40% / 55% 45% 55% 45%'
+              assign back_default = '#c2d6a8'
+            when 1
+              assign shape = '45% 55% 48% 52% / 55% 48% 52% 45%'
+              assign back_shape = '50% 50% 42% 58% / 48% 58% 42% 52%'
+              assign back_default = '#f0c4a8'
+            when 2
+              assign shape = '52% 48% 44% 56% / 46% 52% 48% 54%'
+              assign back_shape = '46% 54% 55% 45% / 52% 46% 54% 48%'
+              assign back_default = '#cce0b4'
+            else
+              assign shape = '48% 52% 58% 42% / 54% 44% 56% 46%'
+              assign back_shape = '55% 45% 48% 52% / 44% 56% 44% 56%'
+              assign back_default = '#f6dccf'
+          endcase
+
+          if m2 == 0
+            assign bx = '14px'
+            assign jitter = '-24px'
+          else
+            assign bx = '-14px'
+            assign jitter = '24px'
+          endif
+
+          assign label_default = '#c2d6a8'
+          if forloop.last
+            assign label_default = '#f0c4a8'
+          endif
+
+          assign b = block.settings
+          assign alt_text = b.image_alt | default: ''
+        -%}
+        <li
+          class="hp-st__step"
+          style="
+            --x: {{ xpc | divided_by: 100.0 }}%;
+            --y: {{ ypc | divided_by: 100.0 }}%;
+            --r: {{ rot_list[i] }}deg;
+            --shape: {{ shape }};
+            --back-shape: {{ back_shape }};
+            --back: {{ b.back_color | default: back_default }};
+            --label: {{ b.label_color | default: label_default }};
+            --bx: {{ bx }};
+            --jitter: {{ jitter }};
+          "
+          {{ block.shopify_attributes }}
+        >
+          <span class="hp-st__back" aria-hidden="true"></span>
+          <span class="hp-st__blob" aria-hidden="true"></span>
+
+          <div class="hp-st__body">
+            <span class="hp-st__photo">
+              {%- if b.image != blank -%}
+                {{
+                  b.image
+                  | image_url: width: 400, height: 400, crop: 'center'
+                  | image_tag:
+                    loading: 'lazy',
+                    widths: '200, 340, 400',
+                    sizes: '170px',
+                    alt: alt_text
+                }}
+              {%- endif -%}
+            </span>
+
+            {%- if b.step_label != blank -%}
+              <span class="hp-st__label">{{ b.step_label | escape }}</span>
+            {%- endif -%}
+
+            {%- if b.title != blank -%}
+              <h3 class="hp-st__title">{{ b.title | escape }}</h3>
+            {%- endif -%}
+
+            {%- if b.body != blank -%}
+              <p class="hp-st__text">{{ b.body | escape }}</p>
+            {%- endif -%}
+          </div>
+        </li>
+      {%- endfor -%}
+    </ol>
+  </div>
+</section>
+
+<script>
+  (function () {
+    if (window.hpStoryReady) return;
+    window.hpStoryReady = true;
+
+    function setup(root) {
+      // Anything unexpected here leaves the staircase on screen, because the
+      // hidden start hangs off the class this is about to honour.
+      try {
+        if (!root.classList.contains('hp-st--motion')) return;
+        var bits = [].slice.call(root.querySelectorAll('.hp-st__step, .hp-st__line'));
+        if (!bits.length) return;
+
+        if (!('IntersectionObserver' in window) ||
+            window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          return root.classList.remove('hp-st--motion');
+        }
+
+        var io = new IntersectionObserver(function (entries) {
+          entries.forEach(function (e) {
+            if (!e.isIntersecting) return;
+            e.target.classList.add('is-in');
+            io.unobserve(e.target);
+          });
+        }, { rootMargin: '0px 0px -8% 0px', threshold: 0 });
+
+        bits.forEach(function (b) { io.observe(b); });
+        root.hpStIo = io;
+      } catch (e) {
+        root.classList.remove('hp-st--motion');
+      }
+    }
+
+    function boot() {
+      [].forEach.call(document.querySelectorAll('[data-hp-st]'), setup);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', boot);
+    } else {
+      boot();
+    }
+
+    // The theme editor tears a section down and rebuilds it on every change.
+    document.addEventListener('shopify:section:load', boot);
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Story timeline",
+  "tag": "section",
+  "class": "hp-story-timeline-section",
+  "max_blocks": 6,
+  "settings": [
+    { "type": "header", "content": "Header" },
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow", "default": "Our story" },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "From one runny nose to a whole lot of Pals."
+    },
+    {
+      "type": "text",
+      "id": "subheading",
+      "label": "Subheading",
+      "default": "The short version of how a kitchen-table idea turned into something toddlers actually reach for."
+    },
+    { "type": "range", "id": "heading_size", "label": "Heading size", "unit": "px", "min": 24, "max": 72, "step": 2, "default": 40 },
+    { "type": "range", "id": "subheading_size", "label": "Subheading size", "unit": "px", "min": 13, "max": 22, "step": 1, "default": 16 },
+    { "type": "color", "id": "eyebrow_bg", "label": "Eyebrow pill fill", "default": "#ffffff" },
+    { "type": "color", "id": "eyebrow_color", "label": "Eyebrow text", "default": "#2f3427" },
+    { "type": "color", "id": "eyebrow_dot_color", "label": "Eyebrow dot", "default": "#e06e4c" },
+
+    { "type": "header", "content": "The cards" },
+    { "type": "color", "id": "card_color", "label": "Card fill", "default": "#ffffff" },
+    { "type": "color", "id": "ink_color", "label": "Outline and headings", "default": "#2f3427" },
+    { "type": "color", "id": "body_color", "label": "Body text", "default": "#5e6152" },
+    { "type": "color", "id": "photo_placeholder", "label": "Colour before a photo is chosen", "default": "#ddd6cb" },
+    { "type": "range", "id": "title_size", "label": "Title size", "unit": "px", "min": 16, "max": 34, "step": 1, "default": 22 },
+    { "type": "range", "id": "body_size", "label": "Body size", "unit": "px", "min": 11, "max": 20, "step": 1, "default": 14 },
+    { "type": "range", "id": "photo_size", "label": "Photo size", "unit": "px", "min": 100, "max": 240, "step": 5, "default": 170 },
+    {
+      "type": "range",
+      "id": "content_width",
+      "label": "Width of the words in a card",
+      "unit": "px",
+      "min": 200,
+      "max": 360,
+      "step": 5,
+      "default": 270,
+      "info": "A card grows taller when a step needs it, but only into the room between it and the step two below."
+    },
+
+    { "type": "header", "content": "The dotted line" },
+    { "type": "color", "id": "line_color", "label": "Dots", "default": "#86a868" },
+    { "type": "range", "id": "line_width", "label": "Dot size", "unit": "px", "min": 2, "max": 12, "step": 1, "default": 6 },
+    { "type": "color", "id": "start_dot_color", "label": "Dot at the start", "default": "#93b276" },
+    { "type": "color", "id": "end_dot_color", "label": "Dot at the end", "default": "#e06e4c" },
+
+    { "type": "header", "content": "Motion" },
+    {
+      "type": "checkbox",
+      "id": "animate",
+      "label": "Fade the steps in as they arrive",
+      "default": true,
+      "info": "Skipped for anyone who has asked their device to reduce motion, and for a browser that cannot watch for it."
+    },
+
+    { "type": "header", "content": "Layout" },
+    { "type": "color", "id": "background_color", "label": "Section background", "default": "#e8f0e0" },
+    { "type": "range", "id": "header_gap", "label": "Gap under the header", "unit": "px", "min": 0, "max": 140, "step": 4, "default": 64 },
+    {
+      "type": "range",
+      "id": "lead_in",
+      "label": "Run-up before the first step",
+      "unit": "px",
+      "min": 0,
+      "max": 220,
+      "step": 10,
+      "default": 90,
+      "info": "The room the dotted line needs above the first card. Take it to 0 and the line starts behind the card."
+    },
+    { "type": "range", "id": "padding_top", "label": "Top padding", "unit": "px", "min": 0, "max": 240, "step": 5, "default": 120 },
+    { "type": "range", "id": "padding_bottom", "label": "Bottom padding", "unit": "px", "min": 0, "max": 240, "step": 5, "default": 150 },
+
+    { "type": "header", "content": "Mobile" },
+    { "type": "range", "id": "heading_size_mobile", "label": "Heading size (mobile)", "unit": "px", "min": 20, "max": 48, "step": 2, "default": 30 },
+    { "type": "range", "id": "photo_size_mobile", "label": "Photo size (mobile)", "unit": "px", "min": 90, "max": 200, "step": 5, "default": 140 },
+    { "type": "range", "id": "row_gap_mobile", "label": "Gap between steps (mobile)", "unit": "px", "min": 16, "max": 120, "step": 4, "default": 56 },
+    { "type": "range", "id": "header_gap_mobile", "label": "Gap under the header (mobile)", "unit": "px", "min": 0, "max": 120, "step": 4, "default": 44 },
+    { "type": "range", "id": "padding_top_mobile", "label": "Top padding (mobile)", "unit": "px", "min": 0, "max": 200, "step": 4, "default": 72 },
+    { "type": "range", "id": "padding_bottom_mobile", "label": "Bottom padding (mobile)", "unit": "px", "min": 0, "max": 200, "step": 4, "default": 88 }
+  ],
+  "blocks": [
+    {
+      "type": "step",
+      "name": "Step",
+      "settings": [
+        { "type": "image_picker", "id": "image", "label": "Photo" },
+        { "type": "text", "id": "image_alt", "label": "Photo alt text", "info": "Describe what is in it, for anyone who cannot see it." },
+        { "type": "text", "id": "step_label", "label": "Step label" },
+        { "type": "text", "id": "title", "label": "Title" },
+        { "type": "textarea", "id": "body", "label": "Body" },
+        {
+          "type": "color",
+          "id": "label_color",
+          "label": "Label pill fill",
+          "info": "Left empty, the steps run sage and the last one picks up the peach."
+        },
+        {
+          "type": "color",
+          "id": "back_color",
+          "label": "Blob behind",
+          "info": "Left empty, the four brand colours cycle in order."
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Story timeline",
+      "blocks": [
+        {
+          "type": "step",
+          "settings": {
+            "step_label": "Step 01",
+            "title": "The problem",
+            "body": "A busy toddler, a runny nose and never a tissue in sight."
+          }
+        },
+        {
+          "type": "step",
+          "settings": {
+            "step_label": "Step 02",
+            "title": "The idea",
+            "body": "Something soft that stays with her — and that she actually wants to use."
+          }
+        },
+        {
+          "type": "step",
+          "settings": {
+            "step_label": "Step 03",
+            "title": "The prototypes",
+            "body": "Cut, sewn and re-sewn at the kitchen table until it felt just right."
+          }
+        },
+        {
+          "type": "step",
+          "settings": {
+            "step_label": "Step 04",
+            "title": "The first Pal",
+            "body": "Toddler-tested, parent-approved, and finally ready to clip on."
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

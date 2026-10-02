@@ -1,0 +1,1023 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — "Ask the Pals" FAQ
+  ---------------------------------------------------------------------------
+  Questions as pills on the left, the selected answer on a card to the right,
+  with the Pal hanging off the card's top corner.
+
+  Built so that nothing is lost without JavaScript. Every answer is in the
+  HTML, visible, with its question as a real <h3> -- a plain stacked list. The
+  script is what turns that list into tabs: it adds .is-ready, hides the
+  panels it is not showing, and reveals the pills, the counter and the arrows,
+  all of which are display:none until then. The failure mode is a long FAQ,
+  never an empty card.
+
+  That is also what the structured data reads: the answers are in the markup
+  rather than injected, so a crawler sees the same six questions a visitor
+  without JavaScript does.
+
+  Two departures from the brief, both deliberate:
+
+    - The icons are inline here rather than in a snippet. This repository is
+      sections only -- each file is pasted into Shopify on its own -- so a
+      snippet would be a second paste and a second thing to keep in step.
+
+    - No @font-face and no font files. The theme already loads Chubbo and
+      Quicksand, and the brief says to reuse what the theme defines; declaring
+      them again would download them twice.
+
+  Sizes are px: Dawn's root font-size is 62.5%, so rem renders at 62.5% of its
+  intended value. Every setting carries a `| default:`, because a setting
+  added after a section was saved reads nil.
+
+  A `| default:` binds to everything to its left, not to the nearest word, so
+  any value needing one is hoisted into its own assign first.
+
+  Every selector is prefixed .hp-faq and every per-instance value arrives as
+  an inline custom property, so nothing here can reach another section.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+  assign uid = section.id
+  assign qs = section.blocks
+
+  assign pad_y = s.padding_y | default: 120
+  assign pad_y_tab = s.padding_y_tablet | default: 88
+  assign pad_y_m = s.padding_y_mobile | default: 64
+  assign inner_w = s.max_width | default: 1184
+  assign left_w = s.left_width | default: 540
+  assign col_gap = s.column_gap | default: 72
+
+  assign head_size = s.heading_size | default: 64
+  assign head_size_m = s.heading_size_mobile | default: 44
+  assign sub_size = s.subheading_size | default: 18
+  assign q_size = s.question_size | default: 36
+  assign a_size = s.answer_size | default: 20
+
+  assign card_rad = s.card_radius | default: 44
+  assign card_pad = s.card_padding | default: 56
+
+  assign puppy_w = s.puppy_width | default: 160
+  assign puppy_top = s.puppy_top | default: -132
+  assign puppy_right = s.puppy_right | default: -44
+  assign puppy_tilt = s.puppy_tilt | default: 10
+
+  # The rendered height, so the box is the right shape before the picture
+  # lands and nothing shifts when it does.
+  assign img_w = s.puppy_image.width | default: 0
+  assign img_h = s.puppy_image.height | default: 0
+  assign puppy_h = puppy_w
+  if img_w != 0 and img_h != 0
+    assign puppy_h = puppy_w | times: img_h | divided_by: img_w
+  endif
+
+  assign puppy_top_m = s.puppy_top_mobile | default: -80
+  assign puppy_rise = 0 | minus: puppy_top | plus: 16
+  assign puppy_rise_m = 0 | minus: puppy_top_m | plus: 16
+
+  # Stacked, the pills sit directly above the card and he rises into them.
+  # The card moves down by what he rises, less the gap already between them.
+  assign pal_push = 0 | minus: puppy_top | plus: 12 | minus: 48
+  assign pal_push_m = 0 | minus: puppy_top_m | plus: 12 | minus: 48
+
+  assign tag = s.heading_tag | default: 'h2'
+-%}
+
+{% style %}
+  .hp-faq {
+    --tf-cream: #FCFBF6;
+    --tf-paper: #FFFFFF;
+    --tf-ink-900: {{ s.ink_900 | default: '#2F3326' }};
+    --tf-ink-700: {{ s.ink_700 | default: '#50543F' }};
+    --tf-ink-500: #767A63;
+    --tf-line-100: {{ s.line_100 | default: '#ECE9DD' }};
+    --tf-line-200: {{ s.line_200 | default: '#DDD9C8' }};
+    --tf-sage-100: {{ s.sage_100 | default: '#E9F5DB' }};
+    --tf-sage-300: {{ s.sage_300 | default: '#B5C99A' }};
+    --tf-sage-400: #9AAE7E;
+    --tf-sage-600: {{ s.sage_600 | default: '#6B7056' }};
+    --tf-sage-700: {{ s.sage_700 | default: '#535640' }};
+    --tf-peach-50: {{ s.background_color | default: '#FDF2EC' }};
+    --tf-peach-300: {{ s.peach_300 | default: '#ECA883' }};
+    --tf-peach-500: {{ s.peach_500 | default: '#D88B6D' }};
+    --tf-peach-700: {{ s.peach_700 | default: '#9C5B3D' }};
+
+    /* The theme already loads both families. Naming them again here would
+       download them twice, so these point at the theme's own settings and
+       fall back to the real names only if it has set none. */
+    --tf-font-display: var(--font-heading-family, "Chubbo", "Quicksand", ui-rounded, system-ui, sans-serif);
+    --tf-font-body: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+
+    --tf-radius-2xl: {{ card_rad }}px;
+    --tf-radius-pill: 999px;
+    --tf-shadow-lg: 0 18px 44px rgba(80, 84, 63, 0.13);
+    --tf-ease-soft: cubic-bezier(0.33, 1, 0.68, 1);
+    --tf-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    position: relative;
+    background: var(--tf-peach-50);
+    padding: {{ pad_y }}px 0;
+    overflow-x: clip;
+  }
+
+  /* The Pal hangs above the card, so the band has to be at least as deep as
+     he reaches or its own top edge crops him. */
+  .hp-faq--pal { padding-top: max({{ pad_y }}px, {{ puppy_rise }}px); }
+
+  .hp-faq__inner { padding: 0 max(20px, 4vw); }
+
+  .hp-faq__grid {
+    max-width: {{ inner_w }}px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: {{ left_w }}px minmax(0, 1fr);
+    align-items: center;
+    gap: {{ col_gap }}px;
+  }
+
+  .hp-faq__left { display: grid; gap: 32px; align-content: start; }
+  .hp-faq__head { display: grid; gap: 16px; }
+
+  .hp-faq__eyebrow,
+  .hp-faq__counter {
+    margin: 0;
+    font-family: var(--tf-font-display);
+    font-weight: 700;
+    font-size: 12px;
+    line-height: 1.2;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .hp-faq__eyebrow { color: var(--tf-peach-700); }
+  .hp-faq__counter { color: var(--tf-sage-600); }
+
+  .hp-faq__heading {
+    margin: 0;
+    color: var(--tf-ink-900);
+    font-family: var(--tf-font-display);
+    font-weight: 700;
+    font-size: {{ head_size }}px;
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+  }
+
+  .hp-faq__sub {
+    margin: 0;
+    color: var(--tf-ink-700);
+    font-family: var(--tf-font-body);
+    font-weight: 500;
+    font-size: {{ sub_size }}px;
+    line-height: 1.65;
+  }
+
+  /* --- The pills ---------------------------------------------------------- */
+  /* Hidden until the script has something to drive. Without it the answers
+     below are a plain list and these would be six buttons that do nothing. */
+  .hp-faq__pillwrap { display: none; position: relative; }
+  .hp-faq.is-ready .hp-faq__pillwrap { display: block; }
+
+  .hp-faq__pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+
+  .hp-faq__pill {
+    margin: 0;
+    padding: 12px 22px;
+    border: 2px solid var(--tf-line-200);
+    border-radius: var(--tf-radius-pill);
+    background: var(--tf-paper);
+    color: var(--tf-ink-900);
+    font-family: var(--tf-font-display);
+    font-weight: 700;
+    font-size: 16px;
+    line-height: 1.25;
+    text-align: left;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    transition:
+      transform 220ms var(--tf-ease-spring),
+      box-shadow 220ms var(--tf-ease-spring),
+      border-color 180ms var(--tf-ease-soft),
+      background-color 180ms var(--tf-ease-soft);
+  }
+
+  .hp-faq__pill:hover {
+    transform: translateY(-2px);
+    border-color: var(--tf-sage-400);
+  }
+
+  /* The selected one is a sticker: filled, outlined in ink, sitting on a hard
+     offset shadow and tilted off true. */
+  .hp-faq__pill[aria-selected="true"] {
+    background: var(--tf-peach-300);
+    border-color: var(--tf-ink-900);
+    box-shadow: 0 4px 0 var(--tf-ink-900);
+    transform: rotate(-2deg);
+  }
+
+  .hp-faq__pill[aria-selected="true"]:hover { transform: rotate(-2deg) translateY(-2px); }
+  .hp-faq__pill:active { transform: scale(0.97); }
+  .hp-faq__pill[aria-selected="true"]:active { transform: rotate(-2deg) scale(0.97); }
+
+  .hp-faq__pill:focus-visible,
+  .hp-faq__arrow:focus-visible {
+    outline: 3px solid color-mix(in srgb, #808567 55%, white);
+    outline-offset: 2px;
+  }
+
+  /* --- The card ----------------------------------------------------------- */
+  .hp-faq__right { position: relative; }
+
+  .hp-faq__card {
+    position: relative;
+    display: grid;
+    gap: 24px;
+    padding: {{ card_pad }}px;
+    border-radius: var(--tf-radius-2xl);
+    background: var(--tf-paper);
+    box-shadow: var(--tf-shadow-lg);
+  }
+
+  .hp-faq__counter,
+  .hp-faq__nav { display: none; }
+  .hp-faq.is-ready .hp-faq__counter { display: block; }
+  .hp-faq.is-ready .hp-faq__nav { display: flex; }
+
+  .hp-faq__panels { position: relative; }
+  .hp-faq.is-ready .hp-faq__panels { transition: height 220ms var(--tf-ease-soft); }
+
+  /* Without the script every panel shows, one under the next, which is the
+     plain list the markup already is. */
+  .hp-faq__panel + .hp-faq__panel { margin-top: 32px; }
+  .hp-faq.is-ready .hp-faq__panel + .hp-faq__panel { margin-top: 0; }
+
+  .hp-faq__panel { display: grid; gap: 24px; }
+  .hp-faq__panel[hidden] { display: none; }
+
+  .hp-faq.is-ready .hp-faq__panel.is-in {
+    animation: hp-faq-in 220ms var(--tf-ease-soft) both;
+  }
+
+  .hp-faq.is-ready .hp-faq__panel.is-out {
+    animation: hp-faq-out 140ms var(--tf-ease-soft) both;
+  }
+
+  @keyframes hp-faq-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes hp-faq-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  .hp-faq__q {
+    margin: 0;
+    max-width: {{ s.question_max_width | default: 440 }}px;
+    color: var(--tf-ink-900);
+    font-family: var(--tf-font-display);
+    font-weight: 700;
+    font-size: {{ q_size }}px;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+  }
+
+  .hp-faq__a {
+    color: var(--tf-ink-700);
+    font-family: var(--tf-font-body);
+    font-weight: 500;
+    font-size: {{ a_size }}px;
+    line-height: 1.65;
+  }
+
+  .hp-faq__a > :first-child { margin-top: 0; }
+  .hp-faq__a > :last-child { margin-bottom: 0; }
+
+  /* --- The care chips ----------------------------------------------------- */
+  .hp-faq__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .hp-faq__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: var(--tf-radius-pill);
+    background: var(--tf-sage-100);
+    color: var(--tf-sage-700);
+    font-family: var(--tf-font-body);
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 1.3;
+  }
+
+  .hp-faq__chip svg {
+    flex: none;
+    width: 16px;
+    height: 16px;
+  }
+
+  /* --- The nav row -------------------------------------------------------- */
+  .hp-faq__nav {
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 16px;
+    border-top: 1.5px solid var(--tf-line-100);
+  }
+
+  .hp-faq__dots { display: flex; align-items: center; gap: 6px; }
+
+  .hp-faq__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--tf-radius-pill);
+    background: var(--tf-line-200);
+    transition: width 220ms var(--tf-ease-soft), background-color 220ms var(--tf-ease-soft);
+  }
+
+  .hp-faq__dot.is-on {
+    width: 24px;
+    background: var(--tf-peach-500);
+  }
+
+  .hp-faq__arrows { display: flex; gap: 10px; }
+
+  .hp-faq__arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 2px solid var(--tf-line-200);
+    border-radius: 50%;
+    background: var(--tf-paper);
+    color: var(--tf-ink-900);
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    transition: transform 180ms var(--tf-ease-spring), box-shadow 180ms var(--tf-ease-soft);
+  }
+
+  .hp-faq__arrow--next {
+    border-color: var(--tf-ink-900);
+    background: var(--tf-sage-300);
+    box-shadow: 0 3px 0 var(--tf-ink-900);
+  }
+
+  .hp-faq__arrow:active { transform: scale(0.95); }
+  .hp-faq__arrow svg { width: 18px; height: 18px; }
+
+  /* --- The Pal over the corner -------------------------------------------- */
+  .hp-faq__puppy {
+    position: absolute;
+    z-index: 2;
+    top: {{ puppy_top }}px;
+    right: {{ puppy_right }}px;
+    width: {{ puppy_w }}px;
+    height: auto;
+    transform: rotate({{ puppy_tilt }}deg);
+    pointer-events: none;
+  }
+
+  .hp-faq.is-ready .hp-faq__puppy.is-wobbling {
+    animation: hp-faq-wobble 360ms var(--tf-ease-spring);
+  }
+
+  @keyframes hp-faq-wobble {
+    0% { transform: rotate({{ puppy_tilt }}deg); }
+    50% { transform: rotate({{ puppy_tilt | minus: 8 }}deg); }
+    100% { transform: rotate({{ puppy_tilt }}deg); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hp-faq .hp-faq__pill,
+    .hp-faq .hp-faq__dot,
+    .hp-faq .hp-faq__arrow,
+    .hp-faq.is-ready .hp-faq__panels { transition: none; }
+    .hp-faq__pill:hover { transform: none; }
+    .hp-faq__pill[aria-selected="true"]:hover { transform: rotate(-2deg); }
+    .hp-faq.is-ready .hp-faq__panel.is-in,
+    .hp-faq.is-ready .hp-faq__panel.is-out,
+    .hp-faq.is-ready .hp-faq__puppy.is-wobbling { animation: none; }
+  }
+
+  @media screen and (max-width: 989px) {
+    .hp-faq { padding: {{ pad_y_tab }}px 0; }
+    .hp-faq--pal { padding-top: max({{ pad_y_tab }}px, {{ puppy_rise }}px); }
+
+    .hp-faq__grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 48px;
+    }
+
+    /* Stacked, the pills are directly above the card and he rises into them. */
+    .hp-faq--pal .hp-faq__right { margin-top: max(0px, {{ pal_push }}px); }
+  }
+
+  @media screen and (max-width: 749px) {
+    .hp-faq { padding: {{ pad_y_m }}px 0; }
+    .hp-faq--pal { padding-top: max({{ pad_y_m }}px, {{ puppy_rise_m }}px); }
+    .hp-faq__inner { padding: 0 20px; }
+    .hp-faq__heading { font-size: {{ head_size_m }}px; }
+    .hp-faq__sub { font-size: 16px; }
+
+    /* One row that scrolls instead of four that wrap, with the fade telling
+       you there is more to the right. */
+    .hp-faq__pills {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      padding: 6px 28px 10px 2px;
+      margin: -6px -20px -10px -2px;
+      padding-inline-start: 2px;
+      padding-inline-end: 28px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .hp-faq__pills::-webkit-scrollbar { display: none; }
+    .hp-faq__pill { flex: none; scroll-snap-align: center; }
+
+    .hp-faq__pillwrap::after {
+      content: "";
+      position: absolute;
+      z-index: 1;
+      top: 0;
+      right: -20px;
+      bottom: 0;
+      width: 44px;
+      background: linear-gradient(to right, rgba(0, 0, 0, 0), var(--tf-peach-50));
+      pointer-events: none;
+    }
+
+    .hp-faq__card {
+      padding: 28px;
+      border-radius: 32px;
+    }
+
+    .hp-faq__q { font-size: 26px; }
+    .hp-faq__a { font-size: 17px; }
+
+    .hp-faq--pal .hp-faq__right { margin-top: max(0px, {{ pal_push_m }}px); }
+
+    .hp-faq__puppy {
+      width: {{ s.puppy_width_mobile | default: 100 }}px;
+      top: {{ puppy_top_m }}px;
+      right: {{ s.puppy_right_mobile | default: -12 }}px;
+    }
+  }
+{% endstyle %}
+
+<section
+  class="hp-faq{% if s.show_puppy != false and s.puppy_image != blank %} hp-faq--pal{% endif %}"
+  data-hp-faq
+  style="--hp-faq-count: {{ qs.size }};"
+  {{ section.shopify_attributes }}
+>
+  <div class="hp-faq__inner">
+    <div class="hp-faq__grid">
+      <div class="hp-faq__left">
+        <div class="hp-faq__head">
+          {%- if s.eyebrow != blank -%}
+            <p class="hp-faq__eyebrow">{{ s.eyebrow | escape }}</p>
+          {%- endif -%}
+          {%- if s.heading != blank -%}
+            <{{ tag }} class="hp-faq__heading">{{ s.heading | escape }}</{{ tag }}>
+          {%- endif -%}
+          {%- if s.subheading != blank -%}
+            <p class="hp-faq__sub">{{ s.subheading | escape }}</p>
+          {%- endif -%}
+        </div>
+
+        <div class="hp-faq__pillwrap">
+          <div class="hp-faq__pills" role="tablist" aria-label="{{ s.tablist_label | default: 'Hankie Pals questions' | escape }}">
+            {%- for block in qs -%}
+              {%- liquid
+                assign pill = block.settings.pill_label | default: block.settings.question
+              -%}
+              <button
+                class="hp-faq__pill"
+                type="button"
+                role="tab"
+                id="hp-faq-tab-{{ uid }}-{{ forloop.index }}"
+                aria-controls="hp-faq-panel-{{ uid }}-{{ forloop.index }}"
+                aria-selected="false"
+                tabindex="-1"
+                data-hp-faq-tab="{{ forloop.index0 }}"
+                {{ block.shopify_attributes }}
+              >
+                {{- pill | escape -}}
+              </button>
+            {%- endfor -%}
+          </div>
+        </div>
+      </div>
+
+      <div class="hp-faq__right">
+        <div class="hp-faq__card">
+          {%- if s.show_puppy != false and s.puppy_image != blank -%}
+            <img
+              class="hp-faq__puppy"
+              src="{{ s.puppy_image | image_url: width: 480 }}"
+              srcset="
+                {{ s.puppy_image | image_url: width: 160 }} 160w,
+                {{ s.puppy_image | image_url: width: 320 }} 320w,
+                {{ s.puppy_image | image_url: width: 480 }} 480w"
+              sizes="{{ puppy_w }}px"
+              width="{{ puppy_w }}"
+              height="{{ puppy_h }}"
+              loading="lazy"
+              decoding="async"
+              alt=""
+              aria-hidden="true"
+            >
+          {%- endif -%}
+
+          <p class="hp-faq__counter" data-hp-faq-counter aria-live="polite" aria-atomic="true"></p>
+
+          <div class="hp-faq__panels" data-hp-faq-panels>
+            {%- for block in qs -%}
+              <div
+                class="hp-faq__panel"
+                role="tabpanel"
+                id="hp-faq-panel-{{ uid }}-{{ forloop.index }}"
+                aria-labelledby="hp-faq-tab-{{ uid }}-{{ forloop.index }}"
+                tabindex="0"
+                data-hp-faq-panel="{{ forloop.index0 }}"
+              >
+                <h3 class="hp-faq__q">{{ block.settings.question | escape }}</h3>
+
+                {%- if block.settings.answer != blank -%}
+                  <div class="hp-faq__a">{{ block.settings.answer }}</div>
+                {%- endif -%}
+
+                {%- liquid
+                  assign c1 = block.settings.chip_1_text
+                  assign c2 = block.settings.chip_2_text
+                  assign c3 = block.settings.chip_3_text
+                  assign chips = ''
+                  assign chips = chips | append: c1 | append: c2 | append: c3
+                -%}
+                {%- if chips != blank -%}
+                  <ul class="hp-faq__chips">
+                    {%- for n in (1..3) -%}
+                      {%- liquid
+                        case n
+                          when 1
+                            assign ctext = c1
+                            assign cicon = block.settings.chip_1_icon
+                          when 2
+                            assign ctext = c2
+                            assign cicon = block.settings.chip_2_icon
+                          else
+                            assign ctext = c3
+                            assign cicon = block.settings.chip_3_icon
+                        endcase
+                      -%}
+                      {%- if ctext != blank -%}
+                        <li class="hp-faq__chip">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                               stroke-width="2" stroke-linecap="round"
+                               stroke-linejoin="round" aria-hidden="true" focusable="false">
+                            {%- case cicon -%}
+                              {%- when 'sun' -%}
+                                <circle cx="12" cy="12" r="4"/>
+                                <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+                              {%- when 'check' -%}
+                                <circle cx="12" cy="12" r="9"/>
+                                <path d="m8.5 12.2 2.4 2.4 4.6-4.9"/>
+                              {%- when 'heart' -%}
+                                <path d="M12 20c-.3 0-.6-.1-.8-.3C7 15.9 4 13.8 4 11.1 4 9 5.6 7.4 7.6 7.4c1.2 0 2.3.6 3 1.5.7-.9 1.8-1.5 3-1.5 2 0 3.6 1.6 3.6 3.7 0 2.7-3 4.8-7.2 8.6-.2.2-.5.3-.8.3z"/>
+                              {%- when 'leaf' -%}
+                                <path d="M4 20c6-1 10-4 12-9 .8-2 1-4 1-6-2.5 0-5 .6-7 2-4 2.8-5.3 7.7-6 13z"/>
+                                <path d="M9 15c1.5-2.5 3.5-4.3 6-5.5"/>
+                              {%- when 'sparkle' -%}
+                                <path d="M12 3.5 13.8 9l5.5 1.8-5.5 1.8L12 18l-1.8-5.4L4.7 10.8 10.2 9z"/>
+                                <path d="M18.5 4v2.6M17.2 5.3h2.6"/>
+                              {%- else -%}
+                                <path d="M2.5 7.5c1.6-1.7 3.2-1.7 4.8 0s3.2 1.7 4.8 0 3.2-1.7 4.8 0 3.2 1.7 4.6 0"/>
+                                <path d="M2.5 13c1.6-1.7 3.2-1.7 4.8 0s3.2 1.7 4.8 0 3.2-1.7 4.8 0 3.2 1.7 4.6 0"/>
+                                <path d="M2.5 18.5c1.6-1.7 3.2-1.7 4.8 0s3.2 1.7 4.8 0 3.2-1.7 4.8 0 3.2 1.7 4.6 0"/>
+                            {%- endcase -%}
+                          </svg>
+                          <span>{{ ctext | escape }}</span>
+                        </li>
+                      {%- endif -%}
+                    {%- endfor -%}
+                  </ul>
+                {%- endif -%}
+              </div>
+            {%- endfor -%}
+          </div>
+
+          <div class="hp-faq__nav">
+            <div class="hp-faq__dots" aria-hidden="true" data-hp-faq-dots>
+              {%- for block in qs -%}
+                <span class="hp-faq__dot"></span>
+              {%- endfor -%}
+            </div>
+
+            <div class="hp-faq__arrows">
+              <button
+                class="hp-faq__arrow hp-faq__arrow--prev"
+                type="button"
+                data-hp-faq-prev
+                aria-label="{{ s.prev_label | default: 'Previous question' | escape }}"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                  <path d="m14.5 5-7 7 7 7"/>
+                </svg>
+              </button>
+              <button
+                class="hp-faq__arrow hp-faq__arrow--next"
+                type="button"
+                data-hp-faq-next
+                aria-label="{{ s.next_label | default: 'Next question' | escape }}"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                  <path d="m9.5 5 7 7-7 7"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{%- comment -%}
+  The same six questions a visitor reads, for anything that reads the page
+  rather than looking at it. Built from the blocks, so it cannot drift.
+{%- endcomment -%}
+{%- if qs.size > 0 -%}
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {%- for block in qs -%}
+          {
+            "@type": "Question",
+            "name": {{ block.settings.question | strip_html | json }},
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": {{ block.settings.answer | strip_html | json }}
+            }
+          }{% unless forloop.last %},{% endunless %}
+        {%- endfor -%}
+      ]
+    }
+  </script>
+{%- endif -%}
+
+<script>
+  (function () {
+    if (window.hpFaqReady) return;
+    window.hpFaqReady = true;
+
+    function setup(root) {
+      // Anything unexpected in here leaves the stacked list on screen, which
+      // is what the markup already is. Nothing is hidden until this succeeds.
+      try {
+        var tabs = [].slice.call(root.querySelectorAll('[data-hp-faq-tab]'));
+        var panels = [].slice.call(root.querySelectorAll('[data-hp-faq-panel]'));
+        var box = root.querySelector('[data-hp-faq-panels]');
+        var counter = root.querySelector('[data-hp-faq-counter]');
+        var dots = [].slice.call(root.querySelectorAll('[data-hp-faq-dots] span'));
+        var prev = root.querySelector('[data-hp-faq-prev]');
+        var next = root.querySelector('[data-hp-faq-next]');
+        var puppy = root.querySelector('.hp-faq__puppy');
+        if (!tabs.length || tabs.length !== panels.length || !box) return;
+
+        var calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var at = -1;
+
+        function show(i, moveFocus) {
+          if (i === at) return;
+          var from = at;
+          at = (i + tabs.length) % tabs.length;
+
+          tabs.forEach(function (t, n) {
+            var on = n === at;
+            t.setAttribute('aria-selected', on ? 'true' : 'false');
+            t.tabIndex = on ? 0 : -1;
+          });
+          dots.forEach(function (dd, n) { dd.classList.toggle('is-on', n === at); });
+          if (counter) {
+            counter.textContent = (root.dataset.hpFaqCounterWord || 'Question') +
+              ' ' + (at + 1) + ' of ' + tabs.length;
+          }
+
+          // The card is as tall as whatever is in it, so without holding the
+          // old height for a frame the swap jumps before it animates.
+          var h0 = box.offsetHeight;
+
+          panels.forEach(function (p, n) {
+            p.classList.remove('is-in', 'is-out');
+            p.hidden = n !== at;
+          });
+
+          if (!calm) {
+            var outgoing = panels[from];
+            if (outgoing) outgoing.classList.add('is-out');
+            panels[at].classList.add('is-in');
+
+            var h1 = box.offsetHeight;
+            box.style.height = h0 + 'px';
+            void box.offsetHeight;
+            box.style.height = h1 + 'px';
+            window.setTimeout(function () { box.style.height = ''; }, 260);
+
+            if (puppy) {
+              puppy.classList.remove('is-wobbling');
+              void puppy.offsetWidth;
+              puppy.classList.add('is-wobbling');
+            }
+          }
+
+          if (moveFocus) tabs[at].focus();
+          if (tabs[at].scrollIntoView && root.clientWidth < 750) {
+            try {
+              tabs[at].scrollIntoView({
+                inline: 'center', block: 'nearest',
+                behavior: calm ? 'auto' : 'smooth'
+              });
+            } catch (e) { /* older browsers take no options */ }
+          }
+        }
+
+        tabs.forEach(function (t, n) {
+          t.addEventListener('click', function () { show(n, false); });
+          t.addEventListener('keydown', function (e) {
+            var k = e.key, to = null;
+            if (k === 'ArrowRight' || k === 'ArrowDown') to = n + 1;
+            else if (k === 'ArrowLeft' || k === 'ArrowUp') to = n - 1;
+            else if (k === 'Home') to = 0;
+            else if (k === 'End') to = tabs.length - 1;
+            if (to === null) return;
+            e.preventDefault();
+            show((to + tabs.length) % tabs.length, true);
+          });
+        });
+
+        if (prev) prev.addEventListener('click', function () { show(at - 1, false); });
+        if (next) next.addEventListener('click', function () { show(at + 1, false); });
+
+        root.classList.add('is-ready');
+        show(0, false);
+      } catch (e) { /* the list stays */ }
+    }
+
+    function boot() {
+      [].forEach.call(document.querySelectorAll('[data-hp-faq]'), function (r) {
+        if (!r.classList.contains('is-ready')) setup(r);
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', boot);
+    } else {
+      boot();
+    }
+
+    // The theme editor tears a section down and rebuilds it on every change.
+    document.addEventListener('shopify:section:load', boot);
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Ask the Pals — FAQ",
+  "tag": "section",
+  "class": "hp-faq-section",
+  "max_blocks": 10,
+  "settings": [
+    { "type": "header", "content": "Words" },
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow", "default": "Got questions?" },
+    { "type": "text", "id": "heading", "label": "Heading", "default": "Ask the Pals" },
+    {
+      "type": "select",
+      "id": "heading_tag",
+      "label": "Heading level",
+      "options": [
+        { "value": "h2", "label": "H2 — a section on a page with a title" },
+        { "value": "h1", "label": "H1" },
+        { "value": "h3", "label": "H3" }
+      ],
+      "default": "h2",
+      "info": "On a product page the product's own name is the H1, so this should stay an H2."
+    },
+    {
+      "type": "text",
+      "id": "subheading",
+      "label": "Subheading",
+      "default": "Tap a question to see what Puppy has to say."
+    },
+    { "type": "range", "id": "heading_size", "label": "Heading size", "unit": "px", "min": 32, "max": 88, "step": 2, "default": 64 },
+    { "type": "range", "id": "subheading_size", "label": "Subheading size", "unit": "px", "min": 14, "max": 24, "step": 1, "default": 18 },
+
+    { "type": "header", "content": "The card" },
+    { "type": "range", "id": "question_size", "label": "Question size", "unit": "px", "min": 20, "max": 52, "step": 2, "default": 36 },
+    {
+      "type": "range",
+      "id": "question_max_width",
+      "label": "Question width",
+      "unit": "px",
+      "min": 220,
+      "max": 700,
+      "step": 10,
+      "default": 440,
+      "info": "Kept short so a long question never runs under the Pal."
+    },
+    { "type": "range", "id": "answer_size", "label": "Answer size", "unit": "px", "min": 14, "max": 26, "step": 1, "default": 20 },
+    { "type": "range", "id": "card_radius", "label": "Card corner radius", "unit": "px", "min": 0, "max": 64, "step": 2, "default": 44 },
+    { "type": "range", "id": "card_padding", "label": "Card padding", "unit": "px", "min": 20, "max": 80, "step": 4, "default": 56 },
+
+    { "type": "header", "content": "The Pal on the corner" },
+    { "type": "checkbox", "id": "show_puppy", "label": "Show the Pal", "default": true },
+    {
+      "type": "image_picker",
+      "id": "puppy_image",
+      "label": "Cut-out photo",
+      "info": "A transparent PNG works best. Leave it empty and nothing is drawn."
+    },
+    { "type": "range", "id": "puppy_width", "label": "How wide", "unit": "px", "min": 80, "max": 320, "step": 4, "default": 160 },
+    { "type": "range", "id": "puppy_top", "label": "How far above the card", "unit": "px", "min": -240, "max": 40, "step": 4, "default": -132 },
+    { "type": "range", "id": "puppy_right", "label": "How far past the right edge", "unit": "px", "min": -160, "max": 80, "step": 4, "default": -44 },
+    { "type": "range", "id": "puppy_tilt", "label": "Tilt", "unit": "deg", "min": -30, "max": 30, "step": 1, "default": 10 },
+
+    { "type": "header", "content": "Colours" },
+    { "type": "color", "id": "background_color", "label": "Section background", "default": "#FDF2EC" },
+    { "type": "color", "id": "ink_900", "label": "Headings and pills", "default": "#2F3326" },
+    { "type": "color", "id": "ink_700", "label": "Body text", "default": "#50543F" },
+    { "type": "color", "id": "peach_300", "label": "Selected pill fill", "default": "#ECA883" },
+    { "type": "color", "id": "peach_500", "label": "Active dot", "default": "#D88B6D" },
+    { "type": "color", "id": "peach_700", "label": "Eyebrow", "default": "#9C5B3D" },
+    { "type": "color", "id": "sage_100", "label": "Chip fill", "default": "#E9F5DB" },
+    { "type": "color", "id": "sage_300", "label": "Next button fill", "default": "#B5C99A" },
+    { "type": "color", "id": "sage_600", "label": "Counter", "default": "#6B7056" },
+    { "type": "color", "id": "sage_700", "label": "Chip text", "default": "#535640" },
+    { "type": "color", "id": "line_100", "label": "Nav rule", "default": "#ECE9DD" },
+    { "type": "color", "id": "line_200", "label": "Pill and dot outline", "default": "#DDD9C8" },
+
+    { "type": "header", "content": "Layout" },
+    { "type": "range", "id": "max_width", "label": "Content width", "unit": "px", "min": 960, "max": 1500, "step": 20, "default": 1180 },
+    { "type": "range", "id": "left_width", "label": "Width of the questions column", "unit": "px", "min": 320, "max": 720, "step": 10, "default": 540 },
+    { "type": "range", "id": "column_gap", "label": "Gap between the columns", "unit": "px", "min": 24, "max": 140, "step": 4, "default": 72 },
+    { "type": "range", "id": "padding_y", "label": "Top and bottom padding", "unit": "px", "min": 0, "max": 220, "step": 4, "default": 120 },
+    { "type": "range", "id": "padding_y_tablet", "label": "Top and bottom padding (tablet)", "unit": "px", "min": 0, "max": 220, "step": 4, "default": 88 },
+
+    { "type": "header", "content": "Mobile" },
+    { "type": "range", "id": "heading_size_mobile", "label": "Heading size (mobile)", "unit": "px", "min": 24, "max": 64, "step": 2, "default": 44 },
+    { "type": "range", "id": "padding_y_mobile", "label": "Top and bottom padding (mobile)", "unit": "px", "min": 0, "max": 220, "step": 4, "default": 64 },
+    { "type": "range", "id": "puppy_width_mobile", "label": "Pal width (mobile)", "unit": "px", "min": 60, "max": 220, "step": 4, "default": 100 },
+    { "type": "range", "id": "puppy_top_mobile", "label": "Pal above the card (mobile)", "unit": "px", "min": -180, "max": 20, "step": 2, "default": -80 },
+    { "type": "range", "id": "puppy_right_mobile", "label": "Pal past the right edge (mobile)", "unit": "px", "min": -120, "max": 60, "step": 2, "default": -12 },
+
+    { "type": "header", "content": "Wording read out" },
+    { "type": "text", "id": "tablist_label", "label": "Name of the question list", "default": "Hankie Pals questions" },
+    { "type": "text", "id": "prev_label", "label": "Previous button", "default": "Previous question" },
+    { "type": "text", "id": "next_label", "label": "Next button", "default": "Next question" }
+  ],
+  "blocks": [
+    {
+      "type": "question",
+      "name": "Question",
+      "settings": [
+        {
+          "type": "text",
+          "id": "question",
+          "label": "Question",
+          "info": "Shown as the card's title, and on the pill unless a shorter one is given below."
+        },
+        {
+          "type": "text",
+          "id": "pill_label",
+          "label": "Shorter label for the pill",
+          "info": "Optional. Use it when the full question is too long to sit on a pill."
+        },
+        { "type": "richtext", "id": "answer", "label": "Answer" },
+        { "type": "header", "content": "Chips" },
+        { "type": "text", "id": "chip_1_text", "label": "Chip 1" },
+        {
+          "type": "select",
+          "id": "chip_1_icon",
+          "label": "Chip 1 icon",
+          "options": [
+            { "value": "wave", "label": "Washing" },
+            { "value": "sun", "label": "Drying" },
+            { "value": "check", "label": "Tick" },
+            { "value": "heart", "label": "Heart" },
+            { "value": "leaf", "label": "Leaf" },
+            { "value": "sparkle", "label": "Sparkle" }
+          ],
+          "default": "wave"
+        },
+        { "type": "text", "id": "chip_2_text", "label": "Chip 2" },
+        {
+          "type": "select",
+          "id": "chip_2_icon",
+          "label": "Chip 2 icon",
+          "options": [
+            { "value": "wave", "label": "Washing" },
+            { "value": "sun", "label": "Drying" },
+            { "value": "check", "label": "Tick" },
+            { "value": "heart", "label": "Heart" },
+            { "value": "leaf", "label": "Leaf" },
+            { "value": "sparkle", "label": "Sparkle" }
+          ],
+          "default": "sun"
+        },
+        { "type": "text", "id": "chip_3_text", "label": "Chip 3" },
+        {
+          "type": "select",
+          "id": "chip_3_icon",
+          "label": "Chip 3 icon",
+          "options": [
+            { "value": "wave", "label": "Washing" },
+            { "value": "sun", "label": "Drying" },
+            { "value": "check", "label": "Tick" },
+            { "value": "heart", "label": "Heart" },
+            { "value": "leaf", "label": "Leaf" },
+            { "value": "sparkle", "label": "Sparkle" }
+          ],
+          "default": "check"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Ask the Pals — FAQ",
+      "blocks": [
+        {
+          "type": "question",
+          "settings": {
+            "question": "What is a Hankie Pal?",
+            "answer": "<p>A soft muslin hankie with a friendly face that clips right onto your little one's clothes, so a wipe is always within reach. It turns wiping their own nose into a little win instead of a battle.</p>"
+          }
+        },
+        {
+          "type": "question",
+          "settings": {
+            "question": "What age is it for?",
+            "answer": "<p>Made for toddlers who are starting to do things on their own, usually from around 12 months. Keep an eye on them while it's clipped on.</p>"
+          }
+        },
+        {
+          "type": "question",
+          "settings": {
+            "question": "How do I wash it?",
+            "answer": "<p>Unclip it, pop it in on a gentle cycle, then air dry or tumble low. The muslin gets softer and cozier with every wash.</p>",
+            "chip_1_text": "Gentle cycle",
+            "chip_1_icon": "wave",
+            "chip_2_text": "Air dry or tumble low",
+            "chip_2_icon": "sun",
+            "chip_3_text": "Unclip first",
+            "chip_3_icon": "check"
+          }
+        },
+        {
+          "type": "question",
+          "settings": {
+            "question": "How does the detachable clip work?",
+            "pill_label": "How does the clip work?",
+            "answer": "<p>It hooks onto a shirt, jacket or bag strap, then pops off the hankie so you can swap in a fresh one in seconds.</p>"
+          }
+        },
+        {
+          "type": "question",
+          "settings": {
+            "question": "What's the name label for?",
+            "answer": "<p>Write your little one's name on it so their Hankie Pal always makes it home from daycare, preschool and grandma's.</p>"
+          }
+        },
+        {
+          "type": "question",
+          "settings": {
+            "question": "Why do the ears crinkle?",
+            "answer": "<p>A soft crinkle layer inside makes a gentle sound little hands love to explore. Sensory play, built right in.</p>"
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

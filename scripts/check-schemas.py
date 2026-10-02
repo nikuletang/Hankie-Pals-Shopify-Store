@@ -13,6 +13,25 @@ import sys
 SECTIONS = pathlib.Path(__file__).resolve().parent.parent / "sections"
 
 
+def hyphenated_filter_args(body, path):
+    """A Liquid named argument is an identifier, and an identifier cannot
+    contain a hyphen. `image_tag: aria-hidden: 'true'` renders fine in the
+    stub used by the checks and is a syntax error on the store, which is the
+    worst way round for a trap to be."""
+    out = []
+    for tag in re.findall(r"{{-?(.*?)-?}}", body, re.S):
+        if "|" not in tag:
+            continue
+        # Only what follows a filter name, so a hyphen inside a quoted string
+        # or a CSS value is not mistaken for an argument name.
+        for arg in re.findall(r"[,:]\s*([A-Za-z_][\w-]*)\s*:", tag):
+            if "-" in arg:
+                out.append(f"{path.name}: filter argument '{arg}' has a hyphen; "
+                           f"Liquid named arguments are identifiers, so this is "
+                           f"a syntax error on the store")
+    return out
+
+
 def filtered_filter_args(path, src):
     """A filter inside a filter argument does not bind the way it reads.
 
@@ -59,6 +78,7 @@ def check(path):
         return [f"{path.name}: schema is not valid JSON — {exc}"]
 
     problems = filtered_filter_args(path, text)
+    problems += hyphenated_filter_args(text, path)
     groups = [("", schema.get("settings", []))]
     for block in schema.get("blocks", []):
         groups.append((f"blocks/{block.get('type', '?')}: ", block.get("settings", [])))

@@ -153,6 +153,10 @@ env.add_filter('placeholder_svg_tag',
                lambda v, cls='': f'<svg class="{cls}" viewBox="0 0 60 60"><rect width="60" height="60"/></svg>')
 env.add_filter('money', lambda v: f'${int(v)/100:,.2f}')
 env.add_filter('default_errors', lambda v: '; '.join(v) if v else '')
+# Shopify's json filter, used for structured data: it emits a complete JSON
+# literal, quotes and all, not a quoted-looking string.
+env.add_filter('json', lambda v: __import__('json').dumps(
+    '' if v is None else (v if isinstance(v, (str, int, float, bool, list, dict)) else str(v))))
 
 
 def color_modify(value, prop, amount):

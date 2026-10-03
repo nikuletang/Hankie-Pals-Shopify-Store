@@ -27,6 +27,7 @@ anything moving.
 | [`sections/collapsible-rows.liquid`](sections/collapsible-rows.liquid) | **Collapsible rows** | Materials, shipping, care — an accordion for under a product description. Native `<details>`, so it needs no JavaScript at all |
 | [`sections/how-to-steps.liquid`](sections/how-to-steps.liquid) | **How-to steps** | Numbered capsule rows: a round tinted photo, a title, a line of copy, and a very pale numeral behind the words |
 | [`sections/feature-collage.liquid`](sections/feature-collage.liquid) | **Feature collage** | Overlapping photographs in the middle with pills placed on them by hand, feature cards either side. Hovering a photo lifts it over the rest |
+| [`sections/meet-the-maker.liquid`](sections/meet-the-maker.liquid) | **Meet the maker** | The founder intro: a portrait cropped to an organic blob with a peach blob behind it and tilted sticker labels, a pull quote and a signature beside it |
 | [`sections/hp-pal-buy.liquid`](sections/hp-pal-buy.liquid) | **Choose your Pal** | The product page's picking moment. One pill per Pal; choosing one swaps the photo, the name, the blurb and the accent, and selects that variant in Dawn's own buy box below |
 | [`sections/hp-footer.liquid`](sections/hp-footer.liquid) | **Totterful footer** | Brand, menu columns, policies. Goes in the footer section group, so it is on every page |
 
@@ -1129,3 +1130,66 @@ went unnoticed until the renderer could say nil.
 
 Same family as the `alt:` binding: in a filter chain, `| default:` attaches to
 everything to its left, not to the nearest word.
+
+
+## A quote in a setting closes the style attribute
+
+`sections/meet-the-maker.liquid` carries a font stack as a setting, so the
+merchant can point the signature at whatever the theme actually loads. Its
+default is
+
+    Fredoka, "Chubbo", "Quicksand", ui-rounded, system-ui, sans-serif
+
+and it is written into the root's inline `style="…"` along with eleven other
+custom properties. Unescaped, the first `"` in `"Chubbo"` **ends the attribute**.
+Everything declared after it is gone: the HTML parser reads the remainder as
+stray attributes and drops them without a word.
+
+Nothing looked wrong. The section rendered, the colours were right, the
+desktop padding was right. What gave it away was a check on an unrelated
+number — section padding on mobile resolving to `0px` instead of `80px`,
+because `--hp-mm-pt-mobile` was one of the properties that had fallen off the
+end. A var that does not exist makes its declaration invalid at computed-value
+time, and padding falls back to zero rather than to anything that looks like a
+mistake.
+
+The fix is `| escape`, which writes `&quot;` — a quote the parser hands back
+*inside* the attribute instead of treating as its end:
+
+    --hp-mm-signature: {{ s.signature_font | default: '…' | escape }};
+
+Worth doing for every free-text setting that lands in an attribute, not just
+one that happens to hold quotes today: `text` and `textarea` settings are
+whatever the merchant types.
+
+Two things follow from this one. Order matters as a second line of defence —
+a property that must work belongs *before* any free text, not after it. And a
+section's checks are worth more when they cover numbers that have no obvious
+reason to break, because a silent truncation shows up far from its cause.
+
+## Two animations on one element, and the one that disappears
+
+The same section wanted a back blob that scales in on entrance *and* drifts
+slowly forever, a sticker that drops in tilted *and* wiggles on hover, and a
+photo that rises in *and* zooms on hover. Each pair animates `transform`, and
+the second declaration to apply does not blend with the first — it replaces
+it. One of the two silently does nothing.
+
+Specificity fixes nothing here; it only decides which one survives. The answer
+is a wrapper per pair, so the two transforms live on different elements and
+compose through the normal parent-child multiply:
+
+| outer element | inner element |
+| --- | --- |
+| `.hp-mm__back` — entrance scale | its `svg` — idle wobble |
+| `.hp-mm__sticker` — entrance rotate and scale, and the resting tilt | `.hp-mm__pill` — hover wiggle and lift |
+| `.hp-mm__photo` — entrance fade and rise | its `img` — hover zoom |
+
+`scripts/test-meet-the-maker.py` reads `animation-name` off both halves of
+each pair and fails if they ever land on the same element. Moving the wobble
+up one level is the break test.
+
+One trap inside the trap: the entrance rules hang off `.is-in`, which only the
+observer adds, and IntersectionObserver delivery is not deterministic under
+virtual time. The suite sets `.is-in` by hand for the motion checks and tests
+the observer separately through the hidden state and the no-script fallback.

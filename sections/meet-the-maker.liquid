@@ -1,0 +1,748 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — Meet the maker
+  ---------------------------------------------------------------------------
+  A founder intro: portrait on the left inside two organic blobs, pull quote
+  and bio on the right.
+
+  The two blob paths are one authored shape each, on a 0..100 grid, generated
+  from per-direction radii rather than hand-tuned bezier handles. Each path is
+  used twice from a single source: the visible outline draws it in an SVG with
+  viewBox="0 0 100 100", and the photo crop feeds the same string to a
+  <clipPath clipPathUnits="objectBoundingBox"> whose <path> carries
+  transform="scale(0.01)". One string, two consumers, so the crop and the
+  outline can never drift apart.
+
+  preserveAspectRatio="none" on the outline is deliberate: objectBoundingBox
+  normalises to the element's box, and "none" is the only setting that
+  stretches the same way. The stroke stays exactly 2px at any size through
+  vector-effect="non-scaling-stroke" rather than a width divided by the scale.
+
+  Transforms are split across nested elements wherever two things animate the
+  same element, because the last animation to apply wins outright and would
+  silently drop the other:
+    back blob   — entrance scale on .hp-mm__back, idle wobble on its inner svg
+    sticker     — entrance rotate+scale on .hp-mm__sticker, hover wiggle and
+                  lift on the .hp-mm__pill inside it
+    photo       — entrance fade+rise on .hp-mm__photo, hover zoom on its <img>
+  Nesting them costs one wrapper each and removes the specificity fight
+  entirely, which is what bit the solution-tabs reveal (README, "A reveal that
+  takes itself away").
+
+  The stickers hang outside the portrait cluster by design. overflow-x: clip on
+  the section root is what keeps that from reaching the page as a horizontal
+  scrollbar; it is `clip` rather than `hidden` so no scroll container is
+  created. Below 990px the right-hand presets also move inboard, because a
+  percentage that clears the cluster on a desktop does not clear a phone.
+
+  No webfonts are loaded here. Every other section in this theme defers to
+  Dawn's --font-heading-family / --font-body-family with a named fallback
+  stack, and a section that fetched its own would ship a render-blocking
+  request per instance. The signature face is its own property so it can be
+  pointed at whatever the theme actually loads.
+
+  Free text going into the inline style attribute is escaped. The signature
+  font stack contains double quotes, and unescaped they close style="" early:
+  every custom property declared after it silently vanishes, which first shows
+  up as some unrelated padding resolving to zero.
+
+  No script beyond the reveal. Sizes are px: Dawn's root font-size is 62.5%,
+  so rem renders at 62.5% of its intended value. Every setting carries a
+  `| default:`, because a setting added after a section was saved comes back
+  nil on that saved instance.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+
+  # Authored on a 0..100 grid. See scripts/gen-blob-paths.py for the generator
+  # and the measured gap between the two.
+  assign back_d = 'M 50.00 2.00 C 60.25 1.88, 72.95 10.89, 81.11 18.89 C 89.28 26.89, 98.76 39.39, 99.00 50.00 C 99.24 60.61, 90.69 74.69, 82.53 82.53 C 74.36 90.36, 61.31 96.53, 50.00 97.00 C 38.69 97.47, 22.73 93.19, 14.64 85.36 C 6.56 77.52, 0.68 60.96, 1.50 50.00 C 2.32 39.04, 11.51 27.59, 19.59 19.59 C 27.68 11.59, 39.75 2.12, 50.00 2.00 Z'
+  assign photo_d = 'M 50.00 3.00 C 61.37 2.94, 76.96 7.87, 84.29 15.71 C 91.63 23.54, 93.94 38.51, 94.00 50.00 C 94.06 61.49, 91.98 77.15, 84.65 84.65 C 77.31 92.15, 60.84 95.71, 50.00 95.00 C 39.16 94.29, 27.51 87.91, 19.59 80.41 C 11.68 72.91, 3.09 60.72, 2.50 50.00 C 1.91 39.28, 8.14 23.89, 16.06 16.06 C 23.98 8.23, 38.63 3.06, 50.00 3.00 Z'
+
+  assign sig_name = s.signature_name | default: 'Niku'
+
+  # The portrait is the one image here, so its alt text is the one that has to
+  # say something. The signature name is the fallback because "photo of Niku"
+  # is still worth more to a screen reader than an empty string.
+  assign portrait_alt = s.portrait_alt | default: ''
+  if portrait_alt == blank
+    assign portrait_alt = sig_name
+  endif
+
+  # `| default:` replaces false as well as nil, so a checkbox guarded with it
+  # could never be switched off. Compared against false instead.
+  assign animate = true
+  if s.animate == false
+    assign animate = false
+  endif
+
+  # Hoisted out of the image_tag call: a `| default:` written inline as a
+  # filter argument binds to everything left of it, which is the whole tag.
+  assign portrait_loading = s.portrait_loading | default: 'lazy'
+
+  assign clip_id = 'hp-mm-clip-' | append: section.id
+-%}
+
+{% style %}
+  .hp-mm {
+    /* The section keeps its own layering to itself. Without this its
+       positioned children are ordered against every other section on the
+       page, and a sticker here can paint over a section further down. */
+    isolation: isolate;
+    /* The stickers overhang the portrait cluster on purpose. This stops that
+       overhang from becoming a horizontal scrollbar on the page. `clip`
+       rather than `hidden`: no scroll container, nothing to focus-scroll. */
+    overflow-x: clip;
+
+    --hp-mm-display: var(--font-heading-family, Bitter, "Chubbo", Georgia, serif);
+    --hp-mm-body: var(--font-body-family, Lexend, "Quicksand", ui-rounded, system-ui, sans-serif);
+
+    background: var(--hp-mm-bg);
+    padding-block: var(--hp-mm-pt) var(--hp-mm-pb);
+    /* The side gutter belongs to the section, not to the row. Dawn sets
+       box-sizing: border-box globally, so padding on the row would come out
+       of its 1116px and leave the text column 48px short of 540. */
+    padding-inline: 24px;
+  }
+
+  .hp-mm__row {
+    display: grid;
+    grid-template-columns: 480px minmax(0, 540px);
+    gap: 96px;
+    align-items: center;
+    justify-content: center;
+    max-width: 1116px;
+    margin-inline: auto;
+  }
+
+  /* --- Portrait cluster ---------------------------------------------------
+     A square box the two blobs are measured against. Both children fill it by
+     percentage, so the whole cluster scales from one width. */
+  .hp-mm__portrait {
+    position: relative;
+    width: 480px;
+    aspect-ratio: 1;
+    justify-self: center;
+  }
+
+  .hp-mm__back {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+
+  .hp-mm__back svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* 420 of the cluster's 480, inset 30 on every side — expressed as a share so
+     the inset survives the mobile scale. */
+  .hp-mm__photo {
+    position: absolute;
+    left: 6.25%;
+    top: 6.25%;
+    width: 87.5%;
+    aspect-ratio: 1;
+    z-index: 2;
+    background: var(--hp-mm-placeholder);
+    clip-path: url(#{{ clip_id }});
+    /* The crop lives here rather than on the <img> so the hover zoom inside
+       it is still clipped, and so the entrance and the zoom are not two
+       animations fighting over one element's transform. */
+    overflow: hidden;
+  }
+
+  .hp-mm__photo img,
+  .hp-mm__photo svg.placeholder-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 500ms ease;
+  }
+
+  /* The outline traces the same path the crop uses. Stretched, not fitted:
+     objectBoundingBox normalises to the box, and "none" is the only
+     preserveAspectRatio that does the same. */
+  .hp-mm__outline {
+    position: absolute;
+    left: 6.25%;
+    top: 6.25%;
+    width: 87.5%;
+    aspect-ratio: 1;
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  .hp-mm__outline svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  /* --- Stickers ----------------------------------------------------------- */
+  .hp-mm__sticker {
+    position: absolute;
+    z-index: 4;
+    /* The tilt lives on this element; the pill inside carries the hover. */
+    transform: rotate(var(--hp-mm-rot, 0deg));
+    transform-origin: 50% 50%;
+  }
+
+  .hp-mm__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 18px;
+    border: 2px solid var(--hp-mm-ink);
+    border-radius: 999px;
+    background: var(--hp-mm-sticker-bg, #FFFFFF);
+    font-family: var(--hp-mm-display);
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 1;
+    color: var(--hp-mm-ink);
+    white-space: nowrap;
+    transition: transform 250ms ease;
+  }
+
+  .hp-mm__pill::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--hp-mm-accent);
+    flex: none;
+  }
+
+  .hp-mm__sticker--tr { left: 66.7%; top: 12.5%; }
+  .hp-mm__sticker--bl { left: -2.1%; top: 79.2%; }
+  .hp-mm__sticker--tl { left: -2.1%; top: 12.5%; }
+  .hp-mm__sticker--br { left: 66.7%; top: 79.2%; }
+
+  /* --- Text column -------------------------------------------------------- */
+  .hp-mm__text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 24px;
+  }
+
+  .hp-mm__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: var(--hp-mm-eyebrow-bg);
+    font-family: var(--hp-mm-display);
+    font-weight: 700;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--hp-mm-ink);
+  }
+
+  .hp-mm__eyebrow::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--hp-mm-accent);
+    flex: none;
+  }
+
+  .hp-mm__quote {
+    margin: 0;
+    font-family: var(--hp-mm-display);
+    font-weight: 800;
+    font-size: 36px;
+    line-height: 46px;
+    letter-spacing: -0.5px;
+    color: var(--hp-mm-ink);
+  }
+
+  .hp-mm__quote p { margin: 0; }
+
+  .hp-mm__bio {
+    margin: 0;
+    max-width: 520px;
+    font-family: var(--hp-mm-body);
+    font-weight: 300;
+    font-size: 16px;
+    line-height: 27px;
+    color: var(--hp-mm-muted);
+  }
+
+  .hp-mm__sig { margin: 0; }
+
+  .hp-mm__sig-name {
+    display: block;
+    font-family: var(--hp-mm-signature);
+    font-weight: 700;
+    font-size: 34px;
+    line-height: 1.1;
+    color: var(--hp-mm-accent);
+  }
+
+  .hp-mm__sig-title {
+    display: block;
+    margin-block-start: 4px;
+    font-family: var(--hp-mm-display);
+    font-weight: 700;
+    font-size: 11px;
+    line-height: 1.2;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--hp-mm-ink);
+  }
+
+  /* --- Entrance -----------------------------------------------------------
+     Start states hang off .hp-mm--reveal, which the script removes if anything
+     goes wrong, so a failure shows the finished section rather than an empty
+     one. */
+  .hp-mm--reveal .hp-mm__back,
+  .hp-mm--reveal .hp-mm__photo,
+  .hp-mm--reveal .hp-mm__outline,
+  .hp-mm--reveal .hp-mm__sticker,
+  .hp-mm--reveal .hp-mm__quote,
+  .hp-mm--reveal .hp-mm__bio {
+    opacity: 0;
+  }
+
+  @keyframes hp-mm-back-in {
+    from { opacity: 0; transform: scale(0.9); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes hp-mm-rise {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Ends on the sticker's own tilt, so the overshoot settles into the angle
+     the merchant set rather than back to zero. */
+  @keyframes hp-mm-sticker-in {
+    from { opacity: 0; transform: rotate(0deg) scale(0.8); }
+    to   { opacity: 1; transform: rotate(var(--hp-mm-rot, 0deg)) scale(1); }
+  }
+
+  .hp-mm--reveal.is-in .hp-mm__back {
+    animation: hp-mm-back-in 600ms cubic-bezier(.34, 1.56, .64, 1) both;
+  }
+
+  .hp-mm--reveal.is-in .hp-mm__photo,
+  .hp-mm--reveal.is-in .hp-mm__outline {
+    animation: hp-mm-rise 500ms ease-out 120ms both;
+  }
+
+  .hp-mm--reveal.is-in .hp-mm__quote {
+    animation: hp-mm-rise 500ms ease-out 180ms both;
+  }
+
+  .hp-mm--reveal.is-in .hp-mm__bio {
+    animation: hp-mm-rise 500ms ease-out 280ms both;
+  }
+
+  .hp-mm--reveal.is-in .hp-mm__sticker {
+    animation: hp-mm-sticker-in 450ms cubic-bezier(.34, 1.56, .64, 1)
+               var(--hp-mm-sticker-delay, 400ms) both;
+  }
+
+  /* --- Idle wobble --------------------------------------------------------
+     On the inner svg, not on .hp-mm__back: the entrance scale already owns
+     that element's transform, and a second animation on the same property
+     would replace it outright rather than compose with it. */
+  @keyframes hp-mm-wobble {
+    0%, 100% { transform: rotate(-3deg); }
+    50%      { transform: rotate(3deg); }
+  }
+
+  .hp-mm--animate .hp-mm__back svg {
+    animation: hp-mm-wobble 8s ease-in-out 1s infinite;
+    transform-origin: 50% 50%;
+  }
+
+  /* --- Hover (pointers only) ---------------------------------------------- */
+  @keyframes hp-mm-wiggle {
+    0%   { transform: rotate(0deg) translateY(-2px); }
+    30%  { transform: rotate(4deg) translateY(-2px); }
+    70%  { transform: rotate(-4deg) translateY(-2px); }
+    100% { transform: rotate(0deg) translateY(-2px); }
+  }
+
+  @media (hover: hover) {
+    .hp-mm__sticker:hover .hp-mm__pill {
+      transform: translateY(-2px);
+      animation: hp-mm-wiggle 450ms ease-in-out;
+    }
+
+    .hp-mm__portrait:hover .hp-mm__photo img {
+      transform: scale(1.04);
+    }
+  }
+
+  /* --- Below 990: stack --------------------------------------------------- */
+  @media screen and (max-width: 989px) {
+    .hp-mm {
+      padding-block: var(--hp-mm-pt-mobile) var(--hp-mm-pb-mobile);
+    }
+
+    .hp-mm__row {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 48px;
+      justify-items: center;
+    }
+
+    .hp-mm__portrait { width: min(88vw, 400px); }
+
+    .hp-mm__text {
+      align-items: center;
+      text-align: center;
+    }
+
+    .hp-mm__bio { max-width: 520px; }
+
+    .hp-mm__quote { font-size: 28px; line-height: 36px; }
+
+    /* A sticker that clears the cluster on a desktop does not clear a phone:
+       the pill is a fixed number of px wide and the cluster is not. The
+       right-hand presets move inboard and the pill itself gets smaller. */
+    .hp-mm__pill { padding: 9px 14px; font-size: 11px; }
+    .hp-mm__sticker--tr,
+    .hp-mm__sticker--br { left: 56%; }
+  }
+
+  @media screen and (max-width: 749px) {
+    .hp-mm__quote { font-size: 22px; line-height: 30px; }
+  }
+
+  /* --- Reduced motion -----------------------------------------------------
+     Everything in its final state, nothing moving. The sticker keeps its tilt
+     because the tilt is the design, not the motion. */
+  @media (prefers-reduced-motion: reduce) {
+    .hp-mm--reveal .hp-mm__back,
+    .hp-mm--reveal .hp-mm__photo,
+    .hp-mm--reveal .hp-mm__outline,
+    .hp-mm--reveal .hp-mm__sticker,
+    .hp-mm--reveal .hp-mm__quote,
+    .hp-mm--reveal .hp-mm__bio {
+      opacity: 1;
+    }
+
+    .hp-mm *,
+    .hp-mm *::before,
+    .hp-mm *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+
+    .hp-mm__sticker { transform: rotate(var(--hp-mm-rot, 0deg)); }
+  }
+{% endstyle %}
+
+<div
+  class="hp-mm{% if animate %} hp-mm--reveal hp-mm--animate{% endif %}"
+  style="
+    --hp-mm-bg: {{ s.background | default: '#FCF9F4' }};
+    --hp-mm-blob: {{ s.blob_color | default: '#F0C4A8' }};
+    --hp-mm-ink: {{ s.ink_color | default: '#2F3427' }};
+    --hp-mm-accent: {{ s.accent_color | default: '#E06E4C' }};
+    --hp-mm-muted: {{ s.bio_color | default: '#5E6152' }};
+    --hp-mm-placeholder: {{ s.placeholder_color | default: '#DDD6CB' }};
+    --hp-mm-eyebrow-bg: {{ s.eyebrow_background | default: '#FFFFFF' }};
+    --hp-mm-signature: {{ s.signature_font | default: 'Fredoka, "Chubbo", "Quicksand", ui-rounded, system-ui, sans-serif' | escape }};
+    --hp-mm-pt: {{ s.padding_top | default: 140 }}px;
+    --hp-mm-pb: {{ s.padding_bottom | default: 150 }}px;
+    --hp-mm-pt-mobile: {{ s.padding_top_mobile | default: 80 }}px;
+    --hp-mm-pb-mobile: {{ s.padding_bottom_mobile | default: 96 }}px;
+  "
+  {{ section.shopify_attributes }}
+>
+  <hp-mm-reveal class="hp-mm__row">
+    <div class="hp-mm__portrait">
+      {%- comment -%}
+        The clipPath is defined once, here, in a zero-sized SVG. The id carries
+        the section id: two of these on one page would otherwise share a path
+        and the first defined would win for both.
+      {%- endcomment -%}
+      <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+        <defs>
+          <clipPath id="{{ clip_id }}" clipPathUnits="objectBoundingBox">
+            <path transform="scale(0.01)" d="{{ photo_d }}"></path>
+          </clipPath>
+        </defs>
+      </svg>
+
+      <div class="hp-mm__back">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+          <path d="{{ back_d }}" fill="var(--hp-mm-blob)"></path>
+        </svg>
+      </div>
+
+      <div class="hp-mm__photo">
+        {%- if s.portrait != blank -%}
+          {{
+            s.portrait
+            | image_url: width: 840
+            | image_tag:
+              loading: portrait_loading,
+              widths: '420, 640, 840',
+              sizes: '(min-width: 990px) 420px, 88vw',
+              alt: portrait_alt,
+              class: 'hp-mm__img'
+          }}
+        {%- endif -%}
+        {%- comment -%}
+          No placeholder graphic with no photo set. Shopify's own would paint
+          its illustration over the whole crop and hide the placeholder
+          colour; leaving the box empty lets that colour fill the blob, so
+          the shape is what shows both before a photo is chosen and while one
+          is still loading.
+        {%- endcomment -%}
+      </div>
+
+      <div class="hp-mm__outline">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+          <path
+            d="{{ photo_d }}"
+            fill="none"
+            stroke="var(--hp-mm-ink)"
+            stroke-width="2"
+            vector-effect="non-scaling-stroke"
+          ></path>
+        </svg>
+      </div>
+
+      {%- for block in section.blocks -%}
+        {%- liquid
+          assign b = block.settings
+          assign pos = b.position | default: 'tr'
+          assign rot = b.rotation | default: 0
+          # Stickers land after everything else, one behind the next.
+          assign delay = forloop.index0 | times: 140 | plus: 400
+        -%}
+        {%- if b.text != blank -%}
+          <div
+            class="hp-mm__sticker hp-mm__sticker--{{ pos }}"
+            style="
+              --hp-mm-rot: {{ rot }}deg;
+              --hp-mm-sticker-bg: {{ b.background | default: '#FFFFFF' | escape }};
+              --hp-mm-sticker-delay: {{ delay }}ms;
+            "
+            {{ block.shopify_attributes }}
+          >
+            <span class="hp-mm__pill">{{ b.text }}</span>
+          </div>
+        {%- endif -%}
+      {%- endfor -%}
+    </div>
+
+    <div class="hp-mm__text">
+      {%- if s.eyebrow != blank -%}
+        <p class="hp-mm__eyebrow">{{ s.eyebrow }}</p>
+      {%- endif -%}
+
+      {%- if s.quote != blank -%}
+        <blockquote class="hp-mm__quote">{{ s.quote }}</blockquote>
+      {%- endif -%}
+
+      {%- if s.bio != blank -%}
+        <div class="hp-mm__bio">{{ s.bio }}</div>
+      {%- endif -%}
+
+      {%- if sig_name != blank or s.signature_title != blank -%}
+        <p class="hp-mm__sig">
+          {%- if sig_name != blank -%}
+            <span class="hp-mm__sig-name">{{ sig_name }}</span>
+          {%- endif -%}
+          {%- if s.signature_title != blank -%}
+            <span class="hp-mm__sig-title">{{ s.signature_title }}</span>
+          {%- endif -%}
+        </p>
+      {%- endif -%}
+    </div>
+  </hp-mm-reveal>
+</div>
+
+<script>
+  (function () {
+    if (customElements.get('hp-mm-reveal')) return;
+
+    customElements.define('hp-mm-reveal', class extends HTMLElement {
+      connectedCallback() {
+        // Anything unexpected in here ends with the section on screen, never
+        // with it stuck at opacity 0.
+        try {
+          this.root = this.closest('.hp-mm');
+          if (!this.root || !this.root.classList.contains('hp-mm--reveal')) return;
+          if (!('IntersectionObserver' in window)) return this.revealAll();
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+          this.observer = new IntersectionObserver(this.onIntersect.bind(this), {
+            rootMargin: '0px 0px -10% 0px',
+            threshold: 0
+          });
+          this.observer.observe(this);
+        } catch (e) {
+          this.revealAll();
+        }
+      }
+
+      // The theme editor tears a section down and rebuilds it on every change,
+      // so the observer has to go with it.
+      disconnectedCallback() {
+        if (this.observer) this.observer.disconnect();
+      }
+
+      onIntersect(entries) {
+        var self = this;
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          self.root.classList.add('is-in');
+          if (self.observer) self.observer.unobserve(self);
+        });
+      }
+
+      // The class the hidden start state hangs off, so dropping it cannot
+      // leave anything invisible.
+      revealAll() {
+        if (this.root) this.root.classList.remove('hp-mm--reveal');
+      }
+    });
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Meet the maker",
+  "tag": "section",
+  "class": "hp-meet-the-maker-section",
+  "max_blocks": 3,
+  "settings": [
+    { "type": "header", "content": "Portrait" },
+    { "type": "image_picker", "id": "portrait", "label": "Portrait image" },
+    {
+      "type": "text",
+      "id": "portrait_alt",
+      "label": "Portrait alt text",
+      "info": "Describes the photo for screen readers and for anyone the image fails to load for. Falls back to the signature name."
+    },
+    {
+      "type": "select",
+      "id": "portrait_loading",
+      "label": "When to load the portrait",
+      "options": [
+        { "value": "lazy", "label": "On approach — for a section partway down the page" },
+        { "value": "eager", "label": "With the page — for a section near the top" }
+      ],
+      "default": "lazy",
+      "info": "Leave this on \"on approach\" unless this section is the first thing on the page. A lazy image that is already in view is fetched late, which shows as an empty box while it loads."
+    },
+    { "type": "header", "content": "Text" },
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow", "default": "Meet the maker" },
+    {
+      "type": "textarea",
+      "id": "quote",
+      "label": "Quote",
+      "default": "“I wanted something she’d reach for herself — not something I had to chase her with.”"
+    },
+    {
+      "type": "richtext",
+      "id": "bio",
+      "label": "Bio",
+      "default": "<p>Totterful is a one-mom studio with a design background and a very honest product tester at home. Every Pal starts as a sketch, gets made by hand, and only ships once it has survived a full week of real toddler life.</p>"
+    },
+    { "type": "text", "id": "signature_name", "label": "Signature name", "default": "Niku" },
+    { "type": "text", "id": "signature_title", "label": "Signature title", "default": "Founder, Totterful" },
+    { "type": "header", "content": "Colours" },
+    { "type": "color", "id": "background", "label": "Section background", "default": "#FCF9F4" },
+    {
+      "type": "color",
+      "id": "blob_color",
+      "label": "Blob behind the portrait",
+      "default": "#F0C4A8"
+    },
+    { "type": "color", "id": "accent_color", "label": "Accent", "default": "#E06E4C", "info": "The dots and the signature name." },
+    { "type": "color", "id": "ink_color", "label": "Ink", "default": "#2F3427", "info": "The quote, the outline and the sticker borders." },
+    { "type": "color", "id": "bio_color", "label": "Bio text", "default": "#5E6152" },
+    { "type": "color", "id": "eyebrow_background", "label": "Eyebrow pill", "default": "#FFFFFF" },
+    {
+      "type": "color",
+      "id": "placeholder_color",
+      "label": "Behind the portrait",
+      "default": "#DDD6CB",
+      "info": "Shows in the portrait's shape while the photo loads, and if no photo is set."
+    },
+    { "type": "header", "content": "Type" },
+    {
+      "type": "text",
+      "id": "signature_font",
+      "label": "Signature font stack",
+      "default": "Fredoka, \"Chubbo\", \"Quicksand\", ui-rounded, system-ui, sans-serif",
+      "info": "The signature name only. The theme has to be loading this font for the first name in the list to be used — otherwise the next one is."
+    },
+    { "type": "header", "content": "Motion" },
+    {
+      "type": "checkbox",
+      "id": "animate",
+      "label": "Animate on scroll",
+      "default": true,
+      "info": "The entrance and the slow drift of the blob. Switched off here, or by a visitor's reduced-motion setting, everything shows in its final position."
+    },
+    { "type": "header", "content": "Spacing" },
+    { "type": "range", "id": "padding_top", "label": "Top padding (desktop)", "unit": "px", "min": 0, "max": 240, "step": 5, "default": 140 },
+    { "type": "range", "id": "padding_bottom", "label": "Bottom padding (desktop)", "unit": "px", "min": 0, "max": 240, "step": 5, "default": 150 },
+    { "type": "range", "id": "padding_top_mobile", "label": "Top padding (mobile)", "unit": "px", "min": 0, "max": 160, "step": 4, "default": 80 },
+    { "type": "range", "id": "padding_bottom_mobile", "label": "Bottom padding (mobile)", "unit": "px", "min": 0, "max": 160, "step": 4, "default": 96 }
+  ],
+  "blocks": [
+    {
+      "type": "sticker",
+      "name": "Sticker",
+      "settings": [
+        { "type": "text", "id": "text", "label": "Text", "default": "Founder & mom" },
+        { "type": "color", "id": "background", "label": "Background", "default": "#FFFFFF" },
+        {
+          "type": "range",
+          "id": "rotation",
+          "label": "Tilt",
+          "unit": "deg",
+          "min": -15,
+          "max": 15,
+          "step": 1,
+          "default": 8
+        },
+        {
+          "type": "select",
+          "id": "position",
+          "label": "Where it sits",
+          "options": [
+            { "value": "tr", "label": "Top right" },
+            { "value": "bl", "label": "Bottom left" },
+            { "value": "tl", "label": "Top left" },
+            { "value": "br", "label": "Bottom right" }
+          ],
+          "default": "tr"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Meet the maker",
+      "blocks": [
+        { "type": "sticker", "settings": { "text": "Founder & mom", "background": "#FFFFFF", "rotation": 8, "position": "tr" } },
+        { "type": "sticker", "settings": { "text": "Chief nose-wiper", "background": "#C2D6A8", "rotation": -6, "position": "bl" } }
+      ]
+    }
+  ]
+}
+{% endschema %}

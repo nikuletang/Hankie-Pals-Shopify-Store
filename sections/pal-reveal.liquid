@@ -40,6 +40,10 @@
 
 {% style %}
   .hp-rv {
+    /* The section keeps its own layering to itself. Without this its
+       positioned children are ordered against every other section on the
+       page, and a panel here can paint over a section further down. */
+    isolation: isolate;
     --hp-rv-body-scale: var(--font-body-scale, 1);
     --hp-rv-heading-scale: var(--font-heading-scale, 1);
     position: relative;

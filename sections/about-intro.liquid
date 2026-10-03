@@ -179,6 +179,10 @@
 
 {% style %}
   .hp-ai {
+    /* The section keeps its own layering to itself. Without this its
+       positioned children are ordered against every other section on the
+       page, and a panel here can paint over a section further down. */
+    isolation: isolate;
     position: relative;
     {%- if s.background_image != blank %}
     /* The wash is the section's own colour at the opacity the picture is not

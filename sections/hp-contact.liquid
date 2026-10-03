@@ -84,6 +84,10 @@
 
 {% style %}
   .hp-ct {
+    /* The section keeps its own layering to itself. Without this its
+       positioned children are ordered against every other section on the
+       page, and a panel here can paint over a section further down. */
+    isolation: isolate;
     position: relative;
     background: var(--hp-ct-bg);
     padding: {{ pad_t }}px 0 {{ pad_b }}px;

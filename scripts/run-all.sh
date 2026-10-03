@@ -11,6 +11,7 @@ mkdir -p "$LOGS"
 
 python3 scripts/check-schemas.py 2>&1 | tail -2
 python3 scripts/check-overflow.py 2>&1 | tail -2
+python3 scripts/check-stacking.py 2>&1 | tail -2
 
 fails=0
 for f in scripts/test-*.py; do

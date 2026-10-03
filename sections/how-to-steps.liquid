@@ -42,6 +42,10 @@
 
 {% style %}
   .hp-hts {
+    /* The section keeps its own layering to itself. Without this its
+       positioned children are ordered against every other section on the
+       page, and a panel here can paint over a section further down. */
+    isolation: isolate;
     --hp-hts-ink: {{ s.text_color | default: '#2F3326' }};
     --hp-hts-muted: {{ s.muted_color | default: '#5C6150' }};
     --hp-hts-card: {{ s.card_color | default: '#FFFFFF' }};

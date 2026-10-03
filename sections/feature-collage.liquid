@@ -62,6 +62,10 @@
 
 {% style %}
   .hp-fc {
+    /* The section keeps its own layering to itself. Without this its
+       positioned children are ordered against every other section on the
+       page, and a panel here can paint over a section further down. */
+    isolation: isolate;
     --hp-fc-ink: {{ s.text_color | default: '#2F3326' }};
     --hp-fc-muted: {{ s.muted_color | default: '#5C6150' }};
     --hp-fc-line: {{ s.line_color | default: '#2F3326' }};

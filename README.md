@@ -27,6 +27,7 @@ anything moving.
 | [`sections/collapsible-rows.liquid`](sections/collapsible-rows.liquid) | **Collapsible rows** | Materials, shipping, care — an accordion for under a product description. Native `<details>`, so it needs no JavaScript at all |
 | [`sections/how-to-steps.liquid`](sections/how-to-steps.liquid) | **How-to steps** | Numbered capsule rows: a round tinted photo, a title, a line of copy, and a very pale numeral behind the words |
 | [`sections/feature-collage.liquid`](sections/feature-collage.liquid) | **Feature collage** | Overlapping photographs in the middle with pills placed on them by hand, feature cards either side. Hovering a photo lifts it over the rest |
+| [`sections/our-values.liquid`](sections/our-values.liquid) | **Our values** | A peach band of scattered "pebble" cards, each a blob with a hard coral blob behind it and an icon badge over its top edge |
 | [`sections/meet-the-maker.liquid`](sections/meet-the-maker.liquid) | **Meet the maker** | The founder intro: a portrait cropped to an organic blob with a peach blob behind it and tilted sticker labels, a pull quote and a signature beside it |
 | [`sections/hp-pal-buy.liquid`](sections/hp-pal-buy.liquid) | **Choose your Pal** | The product page's picking moment. One pill per Pal; choosing one swaps the photo, the name, the blurb and the accent, and selects that variant in Dawn's own buy box below |
 | [`sections/hp-footer.liquid`](sections/hp-footer.liquid) | **Totterful footer** | Brand, menu columns, policies. Goes in the footer section group, so it is on every page |
@@ -1193,3 +1194,48 @@ One trap inside the trap: the entrance rules hang off `.is-in`, which only the
 observer adds, and IntersectionObserver delivery is not deterministic under
 virtual time. The suite sets `.is-in` by hand for the motion checks and tests
 the observer separately through the hidden state and the no-script fallback.
+
+
+## A rotated element does not measure what it is
+
+`getBoundingClientRect()` returns the **axis-aligned** box that contains an
+element, not the element. For anything rotated, those are different numbers,
+and the error grows with both the angle and the size:
+
+| element | actual | measured in a card at 3° |
+| --- | --- | --- |
+| card | 300 x 320 | 316.3 x 335.3 |
+| badge (itself at -8°) | 84 x 84 | 98.5 |
+| icon | 40 x 40 | 46.9 |
+
+Eight checks in the first run of `scripts/test-our-values.py` failed on this,
+all of them reporting a number larger than the one asked for. Nothing was
+wrong with the section; the suite was measuring the bounding box of a tilted
+thing and comparing it against the thing's own size.
+
+What to use instead, inside anything rotated:
+
+- `offsetWidth` / `offsetHeight` for size, `offsetLeft` / `offsetTop` for
+  position — all four are layout values a transform does not touch, and
+  `offsetLeft` is measured against the nearest positioned ancestor, which for
+  an absolutely positioned child of a card is the card itself.
+- `getComputedStyle(el).width` where `offsetWidth` does not exist, notably on
+  an `<svg>`.
+
+Keep `getBoundingClientRect()` for what it is actually good at here: comparing
+two elements' positions on the page, where both carry the same rotation and it
+cancels out.
+
+## Sprinkles belong to the layout they were placed in
+
+The same section scatters five dots around the values row, at shares of the
+1272 x 470 it was arranged in. Folded to a 2x2 that row becomes roughly
+624 x 1000, and the identical percentages put two of the dots on top of
+pebbles — a dot overlapping a card edge does not read as decoration, it reads
+as a bug.
+
+Percentages are the right unit for keeping an arrangement as something
+*narrows*. They are the wrong unit for keeping it when the box changes
+*shape*. Decoration positioned against one aspect ratio is hidden below the
+breakpoint that ends it, rather than carried into a layout it was never
+arranged for.

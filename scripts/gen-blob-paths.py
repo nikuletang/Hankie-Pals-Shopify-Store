@@ -52,3 +52,24 @@ for nm, g in zip(names, gaps):
     print(f"  {nm}  {g:6.1f}px")
 print(f"\n  thinnest {min(gaps):.1f}px   thickest {max(gaps):.1f}px"
       f"   ratio {max(gaps)/min(gaps):.2f}x")
+
+
+# --- our-values pebbles ------------------------------------------------------
+# Two shapes, not one offset twice: in the reference the coral behind each card
+# peeks out by very different amounts around the edge, which a uniform offset
+# cannot do. Authored on the same 0..100 grid and stretched into the card's
+# 305x270 box by preserveAspectRatio="none", with the outline held at a true
+# 2px by vector-effect.
+#              N     NE     E     SE     S     SW     W     NW
+PEBBLE  = [46.0, 49.0, 47.5, 44.0, 48.0, 45.0, 49.5, 43.5]
+PSHADOW = [44.0, 46.0, 50.0, 48.5, 46.5, 49.0, 44.5, 47.0]
+
+print()
+print("PEBBLE =", catmull_path(ring(PEBBLE)))
+print()
+print("PSHADOW =", catmull_path(ring(PSHADOW)))
+print()
+d = [(b - p) * 305.0 / 100.0 for b, p in zip(PSHADOW, PEBBLE)]
+print("coral showing past the pebble, before the 8px offset, in px:")
+for nm, g in zip(names, d):
+    print(f"  {nm}  {g:6.1f}px")

@@ -1,0 +1,608 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — Our values
+  ---------------------------------------------------------------------------
+  A peach band holding four scattered "pebble" cards, each a blob with a hard
+  coral blob behind it and an icon badge over its top edge.
+
+  The pebble and its shadow are two different generated shapes rather than one
+  shape offset twice. An offset copy shows the same width of coral all the way
+  round; two shapes let it peek by 14px on one edge and nothing on another,
+  which is what the reference does. Both come from scripts/gen-blob-paths.py.
+
+  Each blob is drawn on a 0..100 grid and stretched into the card's 305x270
+  box with preserveAspectRatio="none". The outline would stretch with it, so
+  it is held at a true 2px by vector-effect="non-scaling-stroke" rather than a
+  width divided back out by the scale.
+
+  The row is a grid of 300px columns, not the brief's absolute x positions of
+  10 / 330 / 655 / 970. Four 300px columns in 1272 with a 24px gap land at
+  0 / 324 / 648 / 972 — within 10px of every one of those — and unlike fixed
+  offsets it still works when a merchant adds a fifth value or deletes one.
+  The scatter comes from the per-card rotation and vertical offset, which are
+  what actually make it read as pebbles.
+
+  The vertical offset is a margin and the tilt is a transform, deliberately
+  kept on different properties: the hover straightens the card and lifts it,
+  and if the offset were part of the transform the hover would have to restate
+  it or drop the card back into line.
+
+  Copy is centred in the pebble rather than pinned at a fixed distance from
+  the top. Two of these titles wrap to two lines and one does not, and a fixed
+  offset puts the short one high in its blob.
+
+  No script at all. Sizes are px: Dawn's root font-size is 62.5%, so rem
+  renders at 62.5% of its intended value. Every setting carries a `| default:`,
+  because a setting added after a section was saved comes back nil on that
+  saved instance.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+
+  assign pebble_d = 'M 50.00 4.00 C 60.90 3.35, 76.73 7.69, 84.65 15.35 C 92.56 23.02, 98.09 39.04, 97.50 50.00 C 96.91 60.96, 89.03 73.11, 81.11 81.11 C 73.20 89.11, 60.49 97.88, 50.00 98.00 C 39.51 98.12, 26.43 89.82, 18.18 81.82 C 9.93 73.82, 0.32 60.43, 0.50 50.00 C 0.68 39.57, 10.99 26.91, 19.24 19.24 C 27.49 11.57, 39.10 4.65, 50.00 4.00 Z'
+  assign shadow_d = 'M 50.00 6.00 C 60.96 6.12, 74.19 10.14, 82.53 17.47 C 90.86 24.81, 99.71 38.86, 100.00 50.00 C 100.29 61.14, 92.63 76.54, 84.29 84.29 C 75.96 92.04, 61.49 96.44, 50.00 96.50 C 38.51 96.56, 22.77 92.40, 15.35 84.65 C 7.94 76.90, 5.26 61.31, 5.50 50.00 C 5.74 38.69, 9.35 24.10, 16.77 16.77 C 24.18 9.43, 39.04 5.88, 50.00 6.00 Z'
+-%}
+
+{% style %}
+  .hp-ov {
+    /* The section keeps its own layering to itself. Without this its
+       positioned children are ordered against every other section on the
+       page, and a pebble here can paint over a section further down. */
+    isolation: isolate;
+    /* The sprinkles sit at the very edges of the row and the cards tilt past
+       theirs. `clip` rather than `hidden`: no scroll container is created. */
+    overflow-x: clip;
+
+    --hp-ov-display: var(--font-heading-family, Bitter, "Chubbo", Georgia, serif);
+    --hp-ov-body: var(--font-body-family, Lexend, "Quicksand", ui-rounded, system-ui, sans-serif);
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 64px;
+    background: var(--hp-ov-bg);
+    padding-block: var(--hp-ov-pt) var(--hp-ov-pb);
+    padding-inline: 24px;
+  }
+
+  /* --- Header -------------------------------------------------------------- */
+  .hp-ov__head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    max-width: 780px;
+    text-align: center;
+  }
+
+  .hp-ov__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: var(--hp-ov-eyebrow-bg);
+    font-family: var(--hp-ov-display);
+    font-weight: 700;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--hp-ov-ink);
+  }
+
+  .hp-ov__eyebrow::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--hp-ov-accent);
+    flex: none;
+  }
+
+  .hp-ov__heading {
+    margin: 0;
+    font-family: var(--hp-ov-display);
+    font-weight: 800;
+    font-size: 40px;
+    line-height: 48px;
+    letter-spacing: -0.5px;
+    color: var(--hp-ov-ink);
+  }
+
+  /* --- Row ----------------------------------------------------------------- */
+  .hp-ov__row {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(4, 300px);
+    gap: 24px;
+    justify-content: center;
+    width: 100%;
+    max-width: 1272px;
+  }
+
+  /* --- Card ---------------------------------------------------------------- */
+  .hp-ov__card {
+    position: relative;
+    width: 300px;
+    height: 320px;
+    /* Layout, not transform: the hover owns the transform, and an offset
+       folded into it would have to be restated there or lost. */
+    margin-block-start: calc(var(--hp-ov-offset, 0px) * var(--hp-ov-offset-scale, 1));
+    transform: rotate(calc(var(--hp-ov-rot, 0deg) * var(--hp-ov-rot-scale, 1)));
+    transition: transform 300ms ease;
+  }
+
+  /* The pebble is wider than its 300px column by 5px, so it is pulled back by
+     half that rather than left to sit off-centre. */
+  .hp-ov__shadow,
+  .hp-ov__pebble {
+    position: absolute;
+    left: -2.5px;
+    top: 50px;
+    width: 305px;
+    height: 270px;
+  }
+
+  .hp-ov__shadow {
+    z-index: 1;
+    transform: translate(8px, 8px);
+  }
+
+  .hp-ov__pebble { z-index: 2; }
+
+  .hp-ov__shadow svg,
+  .hp-ov__pebble svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .hp-ov__badge {
+    position: absolute;
+    top: 0;
+    left: 108px;
+    z-index: 4;
+    width: 84px;
+    height: 84px;
+    display: grid;
+    place-items: center;
+    border: 2px solid var(--hp-ov-ink);
+    border-radius: 50%;
+    background: var(--hp-ov-badge-bg, #C2D6A8);
+    transform: rotate(var(--hp-ov-badge-rot, -8deg));
+  }
+
+  /* Cards 2 and 4 in the reference carry the badge off to one side. */
+  .hp-ov__card--badge-right .hp-ov__badge { left: 126px; }
+
+  .hp-ov__badge svg {
+    display: block;
+    width: 40px;
+    height: 40px;
+  }
+
+  .hp-ov__copy {
+    position: absolute;
+    left: 45px;
+    top: 50px;
+    bottom: 0;
+    z-index: 3;
+    width: 210px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
+  }
+
+  .hp-ov__title {
+    margin: 0;
+    font-family: var(--hp-ov-display);
+    font-weight: 800;
+    font-size: 18px;
+    line-height: 22px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--hp-ov-ink);
+  }
+
+  .hp-ov__body {
+    margin: 0;
+    font-family: var(--hp-ov-body);
+    font-weight: 300;
+    font-size: 14px;
+    line-height: 22px;
+    color: var(--hp-ov-muted);
+  }
+
+  /* --- Sprinkles ----------------------------------------------------------
+     Placed as a share of the row so they hold their arrangement as it
+     narrows, rather than px that would bunch at one end. */
+  .hp-ov__sprinkle {
+    position: absolute;
+    z-index: 0;
+    border-radius: 50%;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+  }
+
+  /* --- Hover (pointers only) ----------------------------------------------- */
+  @media (hover: hover) {
+    .hp-ov__card:hover {
+      transform: rotate(0deg) translateY(-4px);
+    }
+  }
+
+  /* --- Tablet: two by two -------------------------------------------------- */
+  @media screen and (max-width: 1319px) {
+    .hp-ov__row {
+      grid-template-columns: repeat(2, 300px);
+      row-gap: 48px;
+      max-width: 624px;
+    }
+
+    /* The full offsets were measured against one long row. Kept at strength
+       in a 2x2 they would leave a 140px hole in the middle of the block. */
+    .hp-ov__card { --hp-ov-offset-scale: 0.35; }
+
+    /* The dots are placed as shares of the 1272x470 row they were arranged
+       in. A 2x2 row is roughly 624x1000, so the same shares put them on top
+       of the pebbles rather than in the gaps around them. They belong to the
+       wide arrangement and go with it. */
+    .hp-ov__sprinkle { display: none; }
+  }
+
+  /* --- Phone: one column --------------------------------------------------- */
+  @media screen and (max-width: 749px) {
+    .hp-ov {
+      gap: 48px;
+      padding-block: var(--hp-ov-pt-mobile) var(--hp-ov-pb-mobile);
+    }
+
+    .hp-ov__heading { font-size: 28px; line-height: 34px; }
+
+    .hp-ov__row {
+      grid-template-columns: minmax(0, 300px);
+      row-gap: 32px;
+      max-width: 300px;
+    }
+
+    .hp-ov__card {
+      --hp-ov-offset-scale: 0;
+      /* A tilt that reads as scatter across a row reads as a mistake in a
+         single column, where every card is measured against the one above. */
+      --hp-ov-rot-scale: 0.3;
+    }
+
+  }
+
+  /* --- Reduced motion ------------------------------------------------------ */
+  @media (prefers-reduced-motion: reduce) {
+    .hp-ov__card { transition: none; }
+    .hp-ov__card:hover { transform: rotate(calc(var(--hp-ov-rot, 0deg) * var(--hp-ov-rot-scale, 1))); }
+  }
+{% endstyle %}
+
+<div
+  class="hp-ov"
+  style="
+    --hp-ov-bg: {{ s.background | default: '#F0C4A8' }};
+    --hp-ov-ink: {{ s.ink_color | default: '#2F3427' }};
+    --hp-ov-muted: {{ s.body_color | default: '#5E6152' }};
+    --hp-ov-accent: {{ s.accent_color | default: '#E06E4C' }};
+    --hp-ov-shadow: {{ s.shadow_color | default: '#ECA47C' }};
+    --hp-ov-eyebrow-bg: {{ s.eyebrow_background | default: '#FFFFFF' }};
+    --hp-ov-pt: {{ s.padding_top | default: 130 }}px;
+    --hp-ov-pb: {{ s.padding_bottom | default: 160 }}px;
+    --hp-ov-pt-mobile: {{ s.padding_top_mobile | default: 72 }}px;
+    --hp-ov-pb-mobile: {{ s.padding_bottom_mobile | default: 88 }}px;
+  "
+  {{ section.shopify_attributes }}
+>
+  {%- if s.eyebrow != blank or s.heading != blank -%}
+    <div class="hp-ov__head">
+      {%- if s.eyebrow != blank -%}
+        <p class="hp-ov__eyebrow">{{ s.eyebrow }}</p>
+      {%- endif -%}
+      {%- if s.heading != blank -%}
+        <h2 class="hp-ov__heading">{{ s.heading }}</h2>
+      {%- endif -%}
+    </div>
+  {%- endif -%}
+
+  <div class="hp-ov__row">
+    {%- if s.show_sprinkles != false -%}
+      {%- comment -%}
+        Five fixed dots. Positions are the brief's, turned into shares of the
+        1272 x 470 row they were measured in.
+      {%- endcomment -%}
+      {%- assign sprinkles = '0,85.1,14,accent|23.6,8.5,20,cream|50.3,70.2,16,accent|75.5,12.8,24,sage|99.4,89.4,18,cream' | split: '|' -%}
+      {%- for sp in sprinkles -%}
+        {%- liquid
+          assign parts = sp | split: ','
+          assign sx = parts[0]
+          assign sy = parts[1]
+          assign ss = parts[2]
+          assign skind = parts[3]
+          case skind
+            when 'accent'
+              assign scolor = s.accent_color | default: '#E06E4C'
+            when 'sage'
+              assign scolor = s.sprinkle_sage | default: '#C2D6A8'
+            else
+              assign scolor = s.sprinkle_cream | default: '#FCF9F4'
+          endcase
+        -%}
+        <span
+          class="hp-ov__sprinkle"
+          aria-hidden="true"
+          style="left: {{ sx }}%; top: {{ sy }}%; width: {{ ss }}px; height: {{ ss }}px; background: {{ scolor }};"
+        ></span>
+      {%- endfor -%}
+    {%- endif -%}
+
+    {%- for block in section.blocks -%}
+      {%- liquid
+        assign b = block.settings
+        assign badge_pos = b.badge_position | default: 'centre'
+        assign badge_rot = b.badge_rotation | default: -8
+      -%}
+      <div
+        class="hp-ov__card{% if badge_pos == 'right' %} hp-ov__card--badge-right{% endif %}"
+        style="
+          --hp-ov-rot: {{ b.rotation | default: 0 }}deg;
+          --hp-ov-offset: {{ b.offset_y | default: 0 }}px;
+          --hp-ov-badge-bg: {{ b.badge_background | default: '#C2D6A8' }};
+          --hp-ov-badge-rot: {{ badge_rot }}deg;
+        "
+        {{ block.shopify_attributes }}
+      >
+        <div class="hp-ov__shadow" aria-hidden="true">
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false">
+            <path d="{{ shadow_d }}" fill="var(--hp-ov-shadow)"></path>
+          </svg>
+        </div>
+
+        <div class="hp-ov__pebble" aria-hidden="true">
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false">
+            <path
+              d="{{ pebble_d }}"
+              fill="{{ b.pebble_fill | default: '#FCF9F4' }}"
+              stroke="var(--hp-ov-ink)"
+              stroke-width="2"
+              vector-effect="non-scaling-stroke"
+            ></path>
+          </svg>
+        </div>
+
+        <div class="hp-ov__badge">
+          {%- liquid
+            assign icon = b.icon | default: 'heart'
+            assign icon_color = b.icon_color | default: '#E06E4C'
+          -%}
+          <svg viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+            {%- case icon -%}
+              {%- when 'heart' -%}
+                <path
+                  d="M20 35 C 6 25, 2 16, 7 10 C 11 5, 18 6, 20 11 C 22 6, 29 5, 33 10 C 38 16, 34 25, 20 35 Z"
+                  fill="{{ icon_color }}"
+                ></path>
+              {%- when 'loop' -%}
+                <g fill="none" stroke="{{ icon_color }}" stroke-width="4"
+                   stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M7 22 A 13 13 0 0 1 27 10"></path>
+                  <path d="M21 7 L28 10 L26 17"></path>
+                  <path d="M33 18 A 13 13 0 0 1 13 30"></path>
+                  <path d="M19 33 L12 30 L14 23"></path>
+                </g>
+              {%- when 'clip' -%}
+                <path
+                  d="M26 13 L13.5 25.5 a5.5 5.5 0 0 0 7.8 7.8 L33 21.5 a9 9 0 0 0-12.7-12.7 L8.5 20.5 a12.5 12.5 0 0 0 17.7 17.7"
+                  fill="none"
+                  stroke="{{ icon_color }}"
+                  stroke-width="4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                ></path>
+              {%- when 'bunny' -%}
+                <g fill="{{ icon_color }}">
+                  <ellipse cx="15" cy="11" rx="3.6" ry="8" transform="rotate(-12 15 11)"></ellipse>
+                  <ellipse cx="25" cy="11" rx="3.6" ry="8" transform="rotate(12 25 11)"></ellipse>
+                  <ellipse cx="20" cy="27" rx="11" ry="9"></ellipse>
+                </g>
+                <circle cx="16.2" cy="25.5" r="1.9" fill="#FFFFFF"></circle>
+                <circle cx="23.8" cy="25.5" r="1.9" fill="#FFFFFF"></circle>
+              {%- when 'star' -%}
+                <path
+                  d="M20 4 L24.6 15.4 L36.8 16.3 L27.4 24.2 L30.4 36 L20 29.5 L9.6 36 L12.6 24.2 L3.2 16.3 L15.4 15.4 Z"
+                  fill="{{ icon_color }}"
+                ></path>
+            {%- endcase -%}
+          </svg>
+        </div>
+
+        <div class="hp-ov__copy">
+          {%- if b.title != blank -%}
+            <h3 class="hp-ov__title">{{ b.title }}</h3>
+          {%- endif -%}
+          {%- if b.body != blank -%}
+            <p class="hp-ov__body">{{ b.body }}</p>
+          {%- endif -%}
+        </div>
+      </div>
+    {%- endfor -%}
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Our values",
+  "tag": "section",
+  "class": "hp-our-values-section",
+  "max_blocks": 6,
+  "settings": [
+    { "type": "header", "content": "Header" },
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow", "default": "Our values" },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Little things, made with a lot of care."
+    },
+    { "type": "header", "content": "Colours" },
+    { "type": "color", "id": "background", "label": "Section background", "default": "#F0C4A8" },
+    {
+      "type": "color",
+      "id": "shadow_color",
+      "label": "Behind each pebble",
+      "default": "#ECA47C",
+      "info": "The hard offset shape behind each card. A shade or two darker than the background."
+    },
+    { "type": "color", "id": "ink_color", "label": "Ink", "default": "#2F3427", "info": "Headings, titles and every outline." },
+    { "type": "color", "id": "body_color", "label": "Body text", "default": "#5E6152" },
+    { "type": "color", "id": "accent_color", "label": "Accent", "default": "#E06E4C", "info": "The eyebrow dot and two of the sprinkles." },
+    { "type": "color", "id": "eyebrow_background", "label": "Eyebrow pill", "default": "#FFFFFF" },
+    { "type": "header", "content": "Sprinkles" },
+    {
+      "type": "checkbox",
+      "id": "show_sprinkles",
+      "label": "Show the scattered dots",
+      "default": true,
+      "info": "Five dots placed around the row. Hidden on a phone either way, where there is no room beside the cards."
+    },
+    { "type": "color", "id": "sprinkle_sage", "label": "Sprinkle — green", "default": "#C2D6A8" },
+    { "type": "color", "id": "sprinkle_cream", "label": "Sprinkle — cream", "default": "#FCF9F4" },
+    { "type": "header", "content": "Spacing" },
+    { "type": "range", "id": "padding_top", "label": "Top padding (desktop)", "unit": "px", "min": 0, "max": 240, "step": 5, "default": 130 },
+    { "type": "range", "id": "padding_bottom", "label": "Bottom padding (desktop)", "unit": "px", "min": 0, "max": 240, "step": 5, "default": 160 },
+    { "type": "range", "id": "padding_top_mobile", "label": "Top padding (mobile)", "unit": "px", "min": 0, "max": 160, "step": 4, "default": 72 },
+    { "type": "range", "id": "padding_bottom_mobile", "label": "Bottom padding (mobile)", "unit": "px", "min": 0, "max": 160, "step": 4, "default": 88 }
+  ],
+  "blocks": [
+    {
+      "type": "value",
+      "name": "Value",
+      "settings": [
+        { "type": "text", "id": "title", "label": "Title", "default": "Made by hand" },
+        {
+          "type": "textarea",
+          "id": "body",
+          "label": "Body",
+          "default": "Cut and sewn in small batches, so every one gets looked at properly."
+        },
+        { "type": "header", "content": "Icon" },
+        {
+          "type": "select",
+          "id": "icon",
+          "label": "Icon",
+          "options": [
+            { "value": "heart", "label": "Heart" },
+            { "value": "loop", "label": "Loop — washable, reusable" },
+            { "value": "clip", "label": "Clip" },
+            { "value": "bunny", "label": "Bunny face" },
+            { "value": "star", "label": "Star" }
+          ],
+          "default": "heart"
+        },
+        { "type": "color", "id": "icon_color", "label": "Icon colour", "default": "#E06E4C" },
+        { "type": "color", "id": "badge_background", "label": "Badge circle", "default": "#C2D6A8" },
+        {
+          "type": "select",
+          "id": "badge_position",
+          "label": "Badge position",
+          "options": [
+            { "value": "centre", "label": "Centred" },
+            { "value": "right", "label": "Off to the right" }
+          ],
+          "default": "centre"
+        },
+        {
+          "type": "range",
+          "id": "badge_rotation",
+          "label": "Badge tilt",
+          "unit": "deg",
+          "min": -15,
+          "max": 15,
+          "step": 1,
+          "default": -8
+        },
+        { "type": "header", "content": "Shape" },
+        { "type": "color", "id": "pebble_fill", "label": "Pebble fill", "default": "#FCF9F4" },
+        {
+          "type": "range",
+          "id": "rotation",
+          "label": "Tilt",
+          "unit": "deg",
+          "min": -15,
+          "max": 15,
+          "step": 1,
+          "default": -3
+        },
+        {
+          "type": "range",
+          "id": "offset_y",
+          "label": "Drop",
+          "unit": "px",
+          "min": 0,
+          "max": 200,
+          "step": 10,
+          "default": 60,
+          "info": "How far down the row this pebble sits. Eased off in a two-up layout and ignored in a single column."
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Our values",
+      "blocks": [
+        {
+          "type": "value",
+          "settings": {
+            "title": "Made by hand",
+            "body": "Cut and sewn in small batches, so every one gets looked at properly.",
+            "icon": "heart", "icon_color": "#E06E4C", "badge_background": "#C2D6A8",
+            "badge_position": "centre", "badge_rotation": -8,
+            "pebble_fill": "#FCF9F4", "rotation": -3, "offset_y": 60
+          }
+        },
+        {
+          "type": "value",
+          "settings": {
+            "title": "Washable, reusable",
+            "body": "Straight in with the towels. No packet to run out of at the worst moment.",
+            "icon": "loop", "icon_color": "#5E6152", "badge_background": "#F6DCCF",
+            "badge_position": "right", "badge_rotation": 8,
+            "pebble_fill": "#E8F0E0", "rotation": 2, "offset_y": 140
+          }
+        },
+        {
+          "type": "value",
+          "settings": {
+            "title": "Clipped where they can reach",
+            "body": "On the bag, the stroller or a coat — somewhere small hands can get to it themselves.",
+            "icon": "clip", "icon_color": "#E06E4C", "badge_background": "#C2D6A8",
+            "badge_position": "centre", "badge_rotation": -8,
+            "pebble_fill": "#FCF9F4", "rotation": -1, "offset_y": 40
+          }
+        },
+        {
+          "type": "value",
+          "settings": {
+            "title": "A pal, not a wipe",
+            "body": "A face they know makes the whole business far less of a fight.",
+            "icon": "bunny", "icon_color": "#5E6152", "badge_background": "#F6DCCF",
+            "badge_position": "right", "badge_rotation": 8,
+            "pebble_fill": "#E8F0E0", "rotation": 3, "offset_y": 130
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

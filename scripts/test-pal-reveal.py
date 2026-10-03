@@ -236,3 +236,4 @@ if __name__ == '__main__':
           f"live {d['live']}, stage {d['stagePos']}, before {d['before']}, after {d['after']}")
 
     print(f"\n{sum(res)} passed, {len(res) - sum(res)} failed")
+    sys.exit(0 if all(res) else 1)

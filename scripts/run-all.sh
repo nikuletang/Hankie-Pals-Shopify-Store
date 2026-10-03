@@ -19,7 +19,14 @@ for f in scripts/test-*.py; do
   code=$?
   line=$(grep -E "passed" "$LOGS/suite-$n.log" | tail -1)
   printf "%-26s %s\n" "$n" "${line:-NO RESULT}"
-  if [ "$code" -ne 0 ]; then
+
+  bad=0
+  [ "$code" -ne 0 ] && bad=1
+  grep -qE "^FAIL" "$LOGS/suite-$n.log" && bad=1
+  echo "$line" | grep -qE "[1-9][0-9]* failed" && bad=1
+  [ -z "$line" ] && bad=1
+
+  if [ "$bad" -ne 0 ]; then
     fails=$((fails + 1))
     grep -A1 "^FAIL" "$LOGS/suite-$n.log" | sed 's/^/    /'
   fi

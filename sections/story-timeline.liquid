@@ -72,6 +72,8 @@
   assign dot_end = s.end_dot_color | default: '#e06e4c'
   assign line_w = s.line_width | default: 6
 
+  assign bow = s.trail_bow | default: 34
+
   assign motion = true
   if s.animate == false
     assign motion = false
@@ -169,11 +171,22 @@
       assign qx = left_list[i] | plus: 240
       assign qy = top_list[i] | plus: 230
       assign span = qx | minus: px
-      assign dx = span | times: 58 | divided_by: 100
-      assign h1 = px | plus: dx
-      assign h2 = qx | minus: dx
-      assign path = path | append: ' C ' | append: h1 | append: ' ' | append: py
-      assign path = path | append: ', ' | append: h2 | append: ' ' | append: qy
+      assign drop = qy | minus: py
+      assign bowx = 0 | minus: drop | times: bow | divided_by: 100
+      assign bowy = span | times: bow | divided_by: 100
+      assign flip = i | modulo: 2
+      if flip == 0
+        assign bowx = 0 | minus: bowx
+        assign bowy = 0 | minus: bowy
+      endif
+
+      assign a1x = span | times: 33 | divided_by: 100 | plus: px | plus: bowx
+      assign a1y = drop | times: 33 | divided_by: 100 | plus: py | plus: bowy
+      assign a2x = span | times: 67 | divided_by: 100 | plus: px | plus: bowx
+      assign a2y = drop | times: 67 | divided_by: 100 | plus: py | plus: bowy
+
+      assign path = path | append: ' C ' | append: a1x | append: ' ' | append: a1y
+      assign path = path | append: ', ' | append: a2x | append: ' ' | append: a2y
       assign path = path | append: ', ' | append: qx | append: ' ' | append: qy
     endunless
   endfor
@@ -438,27 +451,29 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: {{ s.row_gap_mobile | default: 56 }}px;
+      --hp-st-gap: {{ s.row_gap_mobile | default: 76 }}px;
+      gap: var(--hp-st-gap);
     }
 
     /* The curve is drawn over a grid the cards no longer sit on, so it goes
        and a wobbling vertical line of the same dots takes its place. */
     .hp-st__line { display: none; }
 
-    .hp-st__stage::before {
+    .hp-st__step + .hp-st__step::before {
       content: "";
       position: absolute;
       z-index: 0;
-      top: 10px;
-      bottom: 10px;
       left: 50%;
-      width: 6px;
-      margin-left: -3px;
-      background-image: radial-gradient(
-        circle at 50% 50%, {{ line_color }} 0 3px, rgba(0, 0, 0, 0) 3.5px);
-      background-size: 6px 18px;
-      background-repeat: repeat-y;
-      opacity: 0.9;
+      top: calc(var(--hp-st-gap) * -1);
+      width: 124px;
+      height: var(--hp-st-gap);
+      /* The card leans, and the hop above it should not lean with it. */
+      transform: translateX(-50%) rotate(calc(var(--r) * -1));
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 124 92'%3E%3Cpath d='M62 3 C 4 26, 120 66, 62 89' fill='none' stroke='%23{{ line_color | remove: '#' }}' stroke-width='6' stroke-linecap='round' stroke-dasharray='0 17'/%3E%3C/svg%3E");
+      background-size: contain;
+      background-position: center;
+      background-repeat: no-repeat;
+      pointer-events: none;
     }
 
     .hp-st__step {
@@ -713,6 +728,17 @@
     { "type": "header", "content": "The dotted line" },
     { "type": "color", "id": "line_color", "label": "Dots", "default": "#86a868" },
     { "type": "range", "id": "line_width", "label": "Dot size", "unit": "px", "min": 2, "max": 12, "step": 1, "default": 6 },
+    {
+      "type": "range",
+      "id": "trail_bow",
+      "label": "How much the trail wanders",
+      "unit": "%",
+      "min": 0,
+      "max": 50,
+      "step": 2,
+      "default": 34,
+      "info": "0 runs it straight from one card to the next. Higher swings it wider between them."
+    },
     { "type": "color", "id": "start_dot_color", "label": "Dot at the start", "default": "#93b276" },
     { "type": "color", "id": "end_dot_color", "label": "Dot at the end", "default": "#e06e4c" },
 
@@ -745,7 +771,7 @@
     { "type": "header", "content": "Mobile" },
     { "type": "range", "id": "heading_size_mobile", "label": "Heading size (mobile)", "unit": "px", "min": 20, "max": 48, "step": 2, "default": 30 },
     { "type": "range", "id": "photo_size_mobile", "label": "Photo size (mobile)", "unit": "px", "min": 90, "max": 200, "step": 5, "default": 140 },
-    { "type": "range", "id": "row_gap_mobile", "label": "Gap between steps (mobile)", "unit": "px", "min": 16, "max": 120, "step": 4, "default": 56 },
+    { "type": "range", "id": "row_gap_mobile", "label": "Gap between steps (mobile)", "unit": "px", "min": 16, "max": 140, "step": 4, "default": 76 },
     { "type": "range", "id": "header_gap_mobile", "label": "Gap under the header (mobile)", "unit": "px", "min": 0, "max": 120, "step": 4, "default": 44 },
     { "type": "range", "id": "padding_top_mobile", "label": "Top padding (mobile)", "unit": "px", "min": 0, "max": 200, "step": 4, "default": 72 },
     { "type": "range", "id": "padding_bottom_mobile", "label": "Bottom padding (mobile)", "unit": "px", "min": 0, "max": 200, "step": 4, "default": 88 }

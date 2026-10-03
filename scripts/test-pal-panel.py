@@ -418,3 +418,4 @@ if __name__ == '__main__':
           f"panel {d['panel'].split(')')[0]})")
 
     print(f"\n{sum(res)} passed, {len(res) - sum(res)} failed")
+    sys.exit(0 if all(res) else 1)

@@ -47,6 +47,13 @@ function snap(d,w){
     stageBox:bx(stage),
     stageDisplay:stage?w.getComputedStyle(stage).display:null,
     stageLine:stage?w.getComputedStyle(stage,'::before').backgroundImage:null,
+    hops:(function(){var k=0;[].forEach.call(d.querySelectorAll('.hp-st__step'),
+      function(e,i){if(i===0)return;
+        var b=w.getComputedStyle(e,'::before').backgroundImage;
+        if(b&&b!=='none')k++;});return k;})(),
+    hopArt:[].map.call(d.querySelectorAll('.hp-st__step'),function(e,i){
+      return i===0?null:w.getComputedStyle(e,'::before').backgroundImage;})
+      .filter(function(x){return x!==null;}),
     svgShown:svg?w.getComputedStyle(svg).display:null,
     svgHidden:svg?svg.getAttribute('aria-hidden'):null,
     viewBox:svg?svg.getAttribute('viewBox'):null,
@@ -216,6 +223,38 @@ def outside_blob(step, box):
     return worst
 
 
+def segments(d):
+    """Every cubic as (start, control 1, control 2, end)."""
+    nums = [float(x) for x in re.findall(r'-?\d+(?:\.\d+)?', d)]
+    out, here = [], (nums[0], nums[1])
+    rest = nums[2:]
+    for i in range(0, len(rest) - 5, 6):
+        c1 = (rest[i], rest[i + 1])
+        c2 = (rest[i + 2], rest[i + 3])
+        end = (rest[i + 4], rest[i + 5])
+        out.append((here, c1, c2, end))
+        here = end
+    return out
+
+
+def bow_of(seg):
+    """How far the middle of a cubic sits off the straight line between its
+    ends, and which side it falls on.
+
+    This is the whole difference between a trail and a ruled line: a curve
+    that leaves one card horizontally and arrives at the next the same way is
+    a symmetric S, and the middle of a symmetric S lies exactly on the chord
+    -- which is the only stretch of it the blobs do not cover.
+    """
+    p0, c1, c2, p3 = seg
+    mx = (p0[0] + 3 * c1[0] + 3 * c2[0] + p3[0]) / 8
+    my = (p0[1] + 3 * c1[1] + 3 * c2[1] + p3[1]) / 8
+    cx, cy = (p0[0] + p3[0]) / 2, (p0[1] + p3[1]) / 2
+    dx, dy = mx - cx, my - cy
+    side = (p3[0] - p0[0]) * dy - (p3[1] - p0[1]) * dx
+    return (dx ** 2 + dy ** 2) ** 0.5, (1 if side > 0 else -1 if side < 0 else 0)
+
+
 def on_curve(d):
     """The point each cubic lands on -- the last pair in every C segment."""
     pts = []
@@ -265,6 +304,26 @@ check('the dotted line passes through the middle of every card',
 check('and carries on past the last one rather than stopping on it',
       pts[-1][1] > conv[-1][1] + 100,
       f"tail ends at y {round(pts[-1][1])}, last card centre {round(conv[-1][1])}")
+
+# The segment between two cards is the only part of the trail that shows, so
+# it is the part that has to curve.
+middles = [bow_of(s) for s in segments(d['d'])[1:-1]]
+check('the trail bows away from the straight line between the cards',
+      all(off >= 80 for off, _ in middles),
+      f"middles sit {[round(off) for off, _ in middles]} units off the chord; "
+      f"a symmetric S would be 0")
+check('and each stretch swings the opposite way to the last, so none cross',
+      all(middles[i][1] == -middles[i + 1][1] for i in range(len(middles) - 1)),
+      f"sides {[side for _, side in middles]}")
+
+straightened = run('no-bow', overrides={'settings': {'trail_bow': 0},
+                                        'blocks': STEPS4['blocks']})
+check('and it can be run straight again from the editor',
+      all(off <= 2 for off, _ in
+          [bow_of(s) for s in segments(straightened['d'])[1:-1]]),
+      f"at 0 the middles sit "
+      f"{[round(off) for off, _ in [bow_of(s) for s in segments(straightened['d'])[1:-1]]]}"
+      f" units off the chord")
 
 check('the dots are a zero-length dash with a round cap, not a dashed line',
       d['stroke']['dash'].startswith('0') and d['stroke']['cap'] == 'round'
@@ -430,10 +489,13 @@ check('the staircase becomes one column on a phone',
               for i in range(3)),
       f"display {p390['stageDisplay']}, tops "
       f"{[round(s['box']['t']) for s in p390['steps']]}")
-check('with the curve stood down for a straight line of the same dots',
-      p390['svgShown'] == 'none' and 'radial-gradient' in (p390['stageLine'] or ''),
-      f"svg {p390['svgShown']}, column line "
-      f"{'drawn' if 'radial' in (p390['stageLine'] or '') else 'missing'}")
+check('with the curve stood down for a curved hop in each gap',
+      p390['svgShown'] == 'none' and p390['hops'] == 3
+      and all('svg' in (h or '') for h in p390['hopArt']),
+      f"svg {p390['svgShown']}, {p390['hops']} hops between four steps")
+check('and the hop is drawn, not ruled',
+      all('C' in (h or '') for h in p390['hopArt']),
+      'each hop is a cubic, so it curves between the two blobs')
 check('the cards still zig-zag, and still lean',
       len(set(round(s['box']['l']) for s in p390['steps'])) > 1
       and all(s['transform'] != 'none' for s in p390['steps']),

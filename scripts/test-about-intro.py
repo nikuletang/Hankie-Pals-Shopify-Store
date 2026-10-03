@@ -146,18 +146,29 @@ SETTLE = ("document.getAnimations().forEach(function(a){"
 
 
 def run(name, width=1400, overrides=None, still=True, wait=400, budget=6000,
-        flags=(), settle=False, sabotage=None):
+        flags=(), settle=False, sabotage=None, until=None):
+    """`until` is a JavaScript condition to wait for rather than a delay.
+
+    A fixed wait is a race: the reveal needs a custom element upgrade and then
+    an observer callback, and under a virtual time budget neither is on a
+    clock this process controls. Polling for what the check is about to assert
+    removes the race; hitting the deadline anyway is a real failure rather
+    than a slow machine.
+    """
     page = render(name, overrides, still)
     html = page.read_text(encoding='utf-8')
     if sabotage:
         # Runs before the section's own script, so the section meets the
         # broken browser rather than being broken after the fact.
         html = html.replace('<body>', f'<body><script>{sabotage}</script>', 1)
-    html = html.replace('</body>',
-        '<script>' + PROBE +
-        "setTimeout(function(){" + (SETTLE if settle else '') +
-        "document.title='RESULT'+JSON.stringify("
-        f"snap(document,window));}},{wait});</script></body>")
+    finish = ((SETTLE if settle else '') +
+              "document.title='RESULT'+JSON.stringify(snap(document,window));")
+    if until:
+        body = ("(function p(n){ if ((" + until + ") || n > 120) {" + finish +
+                "return;} setTimeout(function(){p(n+1);},40); })(0);")
+    else:
+        body = f"setTimeout(function(){{{finish}}},{wait});"
+    html = html.replace('</body>', '<script>' + PROBE + body + '</script></body>')
     page.write_text(html, encoding='utf-8')
     dom = subprocess.run([CHROME, '--headless', '--no-sandbox', '--disable-gpu',
         f'--window-size={width},1400', f'--virtual-time-budget={budget}', *flags,
@@ -528,8 +539,9 @@ check('and the blob is lopsided, where the pebble is nearly even',
 # The animation's only unacceptable failure is words that never appear, so
 # most of what follows is the same question asked of a different way for the
 # script not to run.
-anim = run('anim', overrides=WITH_PHOTO, still=False, wait=2500, budget=16000,
-           settle=True)
+anim = run('anim', overrides=WITH_PHOTO, still=False, budget=20000, settle=True,
+           until="document.querySelectorAll('[data-reveal].is-in').length === "
+                 "document.querySelectorAll('[data-reveal]').length")
 order = [r['cls'].split()[0] for r in anim['revealed']]
 check('every piece of the section is marked to arrive',
       len(anim['revealed']) == 6, f"{len(anim['revealed'])} pieces: {order}")

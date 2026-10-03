@@ -162,3 +162,4 @@ check('the loop is still exactly one run with the new spacing',
       f"shift {d['shift']}px, run {d['run']}px, track {d['trackW']} vs {round(d['run']*d['runs'],2)}")
 
 print(f"\n{sum(res)} passed, {len(res)-sum(res)} failed")
+sys.exit(0 if all(res) else 1)

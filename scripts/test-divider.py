@@ -137,3 +137,4 @@ if __name__ == '__main__':
 
     print()
     print(f'{sum(results)} passed, {len(results) - sum(results)} failed')
+    sys.exit(0 if all(results) else 1)

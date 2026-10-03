@@ -109,3 +109,4 @@ check('right-only leaves a single 1px edge between cards',
       d['sides'] == '0px 1px 0px 0px', d['sides'])
 
 print(f"\n{sum(res)} passed, {len(res)-sum(res)} failed")
+sys.exit(0 if all(res) else 1)

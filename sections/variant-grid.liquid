@@ -378,12 +378,20 @@
           {%- endif -%}
 
             <div class="hp-vg__media">
+              {%- comment -%}
+                The card's own photo loads eagerly. This section sits directly
+                below the hero on the homepage, so a lazy primary image is not
+                fetched until the scroll reaches it — and until it decodes the
+                media box holds nothing, which on iOS reads as a flash of the
+                hero as the section comes up. The hover photo below stays lazy:
+                it is invisible until hover, and phones never hover at all.
+              {%- endcomment -%}
               {%- if primary != blank -%}
                 {{
                   primary
                   | image_url: width: 1200
                   | image_tag:
-                    loading: 'lazy',
+                    loading: 'eager',
                     widths: '300, 420, 560, 760, 1000, 1200',
                     sizes: '(min-width: 990px) 34vw, (min-width: 750px) 50vw, 100vw',
                     alt: alt_primary,

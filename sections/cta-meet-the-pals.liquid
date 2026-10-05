@@ -1,0 +1,475 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — CTA, Meet the Pals
+  ---------------------------------------------------------------------------
+  A full-width closing band: eyebrow, heading, one line of copy and two
+  buttons, over either a flat colour or a photograph, with a zigzag edge that
+  bites up into the section above.
+
+  The buttons are the site's button, from assets/hp-button.css. That file is
+  the reason every button on this store is the same shape, so this section
+  sets only the colours it needs and lets the stylesheet own the rest.
+
+  Two things in the brief are deliberately not followed, because the site's
+  button wins over the frame it was drawn in:
+    - a 3px 3px hover shadow. The site button already has a hard shadow,
+      straight down, that grows on hover and collapses onto the page on
+      press. That press is the whole trick and an offset shadow loses it.
+    - 12px button text. Every other button on the site is 17px. The size is
+      a setting here, so the Figma value is one slider away.
+
+  The zigzag is the section's own background colour, in a strip pulled 44px
+  above the section. It paints over whatever is above because this section
+  forms a stacking context and comes later in the document, so the teeth read
+  as the section above being cut, not as a shape laid on top of it. The strip
+  is 46px for a 44px rise: the extra 2px sits inside the section so no seam
+  shows along the join at fractional device pixel ratios.
+
+  overflow is left alone. `overflow-x: clip` would have been harmless on its
+  own -- clip and visible are compatible across axes, unlike hidden -- but
+  nothing here overhangs sideways, and the zigzag has to escape upwards.
+
+  The background photo is an <img> under the content rather than a CSS
+  background-image, so Shopify can serve a srcset. A separate mobile image
+  goes in a <picture> source rather than two <img>s hidden by CSS, which
+  would download both.
+
+  Free text is escaped before it reaches an attribute: an unescaped quote in
+  a setting ends style="" early and silently drops every property after it.
+
+  No script. Sizes are px: Dawn's root font-size is 62.5%, so rem renders at
+  62.5% of its intended value. Every setting carries a `| default:`.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+
+  assign bg_kind = s.background_type | default: 'color'
+  assign edge_color = s.background_color | default: '#C2D6A8'
+
+  # `| default:` replaces false as well as nil, so a checkbox guarded with it
+  # could never be switched off. Compared against false instead.
+  assign show_zigzag = true
+  if s.show_zigzag == false
+    assign show_zigzag = false
+  endif
+
+  assign show_eyebrow = true
+  if s.show_eyebrow == false
+    assign show_eyebrow = false
+  endif
+
+  # Hoisted out of the image_tag call: a `| default:` written inline as a
+  # filter argument binds to everything left of it, which is the whole tag.
+  assign img_position = s.image_position | default: 'center'
+
+  assign overlay_pct = s.overlay_opacity | default: 0
+  assign overlay_alpha = overlay_pct | divided_by: 100.0
+
+  assign zig_d = 'M0 46 L0 44 L90 0 L180 44 L270 0 L360 44 L450 0 L540 44 L630 0 L720 44 L810 0 L900 44 L990 0 L1080 44 L1170 0 L1260 44 L1350 0 L1440 44 L1440 46 Z'
+-%}
+
+{%- comment -%}
+  The button lives in assets/hp-button.css so there is one of it on the site.
+{%- endcomment -%}
+{{ 'hp-button.css' | asset_url | stylesheet_tag }}
+
+{% style %}
+  .hp-cta {
+    /* The section keeps its own layering to itself. Without this the zigzag
+       and the background photo are ordered against every other section on
+       the page rather than against each other. */
+    isolation: isolate;
+    position: relative;
+
+    --hp-cta-display: var(--font-heading-family, Bitter, "Chubbo", Georgia, serif);
+    --hp-cta-body: var(--font-body-family, Lexend, "Quicksand", ui-rounded, system-ui, sans-serif);
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+    padding-block: var(--hp-cta-pt) var(--hp-cta-pb);
+    padding-inline: 24px;
+    background: var(--hp-cta-bg);
+    text-align: center;
+  }
+
+  /* --- Background photo ----------------------------------------------------
+     Under the content, not behind it as a CSS background, so Shopify serves a
+     srcset and the browser picks a width. */
+  .hp-cta__media,
+  .hp-cta__overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .hp-cta__media { overflow: hidden; }
+
+  .hp-cta__media img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: var(--hp-cta-img-pos);
+  }
+
+  .hp-cta__overlay {
+    z-index: 1;
+    background: var(--hp-cta-overlay);
+  }
+
+  /* --- Zigzag --------------------------------------------------------------
+     46px tall for a 44px rise. The spare 2px sits inside the section so the
+     join never shows as a hairline on a fractional device pixel ratio. */
+  .hp-cta__zig {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(var(--hp-cta-zig-h) * -1 + 2px);
+    height: var(--hp-cta-zig-h);
+    z-index: 2;
+    line-height: 0;
+    pointer-events: none;
+  }
+
+  .hp-cta__zig svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* --- Content ------------------------------------------------------------- */
+  .hp-cta__inner {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+    width: 100%;
+  }
+
+  .hp-cta__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: var(--hp-cta-eyebrow-bg);
+    font-family: var(--hp-cta-display);
+    font-weight: 700;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--hp-cta-eyebrow-ink);
+  }
+
+  .hp-cta__eyebrow::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--hp-cta-dot);
+    flex: none;
+  }
+
+  .hp-cta__heading {
+    margin: 0;
+    max-width: 760px;
+    font-family: var(--hp-cta-display);
+    font-weight: 800;
+    font-size: 52px;
+    line-height: 60px;
+    letter-spacing: -1px;
+    color: var(--hp-cta-ink);
+    text-wrap: balance;
+  }
+
+  .hp-cta__body {
+    margin: 0;
+    max-width: 520px;
+    font-family: var(--hp-cta-body);
+    font-weight: 300;
+    font-size: 17px;
+    line-height: 28px;
+    color: var(--hp-cta-ink);
+  }
+
+  .hp-cta__body p { margin: 0; }
+  .hp-cta__body p + p { margin-block-start: 12px; }
+
+  /* The brief's 12px extra above the row, on top of the 28px stack gap. */
+  .hp-cta__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+    margin-block-start: 12px;
+  }
+
+  /* The size is the one thing this section says about the button. Everything
+     else -- shape, outline, shadow, press, focus ring -- is hp-button.css. */
+  .hp-cta__btn { --hp-btn-size: var(--hp-cta-btn-size); }
+
+  /* --- Tablet -------------------------------------------------------------- */
+  @media screen and (max-width: 989px) {
+    .hp-cta {
+      padding-block: var(--hp-cta-pt-tablet) var(--hp-cta-pb-tablet);
+    }
+
+    .hp-cta__heading { font-size: 40px; line-height: 48px; letter-spacing: -0.5px; }
+  }
+
+  /* --- Phone --------------------------------------------------------------- */
+  @media screen and (max-width: 749px) {
+    .hp-cta {
+      padding-block: var(--hp-cta-pt-mobile) var(--hp-cta-pb-mobile);
+      padding-inline: 20px;
+      gap: 24px;
+    }
+
+    .hp-cta__inner { gap: 24px; }
+
+    .hp-cta__heading { font-size: 32px; line-height: 40px; letter-spacing: -0.5px; }
+
+    .hp-cta__body { font-size: 16px; line-height: 26px; }
+
+    /* Stacked and full width, primary first, because two pills side by side
+       on a phone are each too narrow to read as a target. */
+    .hp-cta__actions {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 12px;
+      width: 100%;
+      max-width: 320px;
+    }
+
+    .hp-cta__btn { --hp-btn-pad-x: 24px; }
+  }
+{% endstyle %}
+
+<div
+  class="hp-cta"
+  style="
+    /* The colour sits behind the photo as well as instead of it: it is what
+       shows while the photo is still loading, and down either side if the
+       photo's aspect ratio leaves any. */
+    --hp-cta-bg: {{ edge_color }};
+    --hp-cta-ink: {{ s.text_color | default: '#2F3427' }};
+    --hp-cta-eyebrow-bg: {{ s.eyebrow_background | default: '#FFFFFF' }};
+    --hp-cta-eyebrow-ink: {{ s.eyebrow_color | default: '#2F3427' }};
+    --hp-cta-dot: {{ s.eyebrow_dot_color | default: '#E06E4C' }};
+    --hp-cta-img-pos: {{ img_position }};
+    --hp-cta-overlay: {{ s.overlay_color | default: '#2F3427' | color_modify: 'alpha', overlay_alpha }};
+    --hp-cta-zig-h: {{ s.zigzag_height | default: 46 }}px;
+    --hp-cta-btn-size: {{ s.button_text_size | default: 17 }}px;
+    --hp-cta-pt: {{ s.padding_top | default: 130 }}px;
+    --hp-cta-pb: {{ s.padding_bottom | default: 140 }}px;
+    --hp-cta-pt-tablet: {{ s.padding_top_tablet | default: 100 }}px;
+    --hp-cta-pb-tablet: {{ s.padding_bottom_tablet | default: 110 }}px;
+    --hp-cta-pt-mobile: {{ s.padding_top_mobile | default: 80 }}px;
+    --hp-cta-pb-mobile: {{ s.padding_bottom_mobile | default: 90 }}px;
+  "
+  {{ section.shopify_attributes }}
+>
+  {%- if bg_kind == 'image' and s.background_image != blank -%}
+    <div class="hp-cta__media">
+      {%- comment -%}
+        A <picture> rather than two <img>s swapped by CSS: both would be
+        downloaded. The phone source is only emitted when one is actually set.
+      {%- endcomment -%}
+      <picture>
+        {%- if s.background_image_mobile != blank -%}
+          <source
+            media="(max-width: 749px)"
+            srcset="{{ s.background_image_mobile | image_url: width: 500 }} 500w,
+                    {{ s.background_image_mobile | image_url: width: 750 }} 750w,
+                    {{ s.background_image_mobile | image_url: width: 1100 }} 1100w"
+            sizes="100vw"
+          >
+        {%- endif -%}
+        {{
+          s.background_image
+          | image_url: width: 2400
+          | image_tag:
+            loading: 'lazy',
+            widths: '750, 1100, 1500, 1800, 2400',
+            sizes: '100vw',
+            alt: s.background_image.alt
+        }}
+      </picture>
+    </div>
+    {%- if overlay_pct > 0 -%}
+      <div class="hp-cta__overlay" aria-hidden="true"></div>
+    {%- endif -%}
+  {%- endif -%}
+
+  {%- if show_zigzag -%}
+    <div class="hp-cta__zig" aria-hidden="true">
+      <svg viewBox="0 0 1440 46" preserveAspectRatio="none" focusable="false">
+        <path d="{{ zig_d }}" fill="{{ edge_color }}"></path>
+      </svg>
+    </div>
+  {%- endif -%}
+
+  <div class="hp-cta__inner">
+    {%- if show_eyebrow and s.eyebrow != blank -%}
+      <p class="hp-cta__eyebrow">{{ s.eyebrow | escape }}</p>
+    {%- endif -%}
+
+    {%- if s.heading != blank -%}
+      <h2 class="hp-cta__heading">{{ s.heading | escape }}</h2>
+    {%- endif -%}
+
+    {%- if s.body != blank -%}
+      <div class="hp-cta__body">{{ s.body }}</div>
+    {%- endif -%}
+
+    {%- if s.primary_label != blank or s.secondary_label != blank -%}
+      <div class="hp-cta__actions">
+        {%- if s.primary_label != blank -%}
+          <a
+            class="hp-btn hp-btn--lg hp-cta__btn"
+            href="{{ s.primary_link | default: '#' }}"
+            style="
+              --hp-btn-bg: {{ s.primary_fill | default: '#ECA47C' }};
+              --hp-btn-ink: {{ s.button_ink | default: '#2F3326' }};
+              --hp-btn-line: {{ s.button_ink | default: '#2F3326' }};
+            "
+          >
+            {{- s.primary_label | escape -}}
+          </a>
+        {%- endif -%}
+
+        {%- if s.secondary_label != blank -%}
+          <a
+            class="hp-btn hp-btn--lg hp-cta__btn"
+            href="{{ s.secondary_link | default: '#' }}"
+            style="
+              --hp-btn-bg: {{ s.secondary_fill | default: '#FFFFFF' }};
+              --hp-btn-ink: {{ s.button_ink | default: '#2F3326' }};
+              --hp-btn-line: {{ s.button_ink | default: '#2F3326' }};
+            "
+          >
+            {{- s.secondary_label | escape -}}
+          </a>
+        {%- endif -%}
+      </div>
+    {%- endif -%}
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "CTA — Meet the Pals",
+  "tag": "section",
+  "class": "hp-cta-section",
+  "settings": [
+    { "type": "header", "content": "Text" },
+    { "type": "checkbox", "id": "show_eyebrow", "label": "Show the eyebrow", "default": true },
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow", "default": "Ready when they are" },
+    { "type": "text", "id": "heading", "label": "Heading", "default": "Ready to meet the Pals?" },
+    {
+      "type": "richtext",
+      "id": "body",
+      "label": "Body",
+      "default": "<p>Soft, washable and clipped right where little hands can find them.</p>"
+    },
+    { "type": "header", "content": "Buttons" },
+    { "type": "text", "id": "primary_label", "label": "Primary button", "default": "Shop Hankie Pals", "info": "Leave empty to hide this button." },
+    { "type": "url", "id": "primary_link", "label": "Primary button link" },
+    { "type": "color", "id": "primary_fill", "label": "Primary button fill", "default": "#ECA47C" },
+    { "type": "text", "id": "secondary_label", "label": "Secondary button", "default": "Say hello", "info": "Leave empty to hide this button." },
+    { "type": "url", "id": "secondary_link", "label": "Secondary button link" },
+    { "type": "color", "id": "secondary_fill", "label": "Secondary button fill", "default": "#FFFFFF" },
+    { "type": "color", "id": "button_ink", "label": "Button text and outline", "default": "#2F3326", "info": "The ink every other button on the site uses. Slightly different from the heading ink, which is #2F3427." },
+    {
+      "type": "range",
+      "id": "button_text_size",
+      "label": "Button text size",
+      "unit": "px",
+      "min": 10,
+      "max": 20,
+      "step": 1,
+      "default": 17,
+      "info": "17px is what every other button on the site runs at. The Figma for this section drew them at 12."
+    },
+    { "type": "header", "content": "Background" },
+    {
+      "type": "select",
+      "id": "background_type",
+      "label": "Background",
+      "options": [
+        { "value": "color", "label": "Colour" },
+        { "value": "image", "label": "Photo" }
+      ],
+      "default": "color"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background colour",
+      "default": "#C2D6A8",
+      "info": "Also the colour of the zigzag edge, so with a photo background this is the edge colour."
+    },
+    { "type": "image_picker", "id": "background_image", "label": "Background photo" },
+    {
+      "type": "image_picker",
+      "id": "background_image_mobile",
+      "label": "Background photo (phone)",
+      "info": "Optional. Used below 750px in place of the one above."
+    },
+    {
+      "type": "select",
+      "id": "image_position",
+      "label": "Photo position",
+      "options": [
+        { "value": "center", "label": "Centre" },
+        { "value": "top", "label": "Top" },
+        { "value": "bottom", "label": "Bottom" }
+      ],
+      "default": "center"
+    },
+    { "type": "color", "id": "overlay_color", "label": "Overlay", "default": "#2F3427" },
+    {
+      "type": "range",
+      "id": "overlay_opacity",
+      "label": "Overlay strength",
+      "unit": "%",
+      "min": 0,
+      "max": 90,
+      "step": 5,
+      "default": 0,
+      "info": "Darkens a busy photo so the words stay readable. 0 is no overlay."
+    },
+    { "type": "header", "content": "Zigzag edge" },
+    {
+      "type": "checkbox",
+      "id": "show_zigzag",
+      "label": "Show the zigzag edge",
+      "default": true,
+      "info": "The teeth are cut in the background colour above, so they only read as an edge when the section above is a different colour."
+    },
+    { "type": "range", "id": "zigzag_height", "label": "Zigzag height", "unit": "px", "min": 16, "max": 80, "step": 2, "default": 46 },
+    { "type": "header", "content": "Colours" },
+    { "type": "color", "id": "text_color", "label": "Heading and body", "default": "#2F3427" },
+    { "type": "color", "id": "eyebrow_background", "label": "Eyebrow pill", "default": "#FFFFFF" },
+    { "type": "color", "id": "eyebrow_color", "label": "Eyebrow text", "default": "#2F3427" },
+    { "type": "color", "id": "eyebrow_dot_color", "label": "Eyebrow dot", "default": "#E06E4C" },
+    { "type": "header", "content": "Spacing" },
+    { "type": "range", "id": "padding_top", "label": "Top padding (desktop)", "unit": "px", "min": 0, "max": 240, "step": 5, "default": 130 },
+    { "type": "range", "id": "padding_bottom", "label": "Bottom padding (desktop)", "unit": "px", "min": 0, "max": 240, "step": 5, "default": 140 },
+    { "type": "range", "id": "padding_top_tablet", "label": "Top padding (tablet)", "unit": "px", "min": 0, "max": 200, "step": 5, "default": 100 },
+    { "type": "range", "id": "padding_bottom_tablet", "label": "Bottom padding (tablet)", "unit": "px", "min": 0, "max": 200, "step": 5, "default": 110 },
+    { "type": "range", "id": "padding_top_mobile", "label": "Top padding (phone)", "unit": "px", "min": 0, "max": 160, "step": 5, "default": 80 },
+    { "type": "range", "id": "padding_bottom_mobile", "label": "Bottom padding (phone)", "unit": "px", "min": 0, "max": 160, "step": 5, "default": 90 }
+  ],
+  "presets": [{ "name": "CTA — Meet the Pals" }]
+}
+{% endschema %}

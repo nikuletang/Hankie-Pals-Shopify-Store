@@ -88,7 +88,9 @@ function snap(d,w){
               imgAlt:img?img.getAttribute('alt'):null,
               label:label?{text:label.textContent.trim(),
                            bg:w.getComputedStyle(label).backgroundColor,
-                           ink:w.getComputedStyle(label).color}:null,
+                           ink:w.getComputedStyle(label).color,
+                           bw:w.getComputedStyle(label).borderTopWidth,
+                           bc:w.getComputedStyle(label).borderTopColor}:null,
               title:title?title.textContent.trim():null,
               titleTag:title?title.tagName:null,
               titleInk:title?w.getComputedStyle(title).color:null,
@@ -99,7 +101,10 @@ function snap(d,w){
                          transform:w.getComputedStyle(back).transform,
                          radius:w.getComputedStyle(back).borderTopLeftRadius}:null,
               blobRadius:blob?w.getComputedStyle(blob).borderTopLeftRadius:null,
-              blobBorder:blob?w.getComputedStyle(blob).borderTopWidth:null};}),
+              blobBorder:blob?w.getComputedStyle(blob).borderTopWidth:null,
+              blobBorderColor:blob?w.getComputedStyle(blob).borderTopColor:null,
+              blobW:blob?blob.offsetWidth:null,
+              blobH:blob?blob.offsetHeight:null};}),
     headInk:(function(){var h=d.querySelector('.hp-st__heading');
       return h?w.getComputedStyle(h).color:null;})(),
     headSize:(function(){var h=d.querySelector('.hp-st__heading');
@@ -565,6 +570,79 @@ check('the whole reveal can be turned off',
       off['motion'] is False
       and all(float(s['opacity']) > 0.99 for s in off['steps']),
       f"motion class {off['motion']}")
+
+# --- outlines are their own settings, not the heading colour -----------------
+# "Outline and headings" was one colour, so softening the card edge dragged the
+# section heading with it. Three settings now, sharing a default.
+base = run('lines-default', overrides=STEPS4)
+b0 = base['steps'][0]
+check('out of the box the card edge, the label and the heading share one ink',
+      b0['blobBorderColor'] == 'rgb(47, 52, 39)'
+      and b0['label']['bc'] == 'rgb(47, 52, 39)'
+      and base['headInk'] == 'rgb(47, 52, 39)',
+      f"card {b0['blobBorderColor']}, label {b0['label']['bc']}, "
+      f"heading {base['headInk']}")
+
+only_card = run('card-line', overrides={
+    'settings': {'card_border_color': '#d88b6d'}, 'blocks': STEPS4['blocks']})
+c0 = only_card['steps'][0]
+check('the card outline can be changed without touching the heading',
+      c0['blobBorderColor'] == 'rgb(216, 139, 109)'
+      and only_card['headInk'] == 'rgb(47, 52, 39)'
+      and c0['titleInk'] == 'rgb(47, 52, 39)',
+      f"card {c0['blobBorderColor']}, heading {only_card['headInk']}, "
+      f"title {c0['titleInk']}")
+
+only_ink = run('ink-only', overrides={
+    'settings': {'ink_color': '#8a3b2a'}, 'blocks': STEPS4['blocks']})
+i0 = only_ink['steps'][0]
+check('changing the heading colour no longer repaints the card outline',
+      only_ink['headInk'] == 'rgb(138, 59, 42)'
+      and i0['blobBorderColor'] == 'rgb(47, 52, 39)'
+      and i0['label']['bc'] == 'rgb(47, 52, 39)',
+      f"heading {only_ink['headInk']}, card {i0['blobBorderColor']}, "
+      f"label {i0['label']['bc']}")
+
+noline = run('no-line', overrides={
+    'settings': {'card_border_width': 0}, 'blocks': STEPS4['blocks']})
+n0 = noline['steps'][0]
+check('the card outline can be removed entirely',
+      n0['blobBorder'] == '0px',
+      f"border-top-width {n0['blobBorder']}")
+
+# The blob is inset: 0 inside the card, so border-box keeps it the same size
+# with or without a border. Worth pinning: a card that shrank by 4px when the
+# outline came off would shift every photo and line of copy inside it.
+check('removing the outline does not resize the card',
+      n0['blobW'] == b0['blobW'] and n0['blobH'] == b0['blobH'],
+      f"{n0['blobW']}x{n0['blobH']} with no outline, "
+      f"{b0['blobW']}x{b0['blobH']} with one")
+
+check('removing the card outline leaves the step label alone',
+      n0['label']['bw'] == b0['label']['bw'] and n0['label']['bw'] != '0px',
+      f"label border {n0['label']['bw']}, unchanged from {b0['label']['bw']}")
+
+nolabel = run('no-label-line', overrides={
+    'settings': {'label_border_width': 0}, 'blocks': STEPS4['blocks']})
+check('the step label outline can be removed on its own',
+      nolabel['steps'][0]['label']['bw'] == '0px'
+      and nolabel['steps'][0]['blobBorder'] == '2px',
+      f"label {nolabel['steps'][0]['label']['bw']}, "
+      f"card {nolabel['steps'][0]['blobBorder']}")
+
+thick = run('thick-line', overrides={
+    'settings': {'card_border_width': 5}, 'blocks': STEPS4['blocks']})
+check('the card outline can be made heavier too',
+      thick['steps'][0]['blobBorder'] == '5px',
+      f"border-top-width {thick['steps'][0]['blobBorder']}")
+
+# The label is declared at 1.5px and always has been; Chromium floors a
+# sub-pixel border to whole CSS px at DPR 1, so 1px is what it has always
+# drawn. Checked against the section before this change and it is identical.
+check('the defaults are unchanged: 2px on the card, 1.5px declared on the label',
+      b0['blobBorder'] == '2px' and b0['label']['bw'] == '1px',
+      f"card {b0['blobBorder']}, label {b0['label']['bw']} "
+      f"(1.5px declared, floored by the engine as it was before)")
 
 print(f"\n{sum(res)}/{len(res)} passed")
 sys.exit(0 if all(res) else 1)

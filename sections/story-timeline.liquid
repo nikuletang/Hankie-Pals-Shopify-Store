@@ -213,6 +213,10 @@
     isolation: isolate;
     --hp-st-bg: {{ s.background_color | default: '#e8f0e0' }};
     --hp-st-ink: {{ s.ink_color | default: '#2f3427' }};
+    --hp-st-card-line: {{ s.card_border_color | default: '#2f3427' }};
+    --hp-st-card-line-w: {{ s.card_border_width | default: 2 }}px;
+    --hp-st-label-line: {{ s.label_border_color | default: '#2f3427' }};
+    --hp-st-label-line-w: {{ s.label_border_width | default: 1.5 }}px;
     --hp-st-body: {{ s.body_color | default: '#5e6152' }};
     --hp-st-card: {{ s.card_color | default: '#ffffff' }};
     --hp-st-photo-bg: {{ s.photo_placeholder | default: '#ddd6cb' }};
@@ -346,7 +350,7 @@
 
   .hp-st__blob {
     z-index: 1;
-    border: 2px solid var(--hp-st-ink);
+    border: var(--hp-st-card-line-w) solid var(--hp-st-card-line);
     background: var(--hp-st-card);
   }
 
@@ -380,7 +384,7 @@
   .hp-st__label {
     display: inline-block;
     padding: 6px 12px;
-    border: 1.5px solid var(--hp-st-ink);
+    border: var(--hp-st-label-line-w) solid var(--hp-st-label-line);
     border-radius: 999px;
     background: var(--label);
     color: var(--hp-st-ink);
@@ -711,7 +715,42 @@
 
     { "type": "header", "content": "The cards" },
     { "type": "color", "id": "card_color", "label": "Card fill", "default": "#ffffff" },
-    { "type": "color", "id": "ink_color", "label": "Outline and headings", "default": "#2f3427" },
+    { "type": "color", "id": "ink_color", "label": "Headings and titles", "default": "#2f3427", "info": "Type only. The outlines have their own colours below." },
+    {
+      "type": "color",
+      "id": "card_border_color",
+      "label": "Card outline",
+      "default": "#2f3427"
+    },
+    {
+      "type": "range",
+      "id": "card_border_width",
+      "label": "Card outline width",
+      "unit": "px",
+      "min": 0,
+      "max": 6,
+      "step": 1,
+      "default": 2,
+      "info": "Set to 0 for no outline at all. The card does not change size either way."
+    },
+    {
+      "type": "color",
+      "id": "label_border_color",
+      "label": "Step label outline",
+      "default": "#2f3427",
+      "info": "The small pill above each card's title."
+    },
+    {
+      "type": "range",
+      "id": "label_border_width",
+      "label": "Step label outline width",
+      "unit": "px",
+      "min": 0,
+      "max": 4,
+      "step": 0.5,
+      "default": 1.5,
+      "info": "Set to 0 for no outline. Turning the card outline off and leaving this on makes the pill the only drawn line on the card."
+    },
     { "type": "color", "id": "body_color", "label": "Body text", "default": "#5e6152" },
     { "type": "color", "id": "photo_placeholder", "label": "Colour before a photo is chosen", "default": "#ddd6cb" },
     { "type": "range", "id": "title_size", "label": "Title size", "unit": "px", "min": 16, "max": 34, "step": 1, "default": 22 },

@@ -80,6 +80,10 @@ PROBE = """<script>
         shadowFill: sh ? sh.querySelector('path').getAttribute('fill') : null,
         pebbleFill: pb ? pb.querySelector('path').getAttribute('fill') : null,
         pebbleStroke: pb ? pb.querySelector('path').getAttribute('vector-effect') : null,
+        pebbleLine: pb ? getComputedStyle(pb.querySelector('path')).stroke : null,
+        pebbleLineW: pb ? pb.querySelector('path').getAttribute('stroke-width') : null,
+        badgeLine: bd ? getComputedStyle(bd).borderTopColor : null,
+        titleColor: ti ? getComputedStyle(ti).color : null,
         badgeBox: box(bd), badgeLay: lay(bd),
         badgeBorder: bd ? getComputedStyle(bd).borderTopWidth : null,
         badgeRadius: bd ? getComputedStyle(bd).borderRadius : null,
@@ -249,6 +253,68 @@ check('the outline holds 2px however the blob is stretched',
 check('the pebble fills alternate cream and pale green',
       [c['pebbleFill'] for c in cards] == ['#FCF9F4', '#E8F0E0', '#FCF9F4', '#E8F0E0'],
       f"{[c['pebbleFill'] for c in cards]}")
+
+# Ink, the pebble outline and the badge ring are three settings that happen to
+# share a default. Changing one must not drag the others with it.
+check('out of the box all three lines are the same ink',
+      all(c['pebbleLine'] == 'rgb(47, 52, 39)' and c['badgeLine'] == 'rgb(47, 52, 39)'
+          and c['titleColor'] == 'rgb(47, 52, 39)' for c in cards),
+      f"pebble {cards[0]['pebbleLine']}, badge {cards[0]['badgeLine']}, "
+      f"title {cards[0]['titleColor']}")
+
+only_pebble = run('pebbleline', {'settings': {'pebble_outline': '#E06E4C'}})
+pc = only_pebble['cards'][0]
+check('the pebble outline can be changed on its own',
+      pc['pebbleLine'] == 'rgb(224, 110, 76)'
+      and pc['badgeLine'] == 'rgb(47, 52, 39)'
+      and pc['titleColor'] == 'rgb(47, 52, 39)',
+      f"pebble {pc['pebbleLine']}, badge {pc['badgeLine']} and "
+      f"title {pc['titleColor']} both unmoved")
+
+# 0 is how the outline is removed, and it is exactly the value a `| default:`
+# would swallow. Both widths are checked at 0 and at a value either side.
+noline = run('noline', {'settings': {'pebble_outline_width': 0,
+                                     'badge_outline_width': 0}})
+nc = noline['cards'][0]
+check('both outlines can be removed entirely',
+      nc['pebbleLineW'] == '0' and nc['badgeLine'].startswith('rgb')
+      and nc['badgeBorder'] == '0px',
+      f"pebble stroke-width {nc['pebbleLineW']}, badge border {nc['badgeBorder']}")
+
+check('removing the ring does not resize the badge',
+      near(nc['badgeLay']['w'], 84) and near(nc['badgeLay']['h'], 84),
+      f"{nc['badgeLay']['w']}x{nc['badgeLay']['h']} with no ring "
+      f"(was {cards[0]['badgeLay']['w']}x{cards[0]['badgeLay']['h']})")
+
+check('removing the pebble outline does not move the pebble',
+      near(nc['pebbleLay']['w'], 305) and near(nc['pebbleLay']['t'], 50),
+      f"{nc['pebbleLay']['w']}x{nc['pebbleLay']['h']} at {nc['pebbleLay']['t']}px")
+
+thick = run('thickline', {'settings': {'pebble_outline_width': 5,
+                                       'badge_outline_width': 4}})
+tc = thick['cards'][0]
+check('the outlines can also be made heavier',
+      tc['pebbleLineW'] == '5' and tc['badgeBorder'] == '4px',
+      f"pebble {tc['pebbleLineW']}, badge {tc['badgeBorder']}")
+
+check('the default width is still 2 on both',
+      cards[0]['pebbleLineW'] == '2' and cards[0]['badgeBorder'] == '2px',
+      f"pebble {cards[0]['pebbleLineW']}, badge {cards[0]['badgeBorder']}")
+
+only_badge = run('badgeline', {'settings': {'badge_outline': '#5E6152'}})
+bc = only_badge['cards'][0]
+check('the badge ring can be changed on its own',
+      bc['badgeLine'] == 'rgb(94, 97, 82)'
+      and bc['pebbleLine'] == 'rgb(47, 52, 39)',
+      f"badge {bc['badgeLine']}, pebble {bc['pebbleLine']} unmoved")
+
+only_ink = run('inkonly', {'settings': {'ink_color': '#8A3B2A'}})
+ic = only_ink['cards'][0]
+check('changing the ink no longer repaints the outlines',
+      ic['titleColor'] == 'rgb(138, 59, 42)'
+      and ic['pebbleLine'] == 'rgb(47, 52, 39)'
+      and ic['badgeLine'] == 'rgb(47, 52, 39)',
+      f"title {ic['titleColor']}, pebble {ic['pebbleLine']}, badge {ic['badgeLine']}")
 
 # ---------------------------------------------------------------- badge ---
 check('each badge is an 84px circle with a 2px outline',

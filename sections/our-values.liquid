@@ -31,6 +31,17 @@
   the top. Two of these titles wrap to two lines and one does not, and a fixed
   offset puts the short one high in its blob.
 
+  Each outline has a width as well as a colour, and 0 is a real setting: it is
+  how the outline is removed. `| default:` is safe on it -- that filter
+  replaces nil, false and the empty string, and a numeric 0 passes straight
+  through. The badge keeps its 84px at any width, because Dawn sets
+  box-sizing: border-box, so dropping the ring moves nothing around it.
+
+  Ink, the pebble outline and the badge ring are three colours, not one. They
+  default to the same value, so nothing looks different until one is changed,
+  but the outline is a drawn line and the heading is type: wanting a softer
+  outline is not wanting softer headings.
+
   No script at all. Sizes are px: Dawn's root font-size is 62.5%, so rem
   renders at 62.5% of its intended value. Every setting carries a `| default:`,
   because a setting added after a section was saved comes back nil on that
@@ -42,6 +53,12 @@
   assign s = section.settings
 
   assign pebble_d = 'M 50.00 4.00 C 60.90 3.35, 76.73 7.69, 84.65 15.35 C 92.56 23.02, 98.09 39.04, 97.50 50.00 C 96.91 60.96, 89.03 73.11, 81.11 81.11 C 73.20 89.11, 60.49 97.88, 50.00 98.00 C 39.51 98.12, 26.43 89.82, 18.18 81.82 C 9.93 73.82, 0.32 60.43, 0.50 50.00 C 0.68 39.57, 10.99 26.91, 19.24 19.24 C 27.49 11.57, 39.10 4.65, 50.00 4.00 Z'
+  # 0 is a real value here -- it is how an outline is removed -- and it does
+  # survive `| default:`, which replaces only nil, false and the empty string.
+  # It is false that `default` catches, not every falsy-looking value.
+  assign pebble_line_w = s.pebble_outline_width | default: 2
+  assign badge_line_w = s.badge_outline_width | default: 2
+
   assign shadow_d = 'M 50.00 6.00 C 60.96 6.12, 74.19 10.14, 82.53 17.47 C 90.86 24.81, 99.71 38.86, 100.00 50.00 C 100.29 61.14, 92.63 76.54, 84.29 84.29 C 75.96 92.04, 61.49 96.44, 50.00 96.50 C 38.51 96.56, 22.77 92.40, 15.35 84.65 C 7.94 76.90, 5.26 61.31, 5.50 50.00 C 5.74 38.69, 9.35 24.10, 16.77 16.77 C 24.18 9.43, 39.04 5.88, 50.00 6.00 Z'
 -%}
 
@@ -171,7 +188,7 @@
     height: 84px;
     display: grid;
     place-items: center;
-    border: 2px solid var(--hp-ov-ink);
+    border: var(--hp-ov-badge-line-w) solid var(--hp-ov-badge-line);
     border-radius: 50%;
     background: var(--hp-ov-badge-bg, #C2D6A8);
     transform: rotate(var(--hp-ov-badge-rot, -8deg));
@@ -293,6 +310,9 @@
   style="
     --hp-ov-bg: {{ s.background | default: '#F0C4A8' }};
     --hp-ov-ink: {{ s.ink_color | default: '#2F3427' }};
+    --hp-ov-pebble-line: {{ s.pebble_outline | default: '#2F3427' }};
+    --hp-ov-badge-line: {{ s.badge_outline | default: '#2F3427' }};
+    --hp-ov-badge-line-w: {{ badge_line_w }}px;
     --hp-ov-muted: {{ s.body_color | default: '#5E6152' }};
     --hp-ov-accent: {{ s.accent_color | default: '#E06E4C' }};
     --hp-ov-shadow: {{ s.shadow_color | default: '#ECA47C' }};
@@ -373,8 +393,8 @@
             <path
               d="{{ pebble_d }}"
               fill="{{ b.pebble_fill | default: '#FCF9F4' }}"
-              stroke="var(--hp-ov-ink)"
-              stroke-width="2"
+              stroke="var(--hp-ov-pebble-line)"
+              stroke-width="{{ pebble_line_w }}"
               vector-effect="non-scaling-stroke"
             ></path>
           </svg>
@@ -463,7 +483,43 @@
       "default": "#ECA47C",
       "info": "The hard offset shape behind each card. A shade or two darker than the background."
     },
-    { "type": "color", "id": "ink_color", "label": "Ink", "default": "#2F3427", "info": "Headings, titles and every outline." },
+    { "type": "color", "id": "ink_color", "label": "Ink", "default": "#2F3427", "info": "The heading, the eyebrow and the card titles. The outlines have their own colours below." },
+    {
+      "type": "color",
+      "id": "pebble_outline",
+      "label": "Pebble outline",
+      "default": "#2F3427",
+      "info": "The line drawn around each pebble."
+    },
+    {
+      "type": "range",
+      "id": "pebble_outline_width",
+      "label": "Pebble outline width",
+      "unit": "px",
+      "min": 0,
+      "max": 6,
+      "step": 1,
+      "default": 2,
+      "info": "Set to 0 for no outline at all."
+    },
+    {
+      "type": "color",
+      "id": "badge_outline",
+      "label": "Badge outline",
+      "default": "#2F3427",
+      "info": "The ring around each icon circle. Set it to match the pebble outline unless you want the badges to read as separate stickers."
+    },
+    {
+      "type": "range",
+      "id": "badge_outline_width",
+      "label": "Badge outline width",
+      "unit": "px",
+      "min": 0,
+      "max": 6,
+      "step": 1,
+      "default": 2,
+      "info": "Set to 0 for no ring. The circle keeps its 84px either way, so nothing shifts."
+    },
     { "type": "color", "id": "body_color", "label": "Body text", "default": "#5E6152" },
     { "type": "color", "id": "accent_color", "label": "Accent", "default": "#E06E4C", "info": "The eyebrow dot and two of the sprinkles." },
     { "type": "color", "id": "eyebrow_background", "label": "Eyebrow pill", "default": "#FFFFFF" },

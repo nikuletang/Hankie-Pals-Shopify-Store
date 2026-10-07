@@ -747,11 +747,26 @@ check('the strength slider reaches the layer',
       '--hp-st-doodle-op: 0.3' in html,
       _re.search(r'--hp-st-doodle-op: [^;]*', html).group(0))
 
-none_html = render('dd-none', _with(picks=None), still=False).read_text(encoding='utf-8')
-check('no drawing is picked out of the box, so nothing appears unasked',
-      'hp-st__doodles' in none_html and '<g' not in
-      _re.search(r'class="hp-st__doodles".*?</svg>', none_html, _re.S).group(0),
-      'layer present, no drawings in it')
+# This is the case that actually shipped wrong: a section saved before the
+# drawings existed carries no value for the new setting at all, and the first
+# version read that as "draw nothing", so publishing produced an empty layer.
+unset = render('dd-unset', _with(picks=None), still=False).read_text(encoding='utf-8')
+_g = _re.search(r'class="hp-st__doodles".*?</svg>', unset, _re.S).group(0)
+check('a section saved before the drawings existed still gets them',
+      _g.count('<g') == 4,
+      f"{_g.count('<g')} drawings with nothing picked on any step")
+
+check('and they are four different ones, not the same drawing four times',
+      len(set(_re.findall(r'<path vector-effect[^>]*d="M ?([0-9.]+)', _g))) > 1,
+      'the cycle runs sketchpad, needle, drop, clip')
+
+opted = render('dd-optout', _with(picks=('none',)), still=False).read_text(encoding='utf-8')
+_go = _re.search(r'class="hp-st__doodles".*?</svg>', opted, _re.S).group(0)
+check('choosing None on a step really does leave it empty',
+      _go.count('<g') == 0,
+      'every step set to None draws nothing')
+
+none_html = unset
 
 off_html = render('dd-off', _with(extra_section={'show_doodles': False}), still=False).read_text(encoding='utf-8')
 # The class name is in the stylesheet whether or not the layer is drawn, so

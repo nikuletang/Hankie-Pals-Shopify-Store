@@ -635,7 +635,26 @@
             {%- liquid
               assign i = forloop.index0
               assign db = block.settings
-              assign pick = db.doodle | default: 'none'
+              # Unset means "pick one for me", not "draw nothing". A step block
+              # already saved on a page has no value for a setting added
+              # later, so this is also what reaches an existing section the
+              # moment the file is pasted -- without opening every step.
+              # Choosing None explicitly stores the string, which is truthy,
+              # so an opted-out step stays opted out.
+              assign pick = db.doodle
+              if pick == blank or pick == 'auto'
+                assign turn = i | modulo: 4
+                case turn
+                  when 0
+                    assign pick = 'sketchpad'
+                  when 1
+                    assign pick = 'needle'
+                  when 2
+                    assign pick = 'droplet'
+                  else
+                    assign pick = 'clip'
+                endcase
+              endif
               assign dk = db.doodle_scale | default: 100
               assign dsize = doodle_size | times: dk | divided_by: 100
               # Capped to the band itself. The cards are circles, so the corners
@@ -1061,6 +1080,7 @@
           "id": "doodle",
           "label": "Drawing beside this card",
           "options": [
+            { "value": "auto", "label": "Pick one for me" },
             { "value": "none", "label": "None" },
             { "value": "sketchpad", "label": "Sketchpad and pencil" },
             { "value": "needle", "label": "Needle and thread" },
@@ -1071,7 +1091,8 @@
             { "value": "scissors", "label": "Scissors" },
             { "value": "spool", "label": "Thread spool" }
           ],
-          "default": "none"
+          "default": "auto",
+          "info": "Left on \"pick one for me\" the steps cycle through the sketchpad, needle, drop and clip in order."
         },
         {
           "type": "range",

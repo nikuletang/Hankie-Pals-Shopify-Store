@@ -56,17 +56,31 @@ def _variant(vid, title, option1, price=2400, available=True, was=None):
     return {'id': vid, 'title': title, 'option1': option1, 'option2': None,
             'option3': None, 'price': price, 'compare_at_price': was or price,
             'available': available, 'featured_image': None,
+            # The media assigned to this variant in admin. Nil until a test
+            # asks for one, because a variant with no image is a real case the
+            # swatches have to handle.
+            'image': None,
             'url': f'/products/hankie-pals?variant={vid}'}
 
+
+_VARIANTS = [_variant(101, 'Bunny', 'Bunny'),
+             _variant(102, 'Cow', 'Cow'),
+             _variant(103, 'Dog', 'Dog')]
 
 PRODUCT = {
     'title': 'Hankie Pals',
     'handle': 'hankie-pals',
     'url': '/products/hankie-pals',
     'available': True,
-    'variants': [_variant(101, 'Bunny', 'Bunny'),
-                 _variant(102, 'Cow', 'Cow'),
-                 _variant(103, 'Dog', 'Dog')],
+    'variants': _VARIANTS,
+    # What the product template hands Liquid for the option picker. Each entry
+    # carries its position, which is what maps a value back to option1/2/3.
+    'options_with_values': [
+        {'name': 'Character', 'position': 1,
+         'values': ['Bunny', 'Cow', 'Dog']},
+    ],
+    'selected_or_first_available_variant': _VARIANTS[0],
+    'featured_image': None,
 }
 
 SHOP = {
@@ -199,7 +213,11 @@ env.add_filter('image_tag', image_tag)
 FORM = {'posted_successfully?': False, 'errors': None, 'email': ''}
 FORM.update(overrides.get('form', {}))
 
-html = env.from_string(body).render(shop=SHOP, linklists=LINKLISTS, form=FORM,
+# On a product template Liquid is handed the product itself, not only as a
+# section setting. A snippet meant for a Custom liquid block reads it that
+# way, so the harness has to supply it that way too.
+html = env.from_string(body).render(product=PRODUCT,
+                                    shop=SHOP, linklists=LINKLISTS, form=FORM,
                                     cart=dict(CART, **overrides.get('cart', {})),
                                     routes={'root_url': '/', 'cart_url': '/cart',
                                             'cart_add_url': '/cart/add',

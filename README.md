@@ -1352,3 +1352,58 @@ nothing if one of them is drawn behind the other.** Occlusion silently turns
 the measurement into a constant. Any pixel-based overlap test needs whatever
 is being tested moved to the front first, and the only way to find out that
 it was not is to break the code on purpose and watch the check stay green.
+
+
+## A Custom liquid block, and why it has no settings
+
+`snippets/hp-variant-swatches.liquid` is not a section. It is meant to be
+pasted into Dawn's **Custom liquid** block inside the Product information
+section, which is the only way to put anything *between* Price and Quantity --
+a section can only sit above or below that whole block stack.
+
+A Custom liquid block has no settings of its own, so the snippet reads
+everything off the product instead:
+
+| | from |
+| --- | --- |
+| the option | `product.options_with_values[0]` |
+| each swatch's photo | the first variant with that value, its `image` |
+| sold out | whether ANY variant with that value is `available` |
+| selected | `product.selected_or_first_available_variant` |
+
+That constraint turned out to be the feature: there is nothing to keep in sync
+with admin. Add a Pal, give it a variant image, and a swatch appears.
+
+Shopify has no "variant image gallery". A variant has one `image`, the media
+assigned to it in admin, and that is what a swatch shows.
+
+### nil is not blank, depending on who is asking
+
+The first version guarded the fallback with `if img == blank`. On a variant
+with no image that comparison did not come out true in the test engine, so it
+rendered `<img src="">` and the browser drew a broken-image icon inside the
+swatch. `| default:` plus a plain `{% if img %}` is true for nil everywhere:
+
+    assign img = match.image | default: match.featured_image
+    {%- if img -%}
+
+### A harness that cancels the thing it measures
+
+The click test drives a swatch against a stand-in for Dawn's radio picker and
+checks that Dawn's own radio ends up selected. It failed, and the section was
+right -- the test was calling `e.preventDefault()` on **every** click to stop
+the page navigating, which also cancelled the programmatic `radios[i].click()`
+that does the actual work.
+
+Scoping the cancel to `a[data-hp-sw-pick]` fixed it. Worth remembering
+whenever a test suppresses default behaviour to stay on the page: suppress it
+for the one element that would navigate, never globally, or the harness
+silently disables the behaviour under test.
+
+### A check that explodes is not a check that fails
+
+Break-testing the image source swapped `match.image` for
+`product.featured_image`, which is nil in the mock, so no `<img>` rendered at
+all -- and `re.search(...).group(1)` raised instead of reporting a mismatch.
+The regression looked like a pass because the grep was for `FAIL`. `findall`
+with a fallback value makes it read `NO IMAGE, NO IMAGE, NO IMAGE` instead.

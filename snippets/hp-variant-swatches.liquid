@@ -1,0 +1,335 @@
+{%- comment -%}
+  ---------------------------------------------------------------------------
+  Totterful / Hankie Pals — variant swatches
+  ---------------------------------------------------------------------------
+  Image swatches for the product page's option picker, in place of Dawn's text
+  pills. Paste the whole of this file into a **Custom liquid** block inside
+  Dawn's Product information section, then drag that block to sit where the
+  pills were -- between Price and Quantity.
+
+  It is deliberately schema-free and setting-free, because a Custom liquid
+  block has no settings of its own. Everything is read off the product:
+
+    the option       product.options_with_values[0]
+    each swatch      the first variant carrying that value, and its image
+    sold out         whether ANY variant with that value is available
+    selected         product.selected_or_first_available_variant
+
+  So there is nothing to keep in sync by hand. Add a fourth Pal in admin,
+  give it an image, and a fourth swatch appears.
+
+  It does NOT take the money and it does not own the selection. Dawn's buy box
+  keeps price, inventory, sold-out and add to cart; this only tells Dawn which
+  variant is chosen, three ways, in the order Dawn is most likely to answer:
+
+    1. a radio input whose value is the option  (Dawn's pill picker)
+    2. a <select> carrying that option          (Dawn's dropdown picker)
+    3. the form's hidden input[name="id"]       (last resort)
+
+  With the script failed or JavaScript off, each swatch is still a link to
+  ?variant=<id>, which selects that variant on the way in. Same bargain the
+  Choose your Pal section and the header's cart button already make.
+
+  A sold-out value is dimmed and slashed but stays clickable, because Dawn
+  shows the "sold out" message on selection and silently swallowing the click
+  would read as a broken swatch.
+
+  Sizes are px: Dawn's root font-size is 62.5%, so rem renders at 62.5% of
+  what it says.
+  ---------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- liquid
+  assign opt = product.options_with_values[0]
+  assign pos = opt.position | default: 1
+  assign current = product.selected_or_first_available_variant
+-%}
+
+{%- if opt and opt.values.size > 1 -%}
+  <style>
+    /* Dawn's own picker for this option. Remove this rule to show both. */
+    variant-radios,
+    variant-selects {
+      display: none !important;
+    }
+
+    .hp-sw {
+      --hp-sw-size: 76px;
+      --hp-sw-ink: #2F3326;
+      --hp-sw-accent: #D88B6D;
+      --hp-sw-muted: #5C6150;
+      margin: 0 0 16px;
+    }
+
+    .hp-sw__label {
+      display: block;
+      margin: 0 0 10px;
+      font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+      font-size: 13px;
+      line-height: 1.3;
+      color: var(--hp-sw-muted);
+    }
+
+    .hp-sw__label b {
+      font-weight: 600;
+      color: var(--hp-sw-ink);
+    }
+
+    .hp-sw__row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .hp-sw__item { margin: 0; }
+
+    .hp-sw__btn {
+      display: block;
+      position: relative;
+      width: var(--hp-sw-size);
+      height: var(--hp-sw-size);
+      padding: 0;
+      border: 2px solid var(--hp-sw-ink);
+      border-radius: 50%;
+      background: #FFFFFF;
+      overflow: hidden;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 140ms ease, box-shadow 140ms ease;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    .hp-sw__btn img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* No image on the variant: the value's own first letter, so the swatch is
+       still a target and still says which Pal it is. */
+    .hp-sw__initial {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      background: #E9F5DB;
+      font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+      font-size: 26px;
+      color: var(--hp-sw-ink);
+    }
+
+    .hp-sw__btn:hover { transform: translateY(-2px); }
+
+    .hp-sw__btn:focus-visible {
+      outline: 3px solid var(--hp-sw-accent);
+      outline-offset: 3px;
+    }
+
+    /* Chosen: a ring outside the swatch rather than a thicker border, so the
+       photograph inside does not change size when you pick it. */
+    .hp-sw__item[aria-current="true"] .hp-sw__btn {
+      box-shadow: 0 0 0 3px #FFFFFF, 0 0 0 6px var(--hp-sw-accent);
+    }
+
+    .hp-sw__item[data-sold="true"] .hp-sw__btn { opacity: 0.45; }
+
+    .hp-sw__item[data-sold="true"] .hp-sw__btn::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        to bottom right,
+        transparent calc(50% - 1px),
+        var(--hp-sw-ink) calc(50% - 1px),
+        var(--hp-sw-ink) calc(50% + 1px),
+        transparent calc(50% + 1px)
+      );
+    }
+
+    .hp-sw__name {
+      display: block;
+      margin-top: 6px;
+      text-align: center;
+      font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
+      font-size: 12px;
+      line-height: 1.2;
+      color: var(--hp-sw-muted);
+    }
+
+    .hp-sw__item[aria-current="true"] .hp-sw__name {
+      font-weight: 600;
+      color: var(--hp-sw-ink);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .hp-sw__btn { transition: none; }
+      .hp-sw__btn:hover { transform: none; }
+    }
+  </style>
+
+  <div class="hp-sw" data-hp-sw>
+    <span class="hp-sw__label">
+      {{ opt.name }}: <b data-hp-sw-current>{{ current.title }}</b>
+    </span>
+
+    <ul class="hp-sw__row" role="list">
+      {%- for value in opt.values -%}
+        {%- liquid
+          # The first variant carrying this value gives the swatch its picture
+          # and its link. Availability is asked of every variant with the
+          # value, not just that one: with several options a value is sold out
+          # only when nothing carrying it can be bought.
+          assign match = null
+          assign any_available = false
+          for v in product.variants
+            case pos
+              when 1
+                assign holds = v.option1
+              when 2
+                assign holds = v.option2
+              else
+                assign holds = v.option3
+            endcase
+            if holds == value
+              if match == null
+                assign match = v
+              endif
+              if v.available
+                assign any_available = true
+              endif
+            endif
+          endfor
+
+          # Truthiness, not a comparison against blank: a nil image has to
+          # fall through to the initial, and `nil == blank` is not answered
+          # the same way everywhere. `| default:` drops nil, and `if img`
+          # is false for nil in every engine. Caught by the test -- without
+          # this a variant with no image rendered <img src=""> and the
+          # browser drew a broken-image icon in the swatch.
+          assign img = match.image | default: match.featured_image
+
+          assign is_current = false
+          if current and current.id == match.id
+            assign is_current = true
+          endif
+        -%}
+        <li
+          class="hp-sw__item"
+          data-sold="{% if any_available %}false{% else %}true{% endif %}"
+          {% if is_current %}aria-current="true"{% endif %}
+        >
+          <a
+            class="hp-sw__btn"
+            href="{{ product.url }}?variant={{ match.id }}"
+            data-hp-sw-pick="{{ value | escape }}"
+            data-hp-sw-id="{{ match.id }}"
+            aria-label="{{ value | escape }}{% unless any_available %} — sold out{% endunless %}"
+          >
+            {%- if img -%}
+              {{
+                img
+                | image_url: width: 200
+                | image_tag:
+                  loading: 'eager',
+                  widths: '80, 120, 160, 200',
+                  sizes: '76px',
+                  alt: ''
+              }}
+            {%- else -%}
+              <span class="hp-sw__initial" aria-hidden="true">
+                {{- value | slice: 0 -}}
+              </span>
+            {%- endif -%}
+          </a>
+          <span class="hp-sw__name">{{ value }}</span>
+        </li>
+      {%- endfor -%}
+    </ul>
+  </div>
+
+  <script>
+    (function () {
+      if (window.hpSwatchesReady) return;
+      window.hpSwatchesReady = true;
+
+      // Delegated, so it survives Dawn re-rendering the section on a variant
+      // change and does not need re-binding.
+      document.addEventListener('click', function (e) {
+        var btn = e.target.closest ? e.target.closest('[data-hp-sw-pick]') : null;
+        if (!btn) return;
+
+        var value = btn.getAttribute('data-hp-sw-pick');
+        var id = btn.getAttribute('data-hp-sw-id');
+
+        // Only swallow the click if Dawn actually took the choice. If it did
+        // not, the href runs and the page reloads on the right variant.
+        if (tellDawn(value, id)) {
+          e.preventDefault();
+          paint(value);
+        }
+      });
+
+      function paint(value) {
+        var items = document.querySelectorAll('[data-hp-sw] .hp-sw__item');
+        for (var i = 0; i < items.length; i++) {
+          var a = items[i].querySelector('[data-hp-sw-pick]');
+          var on = a && a.getAttribute('data-hp-sw-pick') === value;
+          if (on) items[i].setAttribute('aria-current', 'true');
+          else items[i].removeAttribute('aria-current');
+        }
+        var out = document.querySelector('[data-hp-sw-current]');
+        if (out) out.textContent = value;
+      }
+
+      // Lifted from sections/hp-pal-buy.liquid, which has been driving Dawn's
+      // picker on this store already. Returns true only if one of the three
+      // actually took.
+      function tellDawn(option, id) {
+        if (!option && !id) return false;
+
+        if (option) {
+          var radios = document.querySelectorAll(
+            '.product-form__input input[type="radio"], variant-radios input[type="radio"]');
+          for (var i = 0; i < radios.length; i++) {
+            if (radios[i].value === option && !radios[i].checked) {
+              radios[i].click();
+              return true;
+            }
+            if (radios[i].value === option && radios[i].checked) return true;
+          }
+
+          var selects = document.querySelectorAll(
+            '.product-form__input select, variant-selects select');
+          for (var j = 0; j < selects.length; j++) {
+            var opts = selects[j].options;
+            for (var k = 0; k < opts.length; k++) {
+              if (opts[k].value === option) {
+                selects[j].value = option;
+                selects[j].dispatchEvent(new Event('change', { bubbles: true }));
+                return true;
+              }
+            }
+          }
+        }
+
+        if (id) {
+          var hidden = document.querySelector('form[action*="/cart/add"] input[name="id"]');
+          if (hidden && hidden.value !== id) {
+            hidden.value = id;
+            hidden.dispatchEvent(new Event('change', { bubbles: true }));
+            return true;
+          }
+          if (hidden) return true;
+        }
+
+        return false;
+      }
+    })();
+  </script>
+{%- endif -%}

@@ -644,5 +644,128 @@ check('the defaults are unchanged: 2px on the card, 1.5px declared on the label'
       f"card {b0['blobBorder']}, label {b0['label']['bw']} "
       f"(1.5px declared, floored by the engine as it was before)")
 
+
+# --- filler drawings ---------------------------------------------------------
+# The question these answer is not "is there an svg" but "does it land in space
+# that was actually empty". That is settled by rendering the section twice,
+# once with the drawings and once without, and asking where the difference
+# falls -- which also makes the check independent of how the drawings are
+# drawn, so swapping the artwork later cannot quietly break it.
+import subprocess as _sp
+from PIL import Image, ImageChops
+
+_STEPS = [{'type': 'step', 'settings': {
+    'step_label': f'Step {i+1}', 'title': f'Step {i+1} title',
+    'body': 'A line of copy that sits in the card and wraps to two lines.'}}
+    for i in range(4)]
+
+def _with(extra_section=None, picks=('sketchpad', 'needle', 'droplet', 'clip')):
+    blocks = []
+    for i, b in enumerate(_STEPS):
+        st = dict(b['settings'])
+        if picks:
+            st['doodle'] = picks[i % len(picks)]
+        blocks.append({'type': 'step', 'settings': st})
+    o = {'blocks': blocks}
+    if extra_section:
+        o['settings'] = extra_section
+    return o
+
+def _shot(overrides, name, w=1400, h=2400):
+    src = render(f'dd-{name}', overrides, still=False)
+    png = HERE / f'dd-{name}.png'
+    _sp.run([CHROME, '--headless', '--no-sandbox', '--disable-gpu',
+             '--force-prefers-reduced-motion', f'--window-size={w},{h}',
+             '--virtual-time-budget=4000', f'--screenshot={png}',
+             'file://' + str(src)], capture_output=True)
+    return Image.open(png).convert('RGB')
+
+# The drawings sit behind the cards, so a drawing that overlaps one is simply
+# hidden by it and leaves no trace in a plain before/after diff -- a check
+# written that way can never fail, which two deliberate regressions proved.
+# The overlap render lifts the layer in front of the cards first, so anything
+# landing on a card shows up and can be counted.
+LIFT = '<style>.hp-st__doodles{z-index:5 !important}</style>'
+
+def _lifted(name, overrides, w=1400, h=2400):
+    src = render(f'dd-{name}', overrides, still=False)
+    src.write_text(src.read_text(encoding='utf-8')
+                   .replace('</body>', LIFT + '</body>'), encoding='utf-8')
+    png = HERE / f'dd-{name}.png'
+    _sp.run([CHROME, '--headless', '--no-sandbox', '--disable-gpu',
+             '--force-prefers-reduced-motion', f'--window-size={w},{h}',
+             '--virtual-time-budget=4000', f'--screenshot={png}',
+             'file://' + str(src)], capture_output=True)
+    return Image.open(png).convert('RGB')
+
+on = _lifted('on', _with())
+off = _shot(_with(extra_section={'show_doodles': False}, picks=None), 'off')
+
+diff = ImageChops.difference(on, off)
+W, H = on.size
+dp, offp = diff.load(), off.load()
+changed = on_card = 0
+for y in range(H):
+    for x in range(W):
+        if sum(dp[x, y]) > 18:
+            changed += 1
+            if all(abs(a - b) <= 2 for a, b in zip(offp[x, y], (255, 255, 255))):
+                on_card += 1
+
+check('the drawings actually draw something',
+      changed > 2000, f"{changed} pixels added")
+
+check('and not one of them lands on a card',
+      on_card == 0,
+      f"{on_card} of {changed} drawing pixels fall on a card's fill "
+      f"(measured with the layer lifted in front, or overlap would be hidden)")
+
+# A drawing in a middle band is capped to that band. Asking for 460px in a
+# gap of about 150 must not produce a 460px drawing sitting under two cards.
+big = _lifted('big', _with(extra_section={'doodle_size': 460}))
+dbig = ImageChops.difference(big, off)
+bp = dbig.load()
+spill = 0
+for y in range(H):
+    for x in range(W):
+        if sum(bp[x, y]) > 18 and all(abs(a - b) <= 2 for a, b in zip(offp[x, y], (255, 255, 255))):
+            spill += 1
+check('asking for a drawing bigger than its gap does not push it under a card',
+      spill == 0, f"at the maximum 460px size, {spill} pixels land on a card")
+
+# And the settings reach the markup.
+import re as _re
+src = render('dd-settings', _with(extra_section={
+    'doodle_color': '#aa3366', 'doodle_stroke': 4, 'doodle_opacity': 30}), still=False)
+html = src.read_text(encoding='utf-8')
+m = _re.search(r'<svg[^>]*class="hp-st__doodles"[^>]*>', html, _re.S)
+check('colour and line weight reach the drawing layer',
+      m and 'stroke="#aa3366"' in m.group(0) and 'stroke-width="4"' in m.group(0),
+      (m.group(0)[:90] + '...') if m else 'no doodle layer rendered')
+
+check('the strength slider reaches the layer',
+      '--hp-st-doodle-op: 0.3' in html,
+      _re.search(r'--hp-st-doodle-op: [^;]*', html).group(0))
+
+none_html = render('dd-none', _with(picks=None), still=False).read_text(encoding='utf-8')
+check('no drawing is picked out of the box, so nothing appears unasked',
+      'hp-st__doodles' in none_html and '<g' not in
+      _re.search(r'class="hp-st__doodles".*?</svg>', none_html, _re.S).group(0),
+      'layer present, no drawings in it')
+
+off_html = render('dd-off', _with(extra_section={'show_doodles': False}), still=False).read_text(encoding='utf-8')
+# The class name is in the stylesheet whether or not the layer is drawn, so
+# this looks for the markup rather than the string.
+_LAYER = _re.compile(r'<svg[^>]*class="hp-st__doodles"')
+check('and the whole layer can be switched off',
+      not _LAYER.search(off_html) and bool(_LAYER.search(none_html)),
+      'no <svg> drawn with the box unticked, one drawn with it ticked')
+
+check('the drawings are hidden where the cards stack',
+      '.hp-st__doodles { display: none; }' in off_html
+      or '.hp-st__doodles { display: none; }' in none_html,
+      'hidden below 990px, where there is no empty column')
+
+
 print(f"\n{sum(res)}/{len(res)} passed")
 sys.exit(0 if all(res) else 1)

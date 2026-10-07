@@ -1297,3 +1297,58 @@ Two things that comparison has to get right:
   `flex`, while in pal-reveal it sits in a `text-align: center` block and has
   to stay inline-level. What that property stood in for -- shrink-wraps,
   centres -- is measured directly instead.
+
+
+## Where the empty space in the timeline actually is
+
+The story timeline looks like it has one big empty column beside every card.
+It does not. The cards sit 300px apart and are 460 tall, so consecutive ones
+overlap vertically by 160 -- and the card above and the card below any given
+card are the ones on the *opposite* side, which is exactly where a drawing
+placed level with it would go.
+
+Measured on a rendered page at four steps, by finding the largest rectangles
+of untouched background colour:
+
+| | size | where |
+| --- | --- | --- |
+| top pocket | 780 x 390 | opposite the first card, above the second |
+| bottom pocket | 620 x 370 | opposite the last card, below the one before |
+| middle bands | about 140 x 150 | between the opposite-side neighbours |
+| side margins | 130-160 wide | full height, outside the cards |
+
+So the two ends of the chain have room for a 300px drawing and the middle has
+room for about 140. `sections/story-timeline.liquid` places each drawing in
+the band between its opposite-side neighbours -- bounded above by the bottom
+of card i-1 and below by the top of card i+1, with the first and last steps
+unbounded on one side -- and caps its size to that band.
+
+The cards are circles, so the corners of each band are clear and in principle
+more would fit. How much more depends on the horizontal distance to two
+neighbouring circles, which needs a square root Liquid does not have. At 150%
+of the band the middle drawings visibly tuck under the cards, so the band is
+the honest limit and the per-step size and nudge settings cover the rest.
+
+## A check that could not fail, twice over
+
+The overlap check for those drawings first read: render the section with and
+without them, diff, and count how many of the added pixels land on a card.
+
+It passed. It also passed with the placement deliberately reverted to the
+broken version, and again with the size cap removed -- because **the drawings
+are behind the cards**. A drawing that overlaps a card is painted over by it
+and contributes no diff pixels at all, so the count was structurally pinned
+at zero.
+
+The fix is to lift the layer in front before measuring:
+
+    LIFT = '<style>.hp-st__doodles{z-index:5 !important}</style>'
+
+With that one line the same two regressions report 1101 and 981 pixels on a
+card. Same check, same code under test, opposite verdict.
+
+The general shape of this: **a check on whether two things overlap is worth
+nothing if one of them is drawn behind the other.** Occlusion silently turns
+the measurement into a constant. Any pixel-based overlap test needs whatever
+is being tested moved to the front first, and the only way to find out that
+it was not is to break the code on purpose and watch the check stay green.

@@ -87,6 +87,9 @@
 {%- liquid
   assign lefts = ''
   assign tops = ''
+  assign dxs = ''
+  assign dys = ''
+  assign dbands = ''
   assign rots = ''
   assign cxs = ''
   assign cys = ''
@@ -126,6 +129,39 @@
         assign rt = '-2'
     endcase
 
+    # Across: the middle of the empty column opposite the card.
+    if m2 == 0
+      assign dcx = lx | plus: card_w | plus: stage_w | divided_by: 2
+    else
+      assign dcx = lx | divided_by: 2
+    endif
+
+    # Down: NOT level with the card. The cards sit 300px apart and are 460
+    # tall, so consecutive ones overlap by 160 -- and the cards above and
+    # below this one are the ones on the opposite side, exactly where a
+    # doodle level with this card would go. Measuring the rendered page bears
+    # it out: at four steps the clear space is two pockets of roughly 780x390
+    # and 620x370 at the ends of the chain, with bands of only 140 to 150px
+    # between the middle cards.
+    #
+    # So the band is bounded by the opposite-side neighbours: the bottom of
+    # the one before, and the top of the one after. The first and last steps
+    # have no neighbour on one side and get the big end pockets.
+    assign band_top = 0
+    if i > 0
+      assign band_top = i | minus: 1 | times: 300 | plus: 40 | plus: lead | plus: card_h
+    endif
+    assign band_bot = stage_h
+    unless forloop.last
+      assign band_bot = i | plus: 1 | times: 300 | plus: 40 | plus: lead
+    endunless
+    assign dcy = band_top | plus: band_bot | divided_by: 2
+    assign dband = band_bot | minus: band_top
+
+    assign dxs = dxs | append: dcx | append: ','
+    assign dys = dys | append: dcy | append: ','
+    assign dbands = dbands | append: dband | append: ','
+
     assign lefts = lefts | append: lx | append: ','
     assign tops = tops | append: ty | append: ','
     assign rots = rots | append: rt | append: ','
@@ -138,6 +174,15 @@
 
   assign left_list = lefts | split: ','
   assign top_list = tops | split: ','
+  assign dx_list = dxs | split: ','
+  assign dy_list = dys | split: ','
+  assign dband_list = dbands | split: ','
+
+  assign doodles_on = true
+  if s.show_doodles == false
+    assign doodles_on = false
+  endif
+  assign doodle_size = s.doodle_size | default: 300
   assign rot_list = rots | split: ','
 -%}
 
@@ -213,6 +258,7 @@
     isolation: isolate;
     --hp-st-bg: {{ s.background_color | default: '#e8f0e0' }};
     --hp-st-ink: {{ s.ink_color | default: '#2f3427' }};
+    --hp-st-doodle-op: {{ s.doodle_opacity | default: 55 | divided_by: 100.0 }};
     --hp-st-card-line: {{ s.card_border_color | default: '#2f3427' }};
     --hp-st-card-line-w: {{ s.card_border_width | default: 2 }}px;
     --hp-st-label-line: {{ s.label_border_color | default: '#2f3427' }};
@@ -318,6 +364,31 @@
     /* A zero-length dash with a round cap is a dot. */
     stroke-dasharray: 0 18;
     vector-effect: non-scaling-stroke;
+  }
+
+  /* Line art, not another blob: the cards are already filled rounded shapes,
+     so these are stroke-only outlines. Different language, same ink.
+
+     One overlay svg over the whole stage, drawn the same way the trail is,
+     rather than a positioned div per doodle. The stage already carries
+     aspect-ratio: stage_w / stage_h, so a viewBox of the same ratio maps one
+     to one and every drawing lands where its coordinates say without any
+     percentage arithmetic.
+
+     Behind the cards at z-index 0, beside the trail, so a doodle nudged under
+     a card is covered by it rather than sitting on the copy.
+
+     Strokes are non-scaling: 2.5px is 2.5 real pixels whether a drawing is
+     set to 180 or 420, and whatever width the stage has shrunk to. Letting
+     the stroke scale would make the big ones heavy and the small ones vanish.*/
+  .hp-st__doodles {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    opacity: var(--hp-st-doodle-op);
+    pointer-events: none;
   }
 
   .hp-st__step {
@@ -467,6 +538,9 @@
        and a wobbling vertical line of the same dots takes its place. */
     .hp-st__line { display: none; }
 
+    /* Stacked, there is no empty column left for them to fill. */
+    .hp-st__doodles { display: none; }
+
     .hp-st__step + .hp-st__step::before {
       content: "";
       position: absolute;
@@ -538,6 +612,104 @@
           <path class="hp-st__path" d="{{ path }}"/>
           <circle cx="{{ lead_x }}" cy="20" r="9" fill="{{ dot_start }}"/>
           <circle cx="{{ tex }}" cy="{{ tey }}" r="9" fill="{{ dot_end }}"/>
+        </svg>
+      {%- endif -%}
+
+      {%- if doodles_on -%}
+        {%- comment -%}
+          Filler drawings for the empty column beside each card. Same viewBox
+          as the trail, so the two sit on one coordinate system.
+        {%- endcomment -%}
+        <svg
+          class="hp-st__doodles"
+          viewBox="0 0 {{ stage_w }} {{ stage_h }}"
+          aria-hidden="true"
+          focusable="false"
+          fill="none"
+          stroke="{{ s.doodle_color | default: '#b5c99a' }}"
+          stroke-width="{{ s.doodle_stroke | default: 2.5 }}"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          {%- for block in steps -%}
+            {%- liquid
+              assign i = forloop.index0
+              assign db = block.settings
+              assign pick = db.doodle | default: 'none'
+              assign dk = db.doodle_scale | default: 100
+              assign dsize = doodle_size | times: dk | divided_by: 100
+              # Capped to the band itself. The cards are circles, so the corners
+              # of the band are clear and more would fit in principle -- but
+              # how much more depends on the horizontal distance to two
+              # neighbouring circles, which needs a square root Liquid does
+              # not have. Measured: at 150% the middle drawings tuck under the
+              # cards above and below them. The band is the honest limit, and
+              # the per-step size and nudge are there for anyone who wants to
+              # push one further by eye.
+              # split gives strings, and a string will not compare against a
+              # number -- times: 1 is what turns it back into one.
+              assign dcap = dband_list[i] | times: 1
+              if dsize > dcap
+                assign dsize = dcap
+              endif
+              assign dk = dsize | divided_by: 100.0
+              assign nx = db.doodle_nudge_x | default: 0
+              assign ny = db.doodle_nudge_y | default: 0
+              assign px = dx_list[i] | plus: nx
+              assign py = dy_list[i] | plus: ny
+            -%}
+            {%- if pick != 'none' -%}
+              {%- comment -%}
+                translate to the spot, turn and scale about it, then step back
+                half a grid so the drawing's own 0-100 box is centred there.
+              {%- endcomment -%}
+              <g
+                vector-effect="non-scaling-stroke"
+                transform="translate({{ px }} {{ py }}) rotate({{ db.doodle_rotation | default: 0 }}) scale({{ dk }}) translate(-50 -50)"
+              >
+                {%- case pick -%}
+                {%- when 'sketchpad' -%}
+                  <path vector-effect="non-scaling-stroke" d="M24 22 h52 v62 a4 4 0 0 1 -4 4 h-44 a4 4 0 0 1 -4 -4 Z"></path>
+                  <path vector-effect="non-scaling-stroke" d="M20 22 h60"></path>
+                  <path vector-effect="non-scaling-stroke" d="M32 11 v11"></path>
+                  <path vector-effect="non-scaling-stroke" d="M50 11 v11"></path>
+                  <path vector-effect="non-scaling-stroke" d="M68 11 v11"></path>
+                  <path vector-effect="non-scaling-stroke" d="M34 50 C 42 34, 52 64, 60 46 C 64 38, 67 44, 69 41"></path>
+                  <path vector-effect="non-scaling-stroke" d="M34 66 h26"></path>
+                {%- when 'needle' -%}
+                  <path vector-effect="non-scaling-stroke" d="M84 20 L38 66"></path>
+                  <path vector-effect="non-scaling-stroke" d="M38 66 C 22 73, 42 86, 24 92"></path>
+                  <path vector-effect="non-scaling-stroke" d="M78 14 C 82 10, 88 12, 89 17 C 90 22, 86 25, 82 23"></path>
+                {%- when 'droplet' -%}
+                  <path vector-effect="non-scaling-stroke" d="M52 14 C 72 40, 80 54, 80 64 a28 28 0 0 1 -56 0 C 24 54, 32 40, 52 14 Z"></path>
+                  <path vector-effect="non-scaling-stroke" d="M38 66 a14 14 0 0 0 11 12"></path>
+                {%- when 'clip' -%}
+                  <path vector-effect="non-scaling-stroke" d="M65 32 L34 63 a14 14 0 0 0 20 20 L83 54 a23 23 0 0 0 -32 -32 L21 51 a31 31 0 0 0 44 44"></path>
+                {%- when 'heart' -%}
+                  <path vector-effect="non-scaling-stroke" d="M50 86 C 18 62, 8 44, 20 30 C 30 18, 44 22, 50 34 C 56 22, 70 18, 80 30 C 92 44, 82 62, 50 86 Z"></path>
+                {%- when 'bunny' -%}
+                  <path vector-effect="non-scaling-stroke" d="M38 46 C 31 28, 33 10, 41 10 C 49 10, 48 30, 45 48"></path>
+                  <path vector-effect="non-scaling-stroke" d="M62 46 C 69 28, 67 10, 59 10 C 51 10, 52 30, 55 48"></path>
+                  <path vector-effect="non-scaling-stroke" d="M50 42 C 65 42, 77 52, 77 65 C 77 78, 65 88, 50 88 C 35 88, 23 78, 23 65 C 23 52, 35 42, 50 42 Z"></path>
+                  <path vector-effect="non-scaling-stroke" d="M46 64 h8 l-4 5 Z"></path>
+                {%- when 'scissors' -%}
+                  <path vector-effect="non-scaling-stroke" d="M30 18 L62 62"></path>
+                  <path vector-effect="non-scaling-stroke" d="M70 18 L38 62"></path>
+                  <path vector-effect="non-scaling-stroke" d="M32 72 m -11 0 a 11 11 0 1 0 22 0 a 11 11 0 1 0 -22 0"></path>
+                  <path vector-effect="non-scaling-stroke" d="M68 72 m -11 0 a 11 11 0 1 0 22 0 a 11 11 0 1 0 -22 0"></path>
+                  <path vector-effect="non-scaling-stroke" d="M50 44 m -3 0 a 3 3 0 1 0 6 0 a 3 3 0 1 0 -6 0"></path>
+                {%- when 'spool' -%}
+                  <path vector-effect="non-scaling-stroke" d="M28 16 h44 v9 h-44 Z"></path>
+                  <path vector-effect="non-scaling-stroke" d="M28 75 h44 v9 h-44 Z"></path>
+                  <path vector-effect="non-scaling-stroke" d="M37 25 v50"></path>
+                  <path vector-effect="non-scaling-stroke" d="M63 25 v50"></path>
+                  <path vector-effect="non-scaling-stroke" d="M37 38 h26"></path>
+                  <path vector-effect="non-scaling-stroke" d="M37 50 h26"></path>
+                  <path vector-effect="non-scaling-stroke" d="M37 62 h26"></path>
+                {%- endcase -%}
+              </g>
+            {%- endif -%}
+          {%- endfor -%}
         </svg>
       {%- endif -%}
 
@@ -713,6 +885,48 @@
     { "type": "color", "id": "eyebrow_color", "label": "Eyebrow text", "default": "#2f3427" },
     { "type": "color", "id": "eyebrow_dot_color", "label": "Eyebrow dot", "default": "#e06e4c" },
 
+    { "type": "header", "content": "Filler drawings" },
+    {
+      "type": "checkbox",
+      "id": "show_doodles",
+      "label": "Show the filler drawings",
+      "default": true,
+      "info": "Line drawings in the empty column beside each card. Hidden on a phone either way, where the cards stack and there is no empty column."
+    },
+    { "type": "color", "id": "doodle_color", "label": "Drawing colour", "default": "#B5C99A" },
+    {
+      "type": "range",
+      "id": "doodle_opacity",
+      "label": "Drawing strength",
+      "unit": "%",
+      "min": 10,
+      "max": 100,
+      "step": 5,
+      "default": 55,
+      "info": "How much they hold their own against the cards. Lower keeps them as background texture."
+    },
+    {
+      "type": "range",
+      "id": "doodle_stroke",
+      "label": "Line weight",
+      "unit": "px",
+      "min": 1,
+      "max": 6,
+      "step": 0.5,
+      "default": 2.5,
+      "info": "Stays this many real pixels at any drawing size."
+    },
+    {
+      "type": "range",
+      "id": "doodle_size",
+      "label": "Drawing size",
+      "unit": "px",
+      "min": 120,
+      "max": 460,
+      "step": 10,
+      "default": 300,
+      "info": "The empty column beside a card is about 680px wide and 460 tall."
+    },
     { "type": "header", "content": "The cards" },
     { "type": "color", "id": "card_color", "label": "Card fill", "default": "#ffffff" },
     { "type": "color", "id": "ink_color", "label": "Headings and titles", "default": "#2f3427", "info": "Type only. The outlines have their own colours below." },
@@ -840,6 +1054,65 @@
           "id": "back_color",
           "label": "Blob behind",
           "info": "Left empty, the four brand colours cycle in order."
+        },
+        { "type": "header", "content": "Filler drawing" },
+        {
+          "type": "select",
+          "id": "doodle",
+          "label": "Drawing beside this card",
+          "options": [
+            { "value": "none", "label": "None" },
+            { "value": "sketchpad", "label": "Sketchpad and pencil" },
+            { "value": "needle", "label": "Needle and thread" },
+            { "value": "droplet", "label": "Water drop" },
+            { "value": "clip", "label": "Clip" },
+            { "value": "heart", "label": "Heart" },
+            { "value": "bunny", "label": "Bunny" },
+            { "value": "scissors", "label": "Scissors" },
+            { "value": "spool", "label": "Thread spool" }
+          ],
+          "default": "none"
+        },
+        {
+          "type": "range",
+          "id": "doodle_rotation",
+          "label": "Tilt",
+          "unit": "deg",
+          "min": -40,
+          "max": 40,
+          "step": 5,
+          "default": 0
+        },
+        {
+          "type": "range",
+          "id": "doodle_scale",
+          "label": "Size",
+          "unit": "%",
+          "min": 50,
+          "max": 150,
+          "step": 5,
+          "default": 100,
+          "info": "Against the section's drawing size."
+        },
+        {
+          "type": "range",
+          "id": "doodle_nudge_x",
+          "label": "Nudge across",
+          "unit": "px",
+          "min": -250,
+          "max": 250,
+          "step": 10,
+          "default": 0
+        },
+        {
+          "type": "range",
+          "id": "doodle_nudge_y",
+          "label": "Nudge down",
+          "unit": "px",
+          "min": -250,
+          "max": 250,
+          "step": 10,
+          "default": 0
         }
       ]
     }

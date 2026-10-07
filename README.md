@@ -1239,3 +1239,61 @@ Percentages are the right unit for keeping an arrangement as something
 *shape*. Decoration positioned against one aspect ratio is hidden below the
 breakpoint that ends it, rather than carried into a layout it was never
 arranged for.
+
+
+## Two eyebrow pills, and matching the wrong one
+
+This theme has two eyebrow families. They look alike in a screenshot and are
+not interchangeable:
+
+| | homepage | About and CTA |
+| --- | --- | --- |
+| sections | pals-picker, solution-tabs, feature-collage, how-to-steps, hero-split | our-values, meet-the-maker, hp-cta, story-timeline |
+| size | 12-14px, often `clamp(12px, 0.95vw, 14px)` | fixed 10px |
+| outline | 1px, usually `#ECA883` | none |
+| tracking | `0.12em` | `1.5px` |
+| padding | `0.7em 1.4em` | `7px 14px` |
+| dot | `0.55em`, `#B5C99A` | `6px`, `#E06E4C` |
+| fill | `#FCFBF6` | `#FFFFFF` |
+
+The homepage family is authored in **em** throughout, so the whole pill scales
+from `font-size` alone. The About family is fixed px. That difference is why
+one cannot be converted to the other by changing the size.
+
+`sections/pal-reveal.liquid` was first converted to the About pill, which was
+wrong: it is a homepage section. Nothing in the code said so -- the only way
+to tell was to read every eyebrow rule in `sections/` and notice they fall
+into two groups.
+
+When matching an existing component, the reference has to be a section on the
+**same page**, and it is worth checking that more than one agrees before
+calling it canonical. Within the homepage family `how-to-steps` is itself an
+outlier (`0.62em 1.3em`, `line-height: 1.2`) where the other three use
+`0.7em 1.4em` and `line-height: 1` -- so the first comparison against it
+failed on padding that was not actually wrong.
+
+`pals-picker` also disagrees with itself: its Liquid falls back to `#D88B6D`
+for the pill outline while its schema default is `#ECA883`. The schema wins,
+so the Liquid fallback is dead code, but it reads as the intended colour and
+is not.
+
+## Comparing a component against another section, not against its own spec
+
+`scripts/test-pal-reveal.py` checks the eyebrow by rendering **solution-tabs**
+and diffing the two pills' computed styles. Restating "10px, 1.5px tracking"
+in a test only says the rule was copied into two places; rendering the other
+section and comparing asks whether they actually match today.
+
+Two things that comparison has to get right:
+
+- **Compare proportions, not pixels.** Both pills are em-based and the two
+  sections run different sizes -- solution-tabs clamps 12 to 14px, pal-reveal
+  takes a fixed 13 from its own setting. Every length is divided by
+  `font-size` before comparing, so the check asks "same pill?" rather than
+  "same size?". `font-size` itself is the denominator and is excluded, then
+  checked separately against the range the others clamp to.
+- **Leave out what the parent decides.** `display` legitimately differs:
+  in solution-tabs the pill is a flex item so `inline-flex` blockifies to
+  `flex`, while in pal-reveal it sits in a `text-align: center` block and has
+  to stay inline-level. What that property stood in for -- shrink-wraps,
+  centres -- is measured directly instead.

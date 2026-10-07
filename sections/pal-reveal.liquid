@@ -40,6 +40,11 @@
   # and falls through to the pill -- which is the point: the eyebrow matches
   # the rest of the site without anyone reopening the theme editor.
   assign eyebrow_style = s.eyebrow_style | default: 'pill'
+
+  # 0 is a real value here -- it is how the outline is removed -- and it
+  # survives `| default:`, which replaces only nil, false and the empty
+  # string. A numeric 0 passes straight through.
+  assign eyebrow_line_w = s.eyebrow_line_width | default: 1
   assign heading_tag = s.after_heading_tag | default: 'h2'
 -%}
 
@@ -248,38 +253,52 @@
     letter-spacing: 0.14em;
   }
 
+  /* The homepage eyebrow. how-to-steps, pals-picker, solution-tabs and
+     feature-collage all carry this exact shape, so it is copied rather than
+     invented: a 1px outlined pill, em-based padding and dot so the whole
+     thing scales from font-size alone, 0.12em tracking, heading font.
+
+     This section has two eyebrow families to choose between and the first
+     attempt matched the wrong one. The borderless 10px pill in our-values,
+     meet-the-maker and hp-cta belongs to the About and CTA pages. The
+     homepage runs 13 to 14px with an outline. Pal reveal is a homepage
+     section, so it follows the homepage. */
   .hp-rv--eb-pill .hp-rv__eyebrow {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 7px 14px;
+    gap: 0.6em;
+    padding: 0.7em 1.4em;
+    border: var(--hp-rv-eyebrow-line-w) solid var(--hp-rv-eb-line);
     border-radius: 999px;
-    font-family: var(--font-heading-family, Bitter, "Chubbo", Georgia, serif);
-    font-weight: 700;
-    font-size: 10px;
+    background: var(--hp-rv-eb-bg);
+    font-family: var(--font-heading-family, "Chubbo", "Alata", Georgia, serif);
+    font-weight: var(--font-heading-weight, 700);
+    /* The size setting, which saved sections already hold at 13 -- the
+       homepage family's own size, so here it is read rather than ignored. */
+    font-size: calc(var(--hp-rv-eyebrow-size, 13px) * var(--hp-rv-body-scale));
     line-height: 1;
-    letter-spacing: 1.5px;
+    letter-spacing: 0.12em;
   }
 
   .hp-rv--eb-pill .hp-rv__eyebrow::before {
     content: "";
-    width: 6px;
-    height: 6px;
+    width: 0.55em;
+    height: 0.55em;
     border-radius: 50%;
+    background: var(--hp-rv-eb-dot);
     flex: none;
   }
 
-  .hp-rv--eb-pill .hp-rv__before .hp-rv__eyebrow {
-    background: var(--hp-rv-before-eyebrow-bg);
+  .hp-rv__before .hp-rv__eyebrow {
+    --hp-rv-eb-bg: var(--hp-rv-before-eyebrow-bg);
+    --hp-rv-eb-dot: var(--hp-rv-before-eyebrow-dot);
+    --hp-rv-eb-line: var(--hp-rv-before-eyebrow-line);
   }
-  .hp-rv--eb-pill .hp-rv__before .hp-rv__eyebrow::before {
-    background: var(--hp-rv-before-eyebrow-dot);
-  }
-  .hp-rv--eb-pill .hp-rv__after .hp-rv__eyebrow {
-    background: var(--hp-rv-after-eyebrow-bg);
-  }
-  .hp-rv--eb-pill .hp-rv__after .hp-rv__eyebrow::before {
-    background: var(--hp-rv-after-eyebrow-dot);
+
+  .hp-rv__after .hp-rv__eyebrow {
+    --hp-rv-eb-bg: var(--hp-rv-after-eyebrow-bg);
+    --hp-rv-eb-dot: var(--hp-rv-after-eyebrow-dot);
+    --hp-rv-eb-line: var(--hp-rv-after-eyebrow-line);
   }
 
   .hp-rv__heading {
@@ -469,9 +488,11 @@
     --hp-rv-before-text-size: {{ s.before_text_size | default: 19 }}px;
     --hp-rv-before-ink: {{ s.before_heading_color | default: '#2F3326' }};
     --hp-rv-before-sub: {{ s.before_text_color | default: '#5C6150' }};
+    --hp-rv-eyebrow-line-w: {{ eyebrow_line_w }}px;
     --hp-rv-before-eyebrow: {{ s.before_eyebrow_color | default: '#6B7056' }};
-    --hp-rv-before-eyebrow-bg: {{ s.before_eyebrow_bg | default: '#FFFFFF' }};
-    --hp-rv-before-eyebrow-dot: {{ s.before_eyebrow_dot | default: '#E06E4C' }};
+    --hp-rv-before-eyebrow-bg: {{ s.before_eyebrow_bg | default: '#FCFBF6' }};
+    --hp-rv-before-eyebrow-dot: {{ s.before_eyebrow_dot | default: '#B5C99A' }};
+    --hp-rv-before-eyebrow-line: {{ s.before_eyebrow_line | default: '#ECA883' }};
     --hp-rv-field-bg: {{ s.field_background | default: '#FCFBF6' }};
     --hp-rv-field-ink: {{ s.field_text_color | default: '#2F3326' }};
     --hp-rv-field-hint: {{ s.field_hint_color | default: '#5C6150' }};
@@ -481,8 +502,9 @@
     --hp-rv-after-ink: {{ s.after_heading_color | default: '#2F3326' }};
     --hp-rv-after-sub: {{ s.after_text_color | default: '#3F4630' }};
     --hp-rv-after-eyebrow: {{ s.after_eyebrow_color | default: '#3F4630' }};
-    --hp-rv-after-eyebrow-bg: {{ s.after_eyebrow_bg | default: '#FFFFFF' }};
-    --hp-rv-after-eyebrow-dot: {{ s.after_eyebrow_dot | default: '#E06E4C' }};
+    --hp-rv-after-eyebrow-bg: {{ s.after_eyebrow_bg | default: '#FCFBF6' }};
+    --hp-rv-after-eyebrow-dot: {{ s.after_eyebrow_dot | default: '#B5C99A' }};
+    --hp-rv-after-eyebrow-line: {{ s.after_eyebrow_line | default: '#ECA883' }};
   "
   {{ section.shopify_attributes }}
 >
@@ -754,8 +776,9 @@
       "default": 19
     },
     { "type": "color", "id": "before_eyebrow_color", "label": "Eyebrow text", "default": "#2F3427" },
-    { "type": "color", "id": "before_eyebrow_bg", "label": "Eyebrow pill", "default": "#FFFFFF" },
-    { "type": "color", "id": "before_eyebrow_dot", "label": "Eyebrow dot", "default": "#E06E4C" },
+    { "type": "color", "id": "before_eyebrow_bg", "label": "Eyebrow fill", "default": "#FCFBF6" },
+    { "type": "color", "id": "before_eyebrow_dot", "label": "Eyebrow dot", "default": "#B5C99A" },
+    { "type": "color", "id": "before_eyebrow_line", "label": "Eyebrow outline", "default": "#ECA883" },
     { "type": "color", "id": "before_heading_color", "label": "Heading colour", "default": "#2F3326" },
     { "type": "color", "id": "before_text_color", "label": "Text colour", "default": "#5C6150" },
     {
@@ -807,8 +830,9 @@
       "default": 19
     },
     { "type": "color", "id": "after_eyebrow_color", "label": "Eyebrow text", "default": "#2F3427" },
-    { "type": "color", "id": "after_eyebrow_bg", "label": "Eyebrow pill", "default": "#FFFFFF" },
-    { "type": "color", "id": "after_eyebrow_dot", "label": "Eyebrow dot", "default": "#E06E4C" },
+    { "type": "color", "id": "after_eyebrow_bg", "label": "Eyebrow fill", "default": "#FCFBF6" },
+    { "type": "color", "id": "after_eyebrow_dot", "label": "Eyebrow dot", "default": "#B5C99A" },
+    { "type": "color", "id": "after_eyebrow_line", "label": "Eyebrow outline", "default": "#ECA883" },
     { "type": "color", "id": "after_heading_color", "label": "Heading colour", "default": "#2F3326" },
     { "type": "color", "id": "after_text_color", "label": "Text colour", "default": "#3F4630" },
     { "type": "header", "content": "What comes last" },
@@ -997,6 +1021,17 @@
       "step": 1,
       "default": 13,
       "info": "Only used by the plain eyebrow style. The pill is fixed at 10px so it matches every other eyebrow on the site."
+    },
+    {
+      "type": "range",
+      "id": "eyebrow_line_width",
+      "label": "Eyebrow outline width",
+      "unit": "px",
+      "min": 0,
+      "max": 4,
+      "step": 0.5,
+      "default": 1,
+      "info": "Set to 0 for a pill with no outline. The pill does not change size either way."
     },
     {
       "type": "select",

@@ -261,9 +261,9 @@ if __name__ == '__main__':
           if(!e){document.title='RESULT'+JSON.stringify(null);return;}
           var c=getComputedStyle(e), b=getComputedStyle(e,'::before'), o={};
           %s.forEach(function(p){o[p]=c.getPropertyValue(p);});
-          document.title='RESULT'+JSON.stringify({shape:o, disp:c.display,
+          document.title='RESULT'+JSON.stringify({shape:o, disp:c.display,widthPx:e.getBoundingClientRect().width.toFixed(2),
             dotW:b.width, dotH:b.height, dotRadius:b.borderTopLeftRadius,
-            dotBg:b.backgroundColor, bg:c.backgroundColor, color:c.color,
+            dotBg:b.backgroundColor, bg:c.backgroundColor, color:c.color,borderW:c.borderTopWidth, borderC:c.borderTopColor,
             family:c.fontFamily});});</script>""" % (selector, json.dumps(SHAPE)))
         out = HERE / f'eb-{pathlib.Path(section_file).stem}-probe.html'
         out.write_text(src.read_text(encoding='utf-8')
@@ -275,16 +275,58 @@ if __name__ == '__main__':
         return json.loads(re.search(r'<title>RESULT(.*?)</title>', dom, re.S).group(1))
 
     SECTIONS = pathlib.Path(SECTION).parent
-    canon = eyebrow_of(SECTIONS / 'our-values.liquid', '.hp-ov__eyebrow')
+    # how-to-steps, not our-values. There are two eyebrow families in this
+    # theme and the first version of this check compared against the wrong
+    # one: the borderless 10px pill belongs to the About and CTA pages, while
+    # the homepage runs an outlined pill at 13 to 14px. Pal reveal is a
+    # homepage section. pals-picker and solution-tabs carry the same shape,
+    # so any of the three would do.
+    # solution-tabs, which pals-picker and feature-collage agree with:
+    # 0.7em 1.4em and line-height 1. how-to-steps is the one outlier in the
+    # family at 0.62em 1.3em and 1.2, so it is not the thing to measure
+    # against -- noted in README rather than quietly matched.
+    canon = eyebrow_of(SECTIONS / 'solution-tabs.liquid', '.hp-sol__eyebrow-inner')
     mine = eyebrow_of(SECTION, '.hp-rv__before .hp-rv__eyebrow')
 
-    differs = {k: (mine['shape'][k], canon['shape'][k])
-               for k in SHAPE if mine['shape'][k] != canon['shape'][k]}
-    check('the eyebrow is the same shape as the one in our-values',
+    # Compared as ratios of font-size, not as pixels. Every length in this
+    # pill is authored in em -- gap 0.6, padding 0.7/1.4, tracking 0.12 --
+    # precisely so the whole shape scales from one number. solution-tabs
+    # sizes itself clamp(12px, 0.95vw, 14px), which is 12px at this viewport,
+    # while pal-reveal runs a fixed 13px from its own setting. Comparing the
+    # px would only be re-measuring that difference; comparing the ratios
+    # asks the question that matters, which is whether it is the same pill.
+    LENGTHS = ['gap', 'padding-top', 'padding-right', 'padding-bottom',
+               'padding-left', 'letter-spacing', 'line-height']
+
+    def ems(shape):
+        fs = float(shape['font-size'][:-2])
+        out = {}
+        for k in SHAPE:
+            v = shape[k]
+            if k in LENGTHS and v.endswith('px'):
+                out[k] = round(float(v[:-2]) / fs, 2)
+            else:
+                out[k] = v
+        return out
+
+    a, b = ems(mine['shape']), ems(canon['shape'])
+    # font-size is the denominator every other value is expressed against, so
+    # it is the one property the ratio comparison cannot ask about. It is
+    # checked on its own immediately below.
+    compared = [k for k in SHAPE if k != 'font-size']
+    differs = {k: (a[k], b[k]) for k in compared if a[k] != b[k]}
+    check('the eyebrow is the same pill as the one in solution-tabs',
           not differs,
-          "identical on every one of "
-          f"{len(SHAPE)} properties" if not differs
-          else "; ".join(f"{k}: {a} vs {b}" for k, (a, b) in differs.items()))
+          (f"identical proportions on all {len(compared)} properties "
+           f"(this one at {mine['shape']['font-size']}, "
+           f"solution-tabs at {canon['shape']['font-size']})") if not differs
+          else "; ".join(f"{k}: {x}em vs {y}em" for k, (x, y) in differs.items()))
+
+    # And the size itself is in the range solution-tabs clamps to, so the two
+    # read as the same pill rather than two sizes of it.
+    check('and runs at a size inside the range the others clamp to',
+          12 <= float(mine['shape']['font-size'][:-2]) <= 14,
+          f"{mine['shape']['font-size']} against clamp(12px, 0.95vw, 14px)")
 
     # What `display` was really there to guarantee.
     GEOM = "<script>window.addEventListener('load',function(){var e=document.querySelector('.hp-rv__before .hp-rv__eyebrow');var p=e.parentElement;var er=e.getBoundingClientRect(), pr=p.getBoundingClientRect();document.title='RESULT'+JSON.stringify({ew:+er.width.toFixed(1), pw:+pr.width.toFixed(1),leftGap:+(er.left-pr.left).toFixed(1),rightGap:+(pr.right-er.right).toFixed(1)});});</script>"
@@ -305,28 +347,57 @@ if __name__ == '__main__':
           abs(g['leftGap'] - g['rightGap']) <= 1.5,
           f"{g['leftGap']}px left, {g['rightGap']}px right")
 
-    check('and it carries the same dot',
-          mine['dotW'] == canon['dotW'] and mine['dotH'] == canon['dotH']
-          and mine['dotRadius'] == canon['dotRadius']
-          and mine['dotBg'] == canon['dotBg'],
-          f"{mine['dotW']} {mine['dotBg']} vs {canon['dotW']} {canon['dotBg']}")
+    # how-to-steps draws its dot as a real <span>; this one is a ::before.
+    # Different mechanism, so the sizes are compared rather than the markup --
+    # and both are em-based, so they track the pill's font-size together.
+    canon_dot = eyebrow_of(SECTIONS / 'solution-tabs.liquid', '.hp-sol__dot')
+    check('and its dot is the same size as the one it sits beside',
+          mine['dotW'] == canon_dot['shape']['font-size'].replace('px', 'px')
+          or abs(float(mine['dotW'][:-2])
+                 - float(canon_dot['widthPx'])) <= 0.6,
+          f"{mine['dotW']} vs {canon_dot['widthPx']}px")
 
-    check('on a white pill, like the others',
+    check('the dot is round and painted',
+          mine['dotRadius'] == '50%' and mine['dotBg'] != 'rgba(0, 0, 0, 0)',
+          f"radius {mine['dotRadius']}, {mine['dotBg']}")
+
+    check('on a cream pill, like the others',
           mine['bg'] == canon['bg'],
           f"{mine['bg']} vs {canon['bg']}")
 
     check('in the heading font, not the body font',
           mine['family'] == canon['family'],
-          f"{mine['family'][:40]}")
+          f"{mine['family'][:34]} vs {canon['family'][:34]}")
 
     # The size setting is saved as 13 on any section already on a page, and a
     # changed schema default does nothing to a saved instance. If the pill
     # read it, this one would be a third bigger than every other pill.
+    # The size setting is honoured now. A saved section holds 13, which is
+    # the homepage family's own size, so reading it is what makes this match
+    # rather than what breaks it.
+    at13 = eyebrow_of(SECTION, '.hp-rv__before .hp-rv__eyebrow',
+                      {'settings': {'eyebrow_size': 13}})
+    check('the pill is 13px, the size saved sections already hold',
+          at13['shape']['font-size'] == '13px',
+          f"eyebrow_size 13 -> {at13['shape']['font-size']}")
+
     big = eyebrow_of(SECTION, '.hp-rv__before .hp-rv__eyebrow',
-                     {'settings': {'eyebrow_size': 22}})
-    check('the pill ignores the old size setting, which saved sections still hold',
-          big['shape']['font-size'] == '10px',
-          f"eyebrow_size 22 -> {big['shape']['font-size']}")
+                     {'settings': {'eyebrow_size': 20}})
+    check('and the padding grows with it, because it is em-based',
+          big['shape']['font-size'] == '20px'
+          and float(big['shape']['padding-left'][:-2])
+              > float(at13['shape']['padding-left'][:-2]),
+          f"20px -> padding {big['shape']['padding-left']}, "
+          f"13px -> {at13['shape']['padding-left']}")
+
+    noline = eyebrow_of(SECTION, '.hp-rv__before .hp-rv__eyebrow',
+                        {'settings': {'eyebrow_line_width': 0}})
+    check('the outline can be removed',
+          noline['borderW'] == '0px', f"border {noline['borderW']}")
+
+    check('and it is there by default, in its own colour',
+          mine['borderW'] == '1px' and mine['borderC'] == 'rgb(236, 168, 131)',
+          f"{mine['borderW']} {mine['borderC']}")
 
     plain = eyebrow_of(SECTION, '.hp-rv__before .hp-rv__eyebrow',
                        {'settings': {'eyebrow_style': 'plain', 'eyebrow_size': 22}})

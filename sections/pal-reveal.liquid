@@ -35,6 +35,11 @@
 
 {%- liquid
   assign s = section.settings
+
+  # New setting, so it reads nil on a section that is already saved on a page
+  # and falls through to the pill -- which is the point: the eyebrow matches
+  # the rest of the site without anyone reopening the theme editor.
+  assign eyebrow_style = s.eyebrow_style | default: 'pill'
   assign heading_tag = s.after_heading_tag | default: 'h2'
 -%}
 
@@ -221,13 +226,60 @@
   }
 
   /* --- Copy --------------------------------------------------------------- */
+  /* Two shapes. "plain" is what this section shipped with: bare uppercase
+     text in the body font. "pill" is the eyebrow every other section on the
+     site uses -- our-values, meet-the-maker, cta-meet-the-pals and the rest
+     all carry this exact rule, so it is repeated here rather than invented.
+
+     The pill deliberately ignores the eyebrow size setting. That setting is
+     saved as 13 on any section already on a page, and a schema default does
+     nothing to an instance that is already saved, so reading it would leave
+     this pill a third larger than every other pill on the page. The plain
+     style still honours it. */
   .hp-rv__eyebrow {
     margin: 0 0 14px;
+    text-transform: uppercase;
+  }
+
+  .hp-rv--eb-plain .hp-rv__eyebrow {
     font-family: var(--font-body-family, "Quicksand", ui-rounded, system-ui, sans-serif);
     font-weight: 600;
     font-size: calc(var(--hp-rv-eyebrow-size, 13px) * var(--hp-rv-body-scale));
     letter-spacing: 0.14em;
-    text-transform: uppercase;
+  }
+
+  .hp-rv--eb-pill .hp-rv__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-family: var(--font-heading-family, Bitter, "Chubbo", Georgia, serif);
+    font-weight: 700;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 1.5px;
+  }
+
+  .hp-rv--eb-pill .hp-rv__eyebrow::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex: none;
+  }
+
+  .hp-rv--eb-pill .hp-rv__before .hp-rv__eyebrow {
+    background: var(--hp-rv-before-eyebrow-bg);
+  }
+  .hp-rv--eb-pill .hp-rv__before .hp-rv__eyebrow::before {
+    background: var(--hp-rv-before-eyebrow-dot);
+  }
+  .hp-rv--eb-pill .hp-rv__after .hp-rv__eyebrow {
+    background: var(--hp-rv-after-eyebrow-bg);
+  }
+  .hp-rv--eb-pill .hp-rv__after .hp-rv__eyebrow::before {
+    background: var(--hp-rv-after-eyebrow-dot);
   }
 
   .hp-rv__heading {
@@ -393,7 +445,7 @@
 {{ 'hp-button.css' | asset_url | stylesheet_tag }}
 
 <section
-  class="hp-rv"
+  class="hp-rv hp-rv--eb-{{ eyebrow_style }}"
   style="
     --hp-rv-stage-bg: {{ s.stage_background | default: '#FCFBF6' }};
     --hp-rv-pal-color: {{ s.pal_color | default: '#CFE1B9' }};
@@ -418,6 +470,8 @@
     --hp-rv-before-ink: {{ s.before_heading_color | default: '#2F3326' }};
     --hp-rv-before-sub: {{ s.before_text_color | default: '#5C6150' }};
     --hp-rv-before-eyebrow: {{ s.before_eyebrow_color | default: '#6B7056' }};
+    --hp-rv-before-eyebrow-bg: {{ s.before_eyebrow_bg | default: '#FFFFFF' }};
+    --hp-rv-before-eyebrow-dot: {{ s.before_eyebrow_dot | default: '#E06E4C' }};
     --hp-rv-field-bg: {{ s.field_background | default: '#FCFBF6' }};
     --hp-rv-field-ink: {{ s.field_text_color | default: '#2F3326' }};
     --hp-rv-field-hint: {{ s.field_hint_color | default: '#5C6150' }};
@@ -427,6 +481,8 @@
     --hp-rv-after-ink: {{ s.after_heading_color | default: '#2F3326' }};
     --hp-rv-after-sub: {{ s.after_text_color | default: '#3F4630' }};
     --hp-rv-after-eyebrow: {{ s.after_eyebrow_color | default: '#3F4630' }};
+    --hp-rv-after-eyebrow-bg: {{ s.after_eyebrow_bg | default: '#FFFFFF' }};
+    --hp-rv-after-eyebrow-dot: {{ s.after_eyebrow_dot | default: '#E06E4C' }};
   "
   {{ section.shopify_attributes }}
 >
@@ -697,7 +753,9 @@
       "step": 1,
       "default": 19
     },
-    { "type": "color", "id": "before_eyebrow_color", "label": "Eyebrow colour", "default": "#6B7056" },
+    { "type": "color", "id": "before_eyebrow_color", "label": "Eyebrow text", "default": "#2F3427" },
+    { "type": "color", "id": "before_eyebrow_bg", "label": "Eyebrow pill", "default": "#FFFFFF" },
+    { "type": "color", "id": "before_eyebrow_dot", "label": "Eyebrow dot", "default": "#E06E4C" },
     { "type": "color", "id": "before_heading_color", "label": "Heading colour", "default": "#2F3326" },
     { "type": "color", "id": "before_text_color", "label": "Text colour", "default": "#5C6150" },
     {
@@ -748,7 +806,9 @@
       "step": 1,
       "default": 19
     },
-    { "type": "color", "id": "after_eyebrow_color", "label": "Eyebrow colour", "default": "#3F4630" },
+    { "type": "color", "id": "after_eyebrow_color", "label": "Eyebrow text", "default": "#2F3427" },
+    { "type": "color", "id": "after_eyebrow_bg", "label": "Eyebrow pill", "default": "#FFFFFF" },
+    { "type": "color", "id": "after_eyebrow_dot", "label": "Eyebrow dot", "default": "#E06E4C" },
     { "type": "color", "id": "after_heading_color", "label": "Heading colour", "default": "#2F3326" },
     { "type": "color", "id": "after_text_color", "label": "Text colour", "default": "#3F4630" },
     { "type": "header", "content": "What comes last" },
@@ -935,7 +995,18 @@
       "min": 9,
       "max": 22,
       "step": 1,
-      "default": 13
+      "default": 13,
+      "info": "Only used by the plain eyebrow style. The pill is fixed at 10px so it matches every other eyebrow on the site."
+    },
+    {
+      "type": "select",
+      "id": "eyebrow_style",
+      "label": "Eyebrow style",
+      "options": [
+        { "value": "pill", "label": "Pill — the same as every other section" },
+        { "value": "plain", "label": "Plain — bare uppercase text" }
+      ],
+      "default": "pill"
     }
   ],
   "presets": [{ "name": "Pal reveal" }]

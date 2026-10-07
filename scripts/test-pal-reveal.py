@@ -235,5 +235,112 @@ if __name__ == '__main__':
           and float(d['before']) == 1 and float(d['after']) == 1,
           f"live {d['live']}, stage {d['stagePos']}, before {d['before']}, after {d['after']}")
 
+    # --- the eyebrow is the site's eyebrow ---------------------------------
+    # Not "is it 10px and 1.5px", which would just restate the rule in a
+    # second place. The pill here is compared against the pill in
+    # our-values, read out of a real render of that section, so the two can
+    # only agree by actually being the same shape.
+    # `display` is deliberately not compared. In our-values the eyebrow is a
+    # flex item, so its inline-flex blockifies to flex; here it sits in a
+    # text-align: center block and has to stay inline-level to centre at all.
+    # Different computed value, same pill. What that property stood in for --
+    # that it shrink-wraps and centres -- is checked on its own below.
+    SHAPE = ['align-items', 'gap', 'padding-top', 'padding-right',
+             'padding-bottom', 'padding-left', 'border-top-left-radius',
+             'font-size', 'font-weight', 'letter-spacing', 'text-transform',
+             'line-height']
+
+    def eyebrow_of(section_file, selector, overrides=None):
+        """Computed shape of an eyebrow, and of its dot, in a real render."""
+        src = HERE / f'eb-{pathlib.Path(section_file).stem}.html'
+        subprocess.run([sys.executable, str(HERE / 'render-section.py'),
+                        str(section_file), json.dumps(overrides or {}), str(src)],
+                       check=True, capture_output=True)
+        js = ("""<script>window.addEventListener('load',function(){
+          var e=document.querySelector('%s');
+          if(!e){document.title='RESULT'+JSON.stringify(null);return;}
+          var c=getComputedStyle(e), b=getComputedStyle(e,'::before'), o={};
+          %s.forEach(function(p){o[p]=c.getPropertyValue(p);});
+          document.title='RESULT'+JSON.stringify({shape:o, disp:c.display,
+            dotW:b.width, dotH:b.height, dotRadius:b.borderTopLeftRadius,
+            dotBg:b.backgroundColor, bg:c.backgroundColor, color:c.color,
+            family:c.fontFamily});});</script>""" % (selector, json.dumps(SHAPE)))
+        out = HERE / f'eb-{pathlib.Path(section_file).stem}-probe.html'
+        out.write_text(src.read_text(encoding='utf-8')
+                       .replace('</body>', js + '</body>'), encoding='utf-8')
+        dom = subprocess.run([CHROME, '--headless', '--no-sandbox', '--disable-gpu',
+                              '--window-size=1200,900', '--virtual-time-budget=3000',
+                              '--dump-dom', 'file://' + str(out)],
+                             capture_output=True, text=True, timeout=120).stdout
+        return json.loads(re.search(r'<title>RESULT(.*?)</title>', dom, re.S).group(1))
+
+    SECTIONS = pathlib.Path(SECTION).parent
+    canon = eyebrow_of(SECTIONS / 'our-values.liquid', '.hp-ov__eyebrow')
+    mine = eyebrow_of(SECTION, '.hp-rv__before .hp-rv__eyebrow')
+
+    differs = {k: (mine['shape'][k], canon['shape'][k])
+               for k in SHAPE if mine['shape'][k] != canon['shape'][k]}
+    check('the eyebrow is the same shape as the one in our-values',
+          not differs,
+          "identical on every one of "
+          f"{len(SHAPE)} properties" if not differs
+          else "; ".join(f"{k}: {a} vs {b}" for k, (a, b) in differs.items()))
+
+    # What `display` was really there to guarantee.
+    GEOM = "<script>window.addEventListener('load',function(){var e=document.querySelector('.hp-rv__before .hp-rv__eyebrow');var p=e.parentElement;var er=e.getBoundingClientRect(), pr=p.getBoundingClientRect();document.title='RESULT'+JSON.stringify({ew:+er.width.toFixed(1), pw:+pr.width.toFixed(1),leftGap:+(er.left-pr.left).toFixed(1),rightGap:+(pr.right-er.right).toFixed(1)});});</script>"
+    _src = HERE / 'eb-pal-reveal.html'
+    _out = HERE / 'eb-geom.html'
+    _out.write_text(_src.read_text(encoding='utf-8')
+                    .replace('</body>', GEOM + '</body>'), encoding='utf-8')
+    _dom = subprocess.run([CHROME, '--headless', '--no-sandbox', '--disable-gpu',
+                           '--window-size=1200,900', '--virtual-time-budget=3000',
+                           '--dump-dom', 'file://' + str(_out)],
+                          capture_output=True, text=True, timeout=120).stdout
+    g = json.loads(re.search(r'<title>RESULT(.*?)</title>', _dom, re.S).group(1))
+    check('the pill shrink-wraps its text instead of spanning the panel',
+          g['ew'] < g['pw'] * 0.6,
+          f"pill {g['ew']}px inside a {g['pw']}px panel")
+
+    check('and sits centred, like the eyebrows it is matching',
+          abs(g['leftGap'] - g['rightGap']) <= 1.5,
+          f"{g['leftGap']}px left, {g['rightGap']}px right")
+
+    check('and it carries the same dot',
+          mine['dotW'] == canon['dotW'] and mine['dotH'] == canon['dotH']
+          and mine['dotRadius'] == canon['dotRadius']
+          and mine['dotBg'] == canon['dotBg'],
+          f"{mine['dotW']} {mine['dotBg']} vs {canon['dotW']} {canon['dotBg']}")
+
+    check('on a white pill, like the others',
+          mine['bg'] == canon['bg'],
+          f"{mine['bg']} vs {canon['bg']}")
+
+    check('in the heading font, not the body font',
+          mine['family'] == canon['family'],
+          f"{mine['family'][:40]}")
+
+    # The size setting is saved as 13 on any section already on a page, and a
+    # changed schema default does nothing to a saved instance. If the pill
+    # read it, this one would be a third bigger than every other pill.
+    big = eyebrow_of(SECTION, '.hp-rv__before .hp-rv__eyebrow',
+                     {'settings': {'eyebrow_size': 22}})
+    check('the pill ignores the old size setting, which saved sections still hold',
+          big['shape']['font-size'] == '10px',
+          f"eyebrow_size 22 -> {big['shape']['font-size']}")
+
+    plain = eyebrow_of(SECTION, '.hp-rv__before .hp-rv__eyebrow',
+                       {'settings': {'eyebrow_style': 'plain', 'eyebrow_size': 22}})
+    check('the old plain style is still available, and still sized',
+          plain['disp'] == 'block'
+          and plain['shape']['font-size'] == '22px'
+          and plain['dotW'] == 'auto',
+          f"display {plain['disp']}, {plain['shape']['font-size']}, "
+          f"no dot ({plain['dotW']})")
+
+    after = eyebrow_of(SECTION, '.hp-rv__after .hp-rv__eyebrow')
+    check('the second panel\'s eyebrow is a pill too',
+          after['disp'] == 'inline-flex' and after['bg'] == canon['bg'],
+          f"display {after['disp']}, bg {after['bg']}")
+
     print(f"\n{sum(res)} passed, {len(res) - sum(res)} failed")
     sys.exit(0 if all(res) else 1)

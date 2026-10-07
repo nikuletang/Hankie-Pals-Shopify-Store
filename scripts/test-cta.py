@@ -8,7 +8,7 @@ wrong place without ever looking broken on its own.
 import json, subprocess, sys, pathlib, re
 
 CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
-SECTION = '/home/user/hankie-pals-shopify-store/sections/cta-meet-the-pals.liquid'
+SECTION = '/home/user/hankie-pals-shopify-store/sections/hp-cta.liquid'
 HERE = pathlib.Path(__file__).resolve().parent
 TMP = pathlib.Path('/tmp/claude-0')
 

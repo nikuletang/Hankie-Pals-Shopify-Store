@@ -419,75 +419,72 @@ if __name__ == '__main__':
 
 
     # --- A section above that is taller than the screen ----------------------
-    # The bug this fixes: pinned from its top, such a section never moves, so
-    # whatever starts below the fold can never be scrolled to. On a phone that
-    # is the hero's photograph. The question is not "is a class applied" but
-    # "can the bottom of that section be reached at all", so that is what is
-    # measured -- the lowest the section's bottom edge ever gets, across a
-    # scroll of the whole page.
-    REACH = """<script>
+    # Pinned from its top such a section never moves, so anything below the
+    # fold can never be scrolled to. On a phone that is the hero's photograph.
+    #
+    # The check is that the section HOLDS STILL, and where. Two earlier
+    # versions of this asserted things that were true whether or not the fix
+    # worked -- that a class was present, and that the bottom edge reached a
+    # small number, which it does anyway once the pin releases and the section
+    # simply scrolls away. Recording the position at a series of scrolls and
+    # asking which values repeat is the thing that cannot be true by accident:
+    # a section that is not pinned moves at every single step.
+    HOLD = """<script>
       window.addEventListener('load', function () {
         var above = document.getElementById('above');
+        var panel = document.querySelector('.hp-pp');
         var el = document.querySelector('hp-pal-panel');
-        // Only while the section is actually pinned. After the release it
-        // scrolls away like anything else and its bottom goes negative with
-        // or without the fix -- measuring across that made the check pass on
-        // a build with the fix disabled, which is to say it measured nothing.
-        var lowest = 1e9, mode = false;
-        function at(y) {
+        var rows = [];
+        for (var y = 0; y <= 2200; y += 200) {
           window.scrollTo(0, y);
           if (el && el.update) el.update();
-          if (!above.classList.contains('hp-pp-pin')) return;
-          var b = above.getBoundingClientRect().bottom;
-          if (b < lowest) lowest = b;
-          if (above.classList.contains('hp-pp-pin--from-bottom')) mode = true;
+          var a = above.getBoundingClientRect();
+          rows.push({ y: y,
+                      pinned: above.classList.contains('hp-pp-pin'),
+                      top: Math.round(a.top), bottom: Math.round(a.bottom),
+                      pal: Math.round(panel.getBoundingClientRect().top) });
         }
-        for (var y = 0; y <= 2600; y += 100) at(y);
-        document.title = 'RESULT' + JSON.stringify({
-          lowest: Math.round(lowest),
-          viewport: window.innerHeight,
-          usedBottomPin: mode,
-          height: Math.round(above.getBoundingClientRect().height)
-        });
+        document.title = 'RESULT' + JSON.stringify(
+          { vh: window.innerHeight, rows: rows });
       });
     </script>"""
 
-    tall = probe(build({}, 'tall-above', above_h=1400), REACH, h=800)
-    check('a section above taller than the screen is pinned from its bottom',
-          tall['usedBottomPin'] is True,
-          f"section {tall['height']}px against a {tall['viewport']}px screen")
+    def held(d, key):
+        """The position the section settles at, and for how many steps."""
+        counts = {}
+        for r in d['rows']:
+            if r['pinned']:
+                counts[r[key]] = counts.get(r[key], 0) + 1
+        if not counts:
+            return None, 0
+        value = max(counts, key=lambda k: counts[k])
+        return value, counts[value]
 
-    # The whole point. Without the fix the bottom edge never comes closer than
-    # (height - viewport) past the fold, and the photograph there is lost.
-    check('and its bottom edge can be reached while it is still pinned',
-          tall['lowest'] <= tall['viewport'] + 2,
-          f"bottom edge got to {tall['lowest']}px while pinned, screen is "
-          f"{tall['viewport']}px — "
-          f"{'reachable' if tall['lowest'] <= tall['viewport'] + 2 else 'stuck below the fold'}")
+    tall = probe(build({}, 'tall-above', above_h=1400), HOLD, h=800)
+    rest, steps = held(tall, 'bottom')
+    check('a section above taller than the screen holds still once pinned',
+          steps >= 3,
+          f"settles for {steps} of {sum(1 for r in tall['rows'] if r['pinned'])} "
+          f"pinned steps (a section that never pins moves at every one)")
 
-    short = probe(build({}, 'short-above', above_h=600), REACH, h=800)
-    check('a section that fits the screen is left pinned from its top',
-          short['usedBottomPin'] is False,
-          f"section {short['height']}px against a {short['viewport']}px screen")
+    # And it holds with its bottom edge at the bottom of the screen, which is
+    # the whole request: overlap only once the photograph has been seen.
+    check('and it holds with its bottom edge at the foot of the screen',
+          rest is not None and abs(rest - tall['vh']) <= 2,
+          f"bottom rests at {rest}px, screen is {tall['vh']}px")
 
-    # Bottom-sticky on a short section would translate it down onto the
-    # viewport floor, which looks like the hero has come loose.
-    TOPPED = """<script>
-      window.addEventListener('load', function () {
-        var above = document.getElementById('above');
-        var el = document.querySelector('hp-pal-panel');
-        window.scrollTo(0, 500);
-        if (el && el.update) el.update();
-        document.title = 'RESULT' + JSON.stringify({
-          top: Math.round(above.getBoundingClientRect().top),
-          pinned: above.classList.contains('hp-pp-pin')
-        });
-      });
-    </script>"""
-    held = probe(build({}, 'short-held', above_h=600), TOPPED, h=800)
-    check('and is not dropped to the foot of the screen',
-          held['pinned'] and abs(held['top']) <= 2,
-          f"pinned with its top at {held['top']}px, not pushed down")
+    overlapped = [r for r in tall['rows']
+                  if r['pinned'] and r['pal'] < r['bottom'] and r['pal'] < tall['vh']]
+    check('the Pal still rises over it from there',
+          len(overlapped) >= 3,
+          f"overlapping at {len(overlapped)} scroll positions, "
+          f"Pal reaching {min(r['pal'] for r in overlapped)}px")
+
+    short = probe(build({}, 'short-above', above_h=600), HOLD, h=800)
+    srest, ssteps = held(short, 'top')
+    check('a section that fits the screen still pins by its top',
+          ssteps >= 3 and srest is not None and abs(srest) <= 2,
+          f"top rests at {srest}px for {ssteps} steps, not dropped to the floor")
 
     print(f"\n{sum(res)} passed, {len(res) - sum(res)} failed")
     sys.exit(0 if all(res) else 1)

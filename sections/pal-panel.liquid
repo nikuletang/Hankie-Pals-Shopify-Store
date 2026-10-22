@@ -18,6 +18,13 @@
   Where :has() is missing the panel still slides up, just over a section that
   scrolls away as usual.
 
+  Which edge the section above is pinned by is measured, not set. A section
+  taller than the screen is pinned from its bottom, because one pinned from
+  the top never moves and everything below the fold stays unreachable -- on a
+  phone that is the hero's photograph, which the Pal would then rise over
+  before it had been seen. A section that fits is pinned from the top as
+  before; bottom-sticky on a short one would drop it to the viewport floor.
+
   The face sits a fifth of a screen below the apex, and the copy a little over
   half the dome down, both as fractions of the dome's height — so one control
   moves the whole composition and keeps it in proportion.
@@ -43,6 +50,25 @@
     position: sticky;
     top: var(--hp-pp-pin-top, 0px);
     z-index: 0;
+  }
+
+  /* The section above is taller than the screen.
+     Pinned from its top, such a section never moves, so the part of it that
+     starts below the fold can never be scrolled to -- on a phone that is the
+     bottom of the hero, which is where the photograph is. The Pal then rises
+     over a picture the visitor has not been allowed to see.
+
+     Pinning from the bottom instead lets it scroll normally until its bottom
+     edge reaches the bottom of the screen, and only pins from there. The
+     overlap still happens; it just waits until there is nothing left of the
+     section to show.
+
+     Only correct while the section really is taller than the viewport: for a
+     shorter one, bottom-sticky would shove it down onto the viewport floor.
+     The script measures and switches, so nothing here has to be guessed. */
+  .hp-pp-pin.hp-pp-pin--from-bottom {
+    top: auto;
+    bottom: 0;
   }
 
   /* Above the pinned section, so it covers it on the way up. */
@@ -639,7 +665,19 @@
 
         release() {
           var el = this.previous;
-          if (el) el.classList.remove('hp-pp-pin');
+          if (el) {
+            el.classList.remove('hp-pp-pin');
+            el.classList.remove('hp-pp-pin--from-bottom');
+          }
+        }
+
+        /* Which edge to pin the section above by. Taller than the screen and
+           it has to be the bottom, or its own lower half becomes unreachable.
+           Measured rather than set, so it follows a phone turning sideways,
+           a longer heading wrapping, or a photo being swapped for a taller
+           one, with nothing to remember. */
+        pinsFromBottom(el) {
+          return el.getBoundingClientRect().height > window.innerHeight;
         }
 
         onScroll() {
@@ -669,6 +707,8 @@
           var covered = top + shoulder <= pinTop;
 
           el.classList.toggle('hp-pp-pin', !covered);
+          el.classList.toggle('hp-pp-pin--from-bottom',
+                              !covered && this.pinsFromBottom(el));
         }
       });
     })();

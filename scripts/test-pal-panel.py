@@ -417,5 +417,77 @@ if __name__ == '__main__':
           d['panel'].startswith('rgba(47, 51, 38') and d['ear'].startswith('rgba(47, 51, 38'),
           f"panel {d['panel'].split(')')[0]})")
 
+
+    # --- A section above that is taller than the screen ----------------------
+    # The bug this fixes: pinned from its top, such a section never moves, so
+    # whatever starts below the fold can never be scrolled to. On a phone that
+    # is the hero's photograph. The question is not "is a class applied" but
+    # "can the bottom of that section be reached at all", so that is what is
+    # measured -- the lowest the section's bottom edge ever gets, across a
+    # scroll of the whole page.
+    REACH = """<script>
+      window.addEventListener('load', function () {
+        var above = document.getElementById('above');
+        var el = document.querySelector('hp-pal-panel');
+        // Only while the section is actually pinned. After the release it
+        // scrolls away like anything else and its bottom goes negative with
+        // or without the fix -- measuring across that made the check pass on
+        // a build with the fix disabled, which is to say it measured nothing.
+        var lowest = 1e9, mode = false;
+        function at(y) {
+          window.scrollTo(0, y);
+          if (el && el.update) el.update();
+          if (!above.classList.contains('hp-pp-pin')) return;
+          var b = above.getBoundingClientRect().bottom;
+          if (b < lowest) lowest = b;
+          if (above.classList.contains('hp-pp-pin--from-bottom')) mode = true;
+        }
+        for (var y = 0; y <= 2600; y += 100) at(y);
+        document.title = 'RESULT' + JSON.stringify({
+          lowest: Math.round(lowest),
+          viewport: window.innerHeight,
+          usedBottomPin: mode,
+          height: Math.round(above.getBoundingClientRect().height)
+        });
+      });
+    </script>"""
+
+    tall = probe(build({}, 'tall-above', above_h=1400), REACH, h=800)
+    check('a section above taller than the screen is pinned from its bottom',
+          tall['usedBottomPin'] is True,
+          f"section {tall['height']}px against a {tall['viewport']}px screen")
+
+    # The whole point. Without the fix the bottom edge never comes closer than
+    # (height - viewport) past the fold, and the photograph there is lost.
+    check('and its bottom edge can be reached while it is still pinned',
+          tall['lowest'] <= tall['viewport'] + 2,
+          f"bottom edge got to {tall['lowest']}px while pinned, screen is "
+          f"{tall['viewport']}px — "
+          f"{'reachable' if tall['lowest'] <= tall['viewport'] + 2 else 'stuck below the fold'}")
+
+    short = probe(build({}, 'short-above', above_h=600), REACH, h=800)
+    check('a section that fits the screen is left pinned from its top',
+          short['usedBottomPin'] is False,
+          f"section {short['height']}px against a {short['viewport']}px screen")
+
+    # Bottom-sticky on a short section would translate it down onto the
+    # viewport floor, which looks like the hero has come loose.
+    TOPPED = """<script>
+      window.addEventListener('load', function () {
+        var above = document.getElementById('above');
+        var el = document.querySelector('hp-pal-panel');
+        window.scrollTo(0, 500);
+        if (el && el.update) el.update();
+        document.title = 'RESULT' + JSON.stringify({
+          top: Math.round(above.getBoundingClientRect().top),
+          pinned: above.classList.contains('hp-pp-pin')
+        });
+      });
+    </script>"""
+    held = probe(build({}, 'short-held', above_h=600), TOPPED, h=800)
+    check('and is not dropped to the foot of the screen',
+          held['pinned'] and abs(held['top']) <= 2,
+          f"pinned with its top at {held['top']}px, not pushed down")
+
     print(f"\n{sum(res)} passed, {len(res) - sum(res)} failed")
     sys.exit(0 if all(res) else 1)

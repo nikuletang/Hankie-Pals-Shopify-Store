@@ -44,6 +44,7 @@ PROBE = """<script>
     rootPad: cs(root, ['padding-top','padding-bottom','padding-left']),
     rootBox: box(root),
     innerGap: inner ? getComputedStyle(inner).rowGap : null,
+    innerH: inner ? +inner.getBoundingClientRect().height.toFixed(1) : null,
 
     eyeType: cs(eyebrow, ['font-size','letter-spacing','text-transform',
                           'border-radius','padding-top','padding-left',
@@ -155,11 +156,23 @@ check('padding is 130 top / 140 bottom',
 check('the content stack is 28px apart',
       d['innerGap'] == '28px', f"gap {d['innerGap']}")
 
-# The brief's frame is 562px tall at 1440. Content is not forced to a height,
-# so this is a consequence of the type and padding rather than a set number.
-check('the section comes out near the 562px of the design',
-      near(d['rootBox']['h'], 562, 20),
-      f"{d['rootBox']['h']}px (design 562, no height is set)")
+# The brief's frame is 562px tall at 1440, but nothing here sets a height:
+# it falls out of the padding plus however tall the type happens to be. The
+# type is the problem -- this harness substitutes fonts for Bitter and Lexend,
+# so the heading wraps differently from the real store and the total drifts.
+# Asserting 562px measured the harness's font stack, and it duly broke on a
+# container with different fonts while the section was untouched.
+#
+# What is actually this section's to get right is that the height is its
+# padding plus its content and nothing else: no stray margin collapsing out,
+# no phantom row. That holds whatever font is in use.
+explained = d['rootPad']['padding-top'].rstrip('px')
+explained = float(explained) + float(d['rootPad']['padding-bottom'].rstrip('px'))
+explained += d['innerH']
+check('the section is exactly its padding plus its content',
+      near(d['rootBox']['h'], explained, 1.5),
+      f"{d['rootBox']['h']}px = 130 + {d['innerH']}px of content + 140 "
+      f"(= {explained:.1f}px), nothing unaccounted for")
 
 # --------------------------------------------------------------- eyebrow ---
 e = d['eyeType']
